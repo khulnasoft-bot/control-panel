@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <meta key="og:title" property="og:title" content="Koyeb" />
+    <meta key="og:type" property="og:type" content="website" />
+    <meta
+      key="og:description"
+      property="og:description"
+      content="Koyeb is a developer-friendly serverless platform to deploy apps globally. No-ops, servers, and infrastructure management."
+    />
+    <meta
+      key="og:image"
+      property="og:image"
+      content="https://www.koyeb.com/static/images/illustrations/og/koyeb-home.png"
+    />
+    <meta key="og:image:width" property="og:image:width" content="1200" />
+    <meta key="og:image:height" property="og:image:height" content="630" />
+
+    <meta key="twitter:site" name="twitter:site" content="@gokoyeb" />
+    <meta key="twitter:card" name="twitter:card" content="summary_large_image" />
+    <meta key="twitter:create" name="twitter:creator" content="@gokoyeb" />
+    <meta
+      key="twitter:image"
+      name="twitter:image"
+      content="https://www.koyeb.com/static/images/illustrations/og/koyeb-home.png"
+    />
+
+    <meta key="itemPropName" itemprop="name" content="Koyeb" />
+    <meta
+      key="itemPropDesc"
+      itemprop="description"
+      content="Koyeb is a developer-friendly serverless platform to deploy apps globally. No-ops, servers, and infrastructure management."
+    />
+
+    <link rel="manifest" href="/manifest.json" />
+
+    <title>Koyeb</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script defer>
+      document.documentElement.classList.add(getTheme());
+
+      function getTheme() {
+        const theme = localStorage.getItem('koyeb.theme');
+
+        if (theme === 'dark' || theme === 'light') {
+          return theme;
+        }
+
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          return 'dark';
+        }
+
+        return 'light';
+      }
+    </script>
+  </body>
+</html>
