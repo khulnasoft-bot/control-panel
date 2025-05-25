@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { useCombobox } from 'downshift';
 import IconChevronDown from 'lucide-static/icons/chevron-down.svg?react';
-import { forwardRef, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { Dropdown } from '../dropdown/dropdown';
 import { useDropdown } from '../dropdown/use-dropdown';
@@ -10,6 +10,7 @@ import { InputBox } from '../input/input';
 import { useId } from '../utils/use-id';
 
 type AutocompleteProps<Item> = {
+  ref?: React.Ref<HTMLInputElement>;
   open?: boolean;
   size?: 1 | 2 | 3;
   label?: React.ReactNode;
@@ -27,7 +28,7 @@ type AutocompleteProps<Item> = {
   selectedItem?: Item | null;
   onSelectedItemChange?: (item: Item) => void;
   inputValue?: string;
-  onInputValueChange?: (value: string) => void;
+  onInputValueChange?: (value: string, isItemSelected: boolean) => void;
   resetOnBlur?: boolean;
   onBlur?: (event: React.FocusEvent) => void;
   getKey: (item: NonNullable<Item>) => React.Key;
@@ -36,35 +37,33 @@ type AutocompleteProps<Item> = {
   renderNoItems?: () => React.ReactNode;
 };
 
-export const Autocomplete = forwardRef(function Autocomplete<Item>(
-  {
-    open,
-    size,
-    label,
-    helpTooltip,
-    helperText,
-    placeholder,
-    error,
-    invalid = Boolean(error),
-    required,
-    disabled,
-    className,
-    id: idProp,
-    name,
-    items,
-    selectedItem,
-    onSelectedItemChange,
-    inputValue,
-    onInputValueChange,
-    resetOnBlur = true,
-    onBlur,
-    getKey,
-    itemToString,
-    renderItem,
-    renderNoItems,
-  }: AutocompleteProps<Item>,
-  ref: React.ForwardedRef<HTMLInputElement>,
-) {
+export function Autocomplete<Item>({
+  ref,
+  open,
+  size,
+  label,
+  helpTooltip,
+  helperText,
+  placeholder,
+  error,
+  invalid = Boolean(error),
+  required,
+  disabled,
+  className,
+  id: idProp,
+  name,
+  items,
+  selectedItem,
+  onSelectedItemChange,
+  inputValue,
+  onInputValueChange,
+  resetOnBlur = true,
+  onBlur,
+  getKey,
+  itemToString,
+  renderItem,
+  renderNoItems,
+}: AutocompleteProps<Item>) {
   const id = useId(idProp);
   const helperTextId = `${id}-helper-text`;
 
@@ -81,9 +80,16 @@ export const Autocomplete = forwardRef(function Autocomplete<Item>(
     id,
     items,
     inputValue,
-    onInputValueChange({ inputValue }) {
+    onInputValueChange({ inputValue, type }) {
+      const isItemSelected = [
+        '__item_click__',
+        '__input_keydown_enter__',
+        '__input_blur__',
+        '__controlled_prop_updated_selected_item__',
+      ].includes(type);
+
       if (inputValue !== undefined) {
-        onInputValueChange?.(inputValue);
+        onInputValueChange?.(inputValue, isItemSelected);
       }
     },
     selectedItem,
@@ -133,6 +139,7 @@ export const Autocomplete = forwardRef(function Autocomplete<Item>(
     >
       <InputBox
         boxRef={dropdown.setReference}
+        type="search"
         size={size}
         name={name}
         placeholder={placeholder}
@@ -146,6 +153,8 @@ export const Autocomplete = forwardRef(function Autocomplete<Item>(
         className="peer"
         aria-invalid={invalid}
         aria-errormessage={helperTextId}
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
         {...getInputProps({ ref, id, onBlur, required })}
       />
 
@@ -161,4 +170,4 @@ export const Autocomplete = forwardRef(function Autocomplete<Item>(
       />
     </Field>
   );
-});
+}
