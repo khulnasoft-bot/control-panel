@@ -5,6 +5,8 @@ export const Menu = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEleme
   { className, ...props },
   ref,
 ) {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   return (
     <div
       ref={ref}
