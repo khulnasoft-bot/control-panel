@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { useFieldArray, useFormContext } from 'react-hook-form';
+import { useFieldArray, useFormContext, useFormState } from 'react-hook-form';
 
-import { Button, TabButton, TabButtons } from '@koyeb/design-system';
+import { Button, TabButton, TabButtons } from '@snipkit/design-system';
 import { useSecrets } from 'src/api/hooks/secret';
 import { notify } from 'src/application/notify';
 import { readFile } from 'src/application/read-file';
 import { Dialog } from 'src/components/dialog';
 import { FileDropZone } from 'src/components/file-drop-zone';
 import { IconPlus } from 'src/components/icons';
-import { FeatureFlag, useFeatureFlag } from 'src/hooks/feature-flag';
+import { useMount } from 'src/hooks/lifecycle';
 import { createTranslate } from 'src/intl/translate';
 import { CreateSecretDialog } from 'src/modules/secrets/simple/create-secret-dialog';
 
@@ -19,47 +19,55 @@ import { ServiceForm } from '../../service-form.types';
 import { BulkEnvironmentVariablesEditionDialog } from './bulk-environment-variables-edition';
 import { EnvironmentVariableFields } from './environment-variable-fields';
 import { Files } from './files';
-import { UnknownInterpolationAlert } from './unknown-interpolation-alert';
 
-const T = createTranslate('serviceForm.environmentVariables');
+const T = createTranslate('modules.serviceForm.environmentVariables');
 
 export function EnvironmentVariablesSection() {
   const variables = useFormContext<ServiceForm>()
     .watch('environmentVariables')
     .filter((field) => field.name !== '');
-  const files = useFormContext<ServiceForm>().watch('files');
-  const [tab, setTab] = useState<'environmentVariables' | 'files'>('environmentVariables');
 
-  const hasMountFiles = useFeatureFlag('mount-files');
-  const id = <T extends string>(id: T): `${T}.new` | T => (hasMountFiles ? `${id}.new` : id);
+  const files = useFormContext<ServiceForm>()
+    .watch('files')
+    .filter((file) => file.mountPath !== '' || file.content !== '');
+
+  const [tab, setTab] = useState<'environmentVariables' | 'files'>('environmentVariables');
 
   return (
     <ServiceFormSection
       section="environmentVariables"
-      title={<T id={id('title')} values={{ variables: variables.length, files: files.length }} />}
-      description={<T id={id('description')} />}
-      expandedTitle={<T id={id('expandedTitle')} />}
+      title={<T id="title" values={{ variables: variables.length, files: files.length }} />}
+      description={<T id="description" />}
+      expandedTitle={<T id="expandedTitle" />}
       className="col gaps"
     >
-      {hasMountFiles && (
-        <TabButtons>
-          <TabButton selected={tab === 'environmentVariables'} onClick={() => setTab('environmentVariables')}>
-            <T id="tabs.environmentVariables" />
-          </TabButton>
-          <TabButton selected={tab === 'files'} onClick={() => setTab('files')}>
-            <T id="tabs.files" />
-          </TabButton>
-        </TabButtons>
-      )}
+      <TabButtons>
+        <TabButton selected={tab === 'environmentVariables'} onClick={() => setTab('environmentVariables')}>
+          <T id="tabs.environmentVariables" />
+        </TabButton>
+        <TabButton selected={tab === 'files'} onClick={() => setTab('files')}>
+          <T id="tabs.files" />
+        </TabButton>
+      </TabButtons>
 
-      <FeatureFlag feature="missing-interpolation-warning">
-        <UnknownInterpolationAlert />
-      </FeatureFlag>
+      <WatchFilesErrors onError={() => setTab('files')} />
 
       {tab === 'environmentVariables' && <EnvironmentVariables />}
       {tab === 'files' && <Files />}
     </ServiceFormSection>
   );
+}
+
+function WatchFilesErrors({ onError }: { onError: () => void }) {
+  const { errors } = useFormState<ServiceForm>();
+
+  useMount(() => {
+    if (errors.files !== undefined) {
+      onError();
+    }
+  });
+
+  return null;
 }
 
 function EnvironmentVariables() {
@@ -72,7 +80,6 @@ function EnvironmentVariables() {
     name: 'environmentVariables',
   });
 
-  const [bulkEditionDialogOpen, setBulkEditionDialogOpen] = useState(false);
   const [createSecretIndex, setCreateSecretIndex] = useState<number>();
 
   const secrets = useSecrets('simple');
@@ -130,17 +137,18 @@ function EnvironmentVariables() {
               <T id="addVariable" />
             </Button>
 
-            <Button variant="outline" color="gray" onClick={() => setBulkEditionDialogOpen(true)}>
+            <Button
+              variant="outline"
+              color="gray"
+              onClick={() => openDialog('BulkEnvironmentVariablesEdition')}
+            >
               <T id="bulkEdit" />
             </Button>
           </div>
         </div>
       </FileDropZone>
 
-      <BulkEnvironmentVariablesEditionDialog
-        isOpen={bulkEditionDialogOpen}
-        onClose={() => setBulkEditionDialogOpen(false)}
-      />
+      <BulkEnvironmentVariablesEditionDialog />
 
       <CreateSecretDialog
         onCreated={(secretName) => {

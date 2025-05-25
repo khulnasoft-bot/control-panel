@@ -1,8 +1,8 @@
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { Secret } from 'src/api/model';
 import { notify } from 'src/application/notify';
 import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from 'src/components/dialog';
-import { Translate, createTranslate, useTranslate } from 'src/intl/translate';
+import { Translate, createTranslate } from 'src/intl/translate';
 import { SecretForm } from 'src/modules/secrets/simple/simple-secret-form';
 
 const T = createTranslate('pages.secrets.editSecretDialog');
@@ -12,11 +12,11 @@ type EditSecretDialogProps = {
 };
 
 export function EditSecretDialog({ secret }: EditSecretDialogProps) {
-  const t = useTranslate();
+  const t = T.useTranslate();
   const closeDialog = Dialog.useClose();
 
   return (
-    <Dialog id={`EditSecret-${secret.id}`} className="col w-full max-w-xl gap-4">
+    <Dialog id="EditSecret" context={{ secretId: secret.id }} className="col w-full max-w-xl gap-4">
       <DialogHeader title={<T id="title" />} />
 
       <p className="text-dim">
@@ -37,7 +37,7 @@ export function EditSecretDialog({ secret }: EditSecretDialogProps) {
           </DialogFooter>
         )}
         onSubmitted={(name) => {
-          notify.success(t('secrets.simpleSecretForm.editSuccess', { name }));
+          notify.success(t('successNotification', { name }));
           closeDialog();
         }}
       />

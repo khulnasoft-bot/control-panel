@@ -35,7 +35,7 @@ export function Dropdown<Item>(props: DropdownProps<Item>) {
     <ul
       style={styles}
       className={clsx(
-        'z-30 max-h-40 overflow-y-auto border bg-neutral p-1 pe-0.5 shadow-md',
+        'z-50 max-h-40 overflow-y-auto border bg-neutral p-1 pe-0.5 shadow-md',
         !open && 'hidden',
         placement.startsWith('top') && 'rounded-t-lg border-b-0',
         placement.startsWith('bottom') && 'rounded-b-lg border-t-0',
@@ -46,6 +46,10 @@ export function Dropdown<Item>(props: DropdownProps<Item>) {
         props.items.map((item, index) => (
           <Item key={props.getKey(item)} item={item} index={index} {...props} />
         ))}
+
+      {'items' in props && props.items.length === 0 && props.renderNoItems && (
+        <li>{props.renderNoItems()}</li>
+      )}
 
       {'groups' in props && <Groups {...props} />}
     </ul>

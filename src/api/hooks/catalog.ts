@@ -5,8 +5,13 @@ import { getConfig } from 'src/application/config';
 import { parseBytes } from 'src/application/memory';
 import { hasProperty } from 'src/utils/object';
 
-import { mapCatalogInstancesList, mapCatalogRegionsList } from '../mappers/catalog';
-import { AiModel, OneClickApp } from '../model';
+import {
+  mapCatalogDatacenter,
+  mapCatalogInstance,
+  mapCatalogRegion,
+  mapCatalogUsage,
+} from '../mappers/catalog';
+import { AiModel, CatalogAvailability, OneClickApp } from '../model';
 import { useApiQueryFn } from '../use-api';
 
 export function useInstancesQuery() {
@@ -15,22 +20,24 @@ export function useInstancesQuery() {
       query: { limit: '100' },
     }),
     refetchInterval: false,
-    select: mapCatalogInstancesList,
+    select: ({ instances }) => {
+      return instances!.map(mapCatalogInstance).sort((a, b) => (a.vram ?? 0) - (b.vram ?? 0));
+    },
   });
 }
 
-export function useInstances(identifiers?: string) {
+export function useInstances(ids?: string[]) {
   const { data: instances = [] } = useInstancesQuery();
 
-  if (identifiers === undefined) {
+  if (ids === undefined) {
     return instances;
   }
 
-  return instances.filter((instance) => identifiers.includes(instance.identifier));
+  return instances.filter((instance) => ids.includes(instance.id));
 }
 
-export function useInstance(identifier: string | null) {
-  return useInstances().find(hasProperty('identifier', identifier));
+export function useInstance(id?: string | null) {
+  return useInstances().find(hasProperty('id', id));
 }
 
 export function useRegionsQuery() {
@@ -39,22 +46,79 @@ export function useRegionsQuery() {
       query: { limit: '100' },
     }),
     refetchInterval: false,
-    select: mapCatalogRegionsList,
+    select: ({ regions }) => regions!.map(mapCatalogRegion),
   });
 }
 
-export function useRegions(identifiers?: string[]) {
+export function useRegions(ids?: string[]) {
   const { data: regions = [] } = useRegionsQuery();
 
-  if (identifiers === undefined) {
+  if (ids === undefined) {
     return regions;
   }
 
-  return regions.filter((region) => identifiers.includes(region.identifier));
+  return regions.filter((region) => ids.includes(region.id));
 }
 
-export function useRegion(identifier?: string) {
-  return useRegions().find(hasProperty('identifier', identifier));
+export function useRegion(id?: string) {
+  return useRegions().find(hasProperty('id', id));
+}
+
+export function useDatacentersQuery() {
+  return useQuery({
+    ...useApiQueryFn('listCatalogDatacenters'),
+    refetchInterval: false,
+    select: ({ datacenters }) => datacenters!.map(mapCatalogDatacenter),
+  });
+}
+
+export function useDatacenters() {
+  const { data: datacenters = [] } = useDatacentersQuery();
+
+  return datacenters;
+}
+
+export function useCatalogUsageQuery() {
+  return useQuery({
+    ...useApiQueryFn('listCatalogUsage'),
+    refetchInterval: false,
+    select: ({ usage }) => mapCatalogUsage(usage!),
+  });
+}
+
+export function useCatalogInstanceAvailability(instanceId?: string) {
+  const { data } = useCatalogUsageQuery();
+
+  if (instanceId !== undefined) {
+    return data?.get(instanceId);
+  }
+}
+
+export function useCatalogRegionAvailability(instanceId?: string, regionId?: string) {
+  const { data } = useCatalogUsageQuery();
+
+  if (instanceId !== undefined && regionId !== undefined) {
+    return data?.get(instanceId)?.byRegion?.get(regionId);
+  }
+}
+
+export function useCatalogInstanceRegionsAvailability(
+  instanceId?: string,
+  regionIds?: string[],
+): CatalogAvailability | undefined {
+  const instanceAvailability = useCatalogInstanceAvailability(instanceId);
+
+  if (instanceAvailability === undefined) {
+    return;
+  }
+
+  const regionAvailabilities = regionIds?.map((regionId) => instanceAvailability.byRegion.get(regionId));
+
+  for (const availability of ['low', 'medium', 'high'] satisfies CatalogAvailability[]) {
+    if (regionAvailabilities?.includes(availability)) {
+      return availability;
+    }
+  }
 }
 
 type OneClickAppApiResponse = {
@@ -65,6 +129,7 @@ type OneClickAppApiResponse = {
   repository: string;
   deploy_button_url: string;
   slug: string;
+  env?: Array<{ name: string; value: string }>;
   model_name?: string;
   model_size?: string;
   model_inference_engine?: string;
@@ -136,6 +201,7 @@ function mapOneClickModel(app: OneClickAppApiResponse): AiModel {
     dockerImage: app.model_docker_image!,
     minVRam: parseBytes(app.model_min_vram_gb + 'GB'),
     metadata: app.metadata ?? [],
+    env: app.env?.map((env) => ({ name: env.name, value: env.value, regions: [] })),
   };
 }
 

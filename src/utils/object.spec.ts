@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import { identity } from './generic';
-import { entries, keys, toObject, trackChanges } from './object';
+import { entries, keys, snakeToCamelDeep, toObject, trackChanges } from './object';
 
 describe('object', () => {
   describe('keys', () => {
@@ -83,6 +83,29 @@ describe('object', () => {
 
       expect(onChange).toHaveBeenCalledTimes(1);
       expect(onChange).toHaveBeenCalledWith('foo.bar', 2);
+    });
+
+    it('does not invoke the callback when the value does not change', () => {
+      const onChange = vi.fn();
+      const proxy = trackChanges({ foo: 1 }, onChange);
+
+      proxy.foo = 1;
+
+      expect(onChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('snakeToCamelCaseDeep', () => {
+    it('empty object', () => {
+      expect(snakeToCamelDeep({})).toEqual({});
+    });
+
+    it('one level object', () => {
+      expect(snakeToCamelDeep({ foo_bar: '' })).toEqual({ fooBar: '' });
+    });
+
+    it('nested objects', () => {
+      expect(snakeToCamelDeep({ foo_bar: { baz_qux: '' } })).toEqual({ fooBar: { bazQux: '' } });
     });
   });
 });

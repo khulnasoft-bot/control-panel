@@ -2,7 +2,7 @@ import { useIsFetching } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { useFormContext, useFormState } from 'react-hook-form';
 
-import { Button, Floating, ButtonMenuItem, Menu, Tooltip } from '@koyeb/design-system';
+import { Button, Floating, ButtonMenuItem, Menu, Tooltip } from '@snipkit/design-system';
 import { IconChevronDown } from 'src/components/icons';
 import { Shortcut } from 'src/components/shortcut';
 import { useShortcut } from 'src/hooks/shortcut';
@@ -12,7 +12,7 @@ import { inArray } from 'src/utils/arrays';
 import { ServiceForm } from '../service-form.types';
 import { useWatchServiceForm } from '../use-service-form';
 
-const T = createTranslate('serviceForm.submitButton');
+const T = createTranslate('modules.serviceForm.submitButton');
 
 type SubmitButtonProps = {
   loading: boolean;
@@ -72,9 +72,8 @@ export function SubmitButton({ loading }: SubmitButtonProps) {
       setOpen={setMenuOpen}
       placement="bottom-end"
       offset={8}
-      renderReference={(ref, props) => (
+      renderReference={(props) => (
         <Button
-          ref={ref}
           {...props}
           disabled={disabled}
           loading={loading && !saveOnly}
@@ -86,8 +85,8 @@ export function SubmitButton({ loading }: SubmitButtonProps) {
           </div>
         </Button>
       )}
-      renderFloating={(ref, props) => (
-        <Menu ref={ref} {...props}>
+      renderFloating={(props) => (
+        <Menu {...props}>
           <ButtonMenuItem onClick={() => deploy()} className="max-w-72 text-start">
             <BuildOption
               label={<T id="withBuild.label" />}

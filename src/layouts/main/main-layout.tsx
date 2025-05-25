@@ -12,10 +12,9 @@ import { useToken } from 'src/application/token';
 import { DocumentTitle } from 'src/components/document-title';
 import { IconChevronLeft, IconPlus, IconX } from 'src/components/icons';
 import { Link, LinkButton } from 'src/components/link';
-import LogoKoyeb from 'src/components/logo-koyeb.svg?react';
+import LogoSnipkit from 'src/components/logo-snipkit.svg?react';
 import Logo from 'src/components/logo.svg?react';
 import { OrganizationAvatar } from 'src/components/organization-avatar';
-import { FeatureFlag } from 'src/hooks/feature-flag';
 import { useLocation, useNavigate } from 'src/hooks/router';
 import { useLocalStorage } from 'src/hooks/storage';
 import { useThemeModeOrPreferred } from 'src/hooks/theme';
@@ -24,16 +23,20 @@ import { CommandPalette } from 'src/modules/command-palette/command-palette';
 import { CreateServiceDialog } from 'src/modules/create-service-dialog/create-service-dialog';
 import { TrialBanner } from 'src/modules/trial/trial-banner';
 import { TrialWelcomeDialog } from 'src/modules/trial/trial-welcome-dialog';
+import { useTrial } from 'src/modules/trial/use-trial';
 import { inArray } from 'src/utils/arrays';
 
+import { OrganizationSwitcher } from '../organization-switcher';
+
 import { AppBreadcrumbs } from './app-breadcrumbs';
-import { EstimatedCosts } from './estimated-costs';
+import { FeatureFlagsDialog } from './feature-flags-dialog';
 import { GlobalAlert } from './global-alert';
 import { HelpLinks } from './help-links';
 import { Layout } from './layout';
 import { Navigation } from './navigation';
-import { OrganizationSwitcher } from './organization-switcher';
+import { OrganizationPlan } from './organization-plan';
 import { PlatformStatus } from './platform-status';
+import { PreloadDatacenterLatencies } from './preload-datacenter-latencies';
 import { UserMenu } from './user-menu';
 
 const T = createTranslate('layouts.main');
@@ -47,13 +50,14 @@ export function MainLayout({ children }: LayoutProps) {
   const banner = useBanner();
 
   return (
-    <CommandPalette>
+    <>
       <DocumentTitle />
-      <CreateServiceDialog />
+      <PreloadDatacenterLatencies />
+      <CommandPalette />
 
-      <FeatureFlag feature="trial">
-        <TrialWelcomeDialog />
-      </FeatureFlag>
+      <CreateServiceDialog />
+      <FeatureFlagsDialog />
+      <TrialWelcomeDialog />
 
       <Layout
         banner={banner ? { session: <SessionTokenBanner />, trial: <TrialBanner /> }[banner] : null}
@@ -65,19 +69,19 @@ export function MainLayout({ children }: LayoutProps) {
         context={pageContext.enabled ? <PageContext {...pageContext} /> : null}
         contextExpanded={pageContext.expanded}
       />
-    </CommandPalette>
+    </>
   );
 }
 
 function Menu({ collapsed = false }: { collapsed?: boolean }) {
   const organization = useOrganizationUnsafe();
-  const isDeactivated = inArray(organization?.status, ['deactivating', 'deactivated']);
+  const isDeactivated = inArray(organization?.status, ['DEACTIVATING', 'DEACTIVATED']);
 
   return (
     <div className="col min-h-full gap-4 py-4 sm:gap-6 sm:py-6">
       <Link href={isDeactivated ? routes.organizationSettings.index() : routes.home()} className="mx-2 px-3">
         {collapsed && <Logo className="h-6" />}
-        {!collapsed && <LogoKoyeb className="h-6" />}
+        {!collapsed && <LogoSnipkit className="h-6" />}
       </Link>
 
       {collapsed && (
@@ -88,7 +92,7 @@ function Menu({ collapsed = false }: { collapsed?: boolean }) {
 
       {!collapsed && (
         <div className="col px-3">
-          <OrganizationSwitcher />
+          <OrganizationSwitcher showCreateOrganization />
         </div>
       )}
 
@@ -103,14 +107,19 @@ function Menu({ collapsed = false }: { collapsed?: boolean }) {
 
       <Navigation collapsed={collapsed} />
 
-      {!collapsed && <EstimatedCosts />}
+      <div className="col gap-4">
+        {!collapsed && (
+          <div className="mx-4 divide-y rounded-md border bg-neutral">
+            <UserMenu collapsed={collapsed} />
+            <OrganizationPlan />
+          </div>
+        )}
 
-      <div className="col gap-2">
-        <HelpLinks collapsed={collapsed} />
-        <UserMenu collapsed={collapsed} />
+        <div className="col gap-2">
+          <HelpLinks collapsed={collapsed} />
+          <PlatformStatus collapsed={collapsed} />
+        </div>
       </div>
-
-      <PlatformStatus collapsed={collapsed} />
     </div>
   );
 }
@@ -137,6 +146,7 @@ function Main({ children }: { children: React.ReactNode }) {
 function useBanner(): 'session' | 'trial' | void {
   const { session } = useToken();
   const organization = useOrganizationUnsafe();
+  const trial = useTrial();
 
   if (organization === undefined) {
     return;
@@ -146,7 +156,7 @@ function useBanner(): 'session' | 'trial' | void {
     return 'session';
   }
 
-  if (organization.trial) {
+  if (trial) {
     return 'trial';
   }
 }

@@ -85,11 +85,13 @@ export default {
     fontFamily: {
       sans: ['Inter Variable', ...defaultTheme.fontFamily.sans],
       mono: ['JetBrains Mono Variable', ...defaultTheme.fontFamily.mono],
-      gilroy: ['Gilroy', ...defaultTheme.fontFamily.sans],
     },
     extend: {
       spacing: {
         em: '1em',
+      },
+      zIndex: {
+        60: '60',
       },
       boxShadow: {
         badge: '0 0 2px rgba(0, 0, 0, 0.55)',

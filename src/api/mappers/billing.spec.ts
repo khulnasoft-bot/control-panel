@@ -17,7 +17,7 @@ const createStripeInvoice = createFactory<StripeInvoice>(() => ({
 
 const date = createDate();
 
-const createStripeInvoiceLine = createFactory<Api.NextInvoiceLine>(() => ({
+const createStripeInvoiceLine = createFactory<Api.NextInvoiceReplyLine>(() => ({
   amount_excluding_tax: 0,
   period: { end: date, start: date },
   plan_nickname: '',
@@ -28,8 +28,8 @@ const createStripeInvoiceLine = createFactory<Api.NextInvoiceLine>(() => ({
 describe('mapInvoice', () => {
   const transform = (
     invoice: StripeInvoice,
-    lines: Api.NextInvoiceLine[],
-    discounts: Api.NextInvoiceDiscount[] = [],
+    lines: Api.NextInvoiceReplyLine[],
+    discounts: Api.NextInvoiceReplyDiscount[] = [],
   ) => {
     return mapInvoice({ stripe_invoice: invoice as never, lines, discounts });
   };
@@ -64,35 +64,20 @@ describe('mapInvoice', () => {
     });
   });
 
-  it('filters out the starter plan invoice line', () => {
+  it('transforms a plan invoice line', () => {
     const invoice = createStripeInvoice();
 
     const lines = [
       createStripeInvoiceLine({
-        amount_excluding_tax: 0,
-        plan_nickname: 'Starter',
-        price: { unit_amount_decimal: 0 },
-        quantity: 1,
-      }),
-    ];
-
-    expect(transform(invoice, lines)).toHaveProperty('periods', []);
-  });
-
-  it('transforms the startup plan invoice line', () => {
-    const invoice = createStripeInvoice();
-
-    const lines = [
-      createStripeInvoiceLine({
-        amount_excluding_tax: 7900,
-        plan_nickname: 'Startup',
-        price: { unit_amount_decimal: 7900 },
+        amount_excluding_tax: 2900,
+        plan_nickname: 'Pro',
+        price: { unit_amount_decimal: 2900 },
         quantity: 1,
       }),
     ];
 
     expect(transform(invoice, lines)).toHaveProperty<InvoicePlanLine[]>('periods.0.lines', [
-      { type: 'plan', label: 'Startup', total: 7900 },
+      { type: 'plan', label: 'Pro', total: 2900 },
     ]);
   });
 
@@ -113,9 +98,9 @@ describe('mapInvoice', () => {
       subtotal_excluding_tax: 123,
     });
 
-    const discount: Api.NextInvoiceDiscount = {
+    const discount: Api.NextInvoiceReplyDiscount = {
       type: 'AMOUNT_OFF',
-      name: 'Koyeb free tier',
+      name: 'Snipkit free tier',
       amount: '550',
     };
 
@@ -124,7 +109,7 @@ describe('mapInvoice', () => {
     expect(transform(stripeInvoice, [], [discount])).toHaveProperty<InvoiceDiscount[]>('discounts', [
       {
         type: 'amountOff',
-        label: 'Koyeb free tier',
+        label: 'Snipkit free tier',
         value: 550,
       },
     ]);
@@ -135,7 +120,7 @@ describe('mapInvoice', () => {
       subtotal_excluding_tax: 123,
     });
 
-    const discount: Api.NextInvoiceDiscount = {
+    const discount: Api.NextInvoiceReplyDiscount = {
       type: 'PERCENT_OFF',
       name: 'Preview for instance usage',
       amount: '5432',
@@ -147,7 +132,7 @@ describe('mapInvoice', () => {
       {
         type: 'percentOff',
         label: 'Preview for instance usage',
-        value: 54.32,
+        value: 0.5432,
       },
     ]);
   });

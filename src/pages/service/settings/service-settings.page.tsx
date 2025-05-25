@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useService } from 'src/api/hooks/service';
 import { notify } from 'src/application/notify';
 import { routes } from 'src/application/routes';
-import { DeployToKoyebButton } from 'src/components/deploy-to-koyeb-button';
+import { DeployToSnipkitButton } from 'src/components/deploy-to-snipkit-button';
 import { ServiceEstimatedCost } from 'src/components/service-estimated-cost';
 import { useNavigate, useRouteParam } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
@@ -42,7 +42,7 @@ export function ServiceSettingsPage() {
 
       <div className="col max-w-sm gap-8">
         <ServiceEstimatedCost cost={cost} />
-        <DeployToKoyebButton deployUrl={deployUrl} />
+        <DeployToSnipkitButton deployUrl={deployUrl} />
       </div>
 
       <PauseServiceCard service={service} />

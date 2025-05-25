@@ -1,31 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { useToken } from 'src/application/token';
 import { inArray } from 'src/utils/arrays';
 
-import { api } from '../api';
-import { ApiError } from '../api-errors';
 import { mapInvoice, mapSubscription } from '../mappers/billing';
 import { useApiQueryFn } from '../use-api';
 
-import { useOrganizationQuery } from './session';
+import { useOrganization, useOrganizationQuery } from './session';
 
 export function useManageBillingQuery() {
-  const { token } = useToken();
+  const organization = useOrganization();
 
   return useQuery({
-    queryKey: ['manageBilling', { token }],
-    async queryFn() {
-      try {
-        return await api.manageBilling({ token });
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 400) {
-          return null;
-        }
-
-        throw error;
-      }
-    },
+    enabled: organization.latestSubscriptionId !== undefined && !organization.trial,
+    ...useApiQueryFn('manageBilling'),
   });
 }
 
@@ -33,7 +20,7 @@ export function useSubscriptionQuery(subscriptionId: string | undefined) {
   return useQuery({
     ...useApiQueryFn('getSubscription', { path: { id: subscriptionId! } }),
     enabled: subscriptionId !== undefined,
-    select: mapSubscription,
+    select: ({ subscription }) => mapSubscription(subscription!),
   });
 }
 
@@ -42,7 +29,10 @@ export function useNextInvoiceQuery() {
 
   return useQuery({
     ...useApiQueryFn('getNextInvoice'),
-    enabled: inArray(organization?.plan, ['starter', 'startup', 'pro', 'scale', 'business', 'enterprise']),
+    enabled:
+      organization &&
+      !organization.trial &&
+      inArray(organization.plan, ['starter', 'startup', 'pro', 'scale', 'business', 'enterprise']),
     select: mapInvoice,
     meta: { showError: false },
   });

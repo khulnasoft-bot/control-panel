@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { useGithubApp, useRepositories } from 'src/api/hooks/git';
 import { useOrganization } from 'src/api/hooks/session';
 import { GitRepository } from 'src/api/model';
@@ -21,7 +21,7 @@ import { createTranslate } from 'src/intl/translate';
 
 import { useCreateServiceDialog } from '../use-create-service-dialog';
 
-const T = createTranslate('createServiceDialog');
+const T = createTranslate('modules.createServiceDialog');
 
 export function GithubOrganizationImage() {
   const githubApp = useGithubApp();
@@ -89,7 +89,7 @@ export function OrganizationRepositoriesList() {
               <span className="mx-1">&bull;</span>
 
               <span className="font-normal text-dim">
-                <FormattedDistanceToNow value={repository.lastPush} />
+                <FormattedDistanceToNow value={repository.lastPushDate} />
               </span>
             </div>
           </ListItem>

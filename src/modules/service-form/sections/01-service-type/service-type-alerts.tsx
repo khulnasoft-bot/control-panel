@@ -1,15 +1,15 @@
-import { Alert } from '@koyeb/design-system';
+import { Alert } from '@snipkit/design-system';
 import { useInstance } from 'src/api/hooks/catalog';
 import { createTranslate } from 'src/intl/translate';
 
 import { useWatchServiceForm } from '../../use-service-form';
 
-const T = createTranslate('serviceForm.serviceType.alerts');
+const T = createTranslate('modules.serviceForm.serviceType.alerts');
 
 export function ServiceTypeAlerts() {
   const instance = useInstance(useWatchServiceForm('instance'));
 
-  if (instance?.identifier === 'free') {
+  if (instance?.id === 'free') {
     return (
       <Alert
         variant="info"

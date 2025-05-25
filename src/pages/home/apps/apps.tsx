@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { Select } from '@koyeb/design-system';
+import { Select } from '@snipkit/design-system';
 import { useApps, useServices } from 'src/api/hooks/service';
 import { Service, ServiceType } from 'src/api/model';
 import { createTranslate } from 'src/intl/translate';

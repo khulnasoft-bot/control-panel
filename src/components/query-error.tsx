@@ -1,6 +1,6 @@
 import { UseQueryResult } from '@tanstack/react-query';
 
-import { Alert } from '@koyeb/design-system';
+import { Alert } from '@snipkit/design-system';
 import { isApiValidationError, isApiError } from 'src/api/api-errors';
 import { Translate } from 'src/intl/translate';
 
@@ -23,7 +23,7 @@ export function QueryGuard<Data>({ query, children }: QueryGuardProps<Data>) {
   return children?.(query.data) ?? null;
 }
 
-export function QueryError({ error }: { error: Error }) {
+export function QueryError({ error, className }: { error: Error; className?: string }) {
   const description = () => {
     if (isApiValidationError(error) && error.fields[0]) {
       return error.fields[0].description;
@@ -36,5 +36,5 @@ export function QueryError({ error }: { error: Error }) {
     return <Translate id="common.unknownError" />;
   };
 
-  return <Alert variant="error" title={error.message} description={description()} />;
+  return <Alert variant="error" title={error.message} description={description()} className={className} />;
 }

@@ -32,6 +32,7 @@ export const api = {
 
   // organization
   getCurrentOrganization: endpoint('get', '/v1/account/organization'),
+  listUserOrganizations: endpoint('get', '/v1/account/organizations'),
   switchOrganization: endpoint('post', '/v1/organizations/{id}/switch'),
   listOrganizationMembers: endpoint('get', '/v1/organization_members'),
   deleteOrganizationMember: endpoint('delete', '/v1/organization_members/{id}'),
@@ -55,6 +56,13 @@ export const api = {
   getNextInvoice: endpoint('get', '/v1/billing/next_invoice'),
   hasUnpaidInvoices: endpoint('get', '/v1/billing/has_unpaid_invoices'),
   getUsageCsv: endpoint('get', '/v1/usages/details'),
+  redeemCoupon: endpoint('post', '/v1/coupons'),
+
+  // budget
+  getBudget: endpoint('get', '/v1/organizations/{organization_id}/budget'),
+  createBudget: endpoint('post', '/v1/organizations/{organization_id}/budget'),
+  updateBudget: endpoint('put', '/v1/organizations/{organization_id}/budget'),
+  deleteBudget: endpoint('delete', '/v1/organizations/{organization_id}/budget'),
 
   // invitations
   listInvitations: endpoint('get', '/v1/organization_invitations'),
@@ -69,6 +77,7 @@ export const api = {
   listCatalogRegions: endpoint('get', '/v1/catalog/regions'),
   listCatalogDatacenters: endpoint('get', '/v1/catalog/datacenters'),
   listCatalogInstances: endpoint('get', '/v1/catalog/instances'),
+  listCatalogUsage: endpoint('get', '/v1/catalog/usage'),
 
   // docker image verification
   verifyDockerImage: endpoint('get', '/v1/docker-helper/verify'),
@@ -129,10 +138,16 @@ export const api = {
   // deployments
   listDeployments: endpoint('get', '/v1/deployments'),
   getDeployment: endpoint('get', '/v1/deployments/{id}'),
+  getDeploymentScaling: endpoint('get', '/v1/deployment/{id}/scaling'),
   cancelDeployment: endpoint('post', '/v1/deployments/{id}/cancel'),
+  listRegionalDeployments: endpoint('get', '/v1/regional_deployments'),
 
   // instances
   listInstances: endpoint('get', '/v1/instances'),
+  getInstance: endpoint('get', '/v1/instances/{id}'),
+
+  // logs
+  logsQuery: endpoint('get', '/v1/streams/logs/query'),
 
   // activities
   listActivities: endpoint('get', '/v1/activities'),

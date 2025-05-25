@@ -1,9 +1,9 @@
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from 'src/components/dialog';
 import { createTranslate, Translate } from 'src/intl/translate';
 import { RegistrySecretForm } from 'src/modules/secrets/registry/registry-secret-form';
 
-const T = createTranslate('secrets.registrySecretForm');
+const T = createTranslate('modules.secrets.registrySecretForm');
 
 type CreateRegistrySecretDialogProps = {
   onCreated?: (secretName: string) => void;
@@ -26,7 +26,7 @@ export function CreateRegistrySecretDialog({ onCreated }: CreateRegistrySecretDi
           onCreated?.(secretName);
         }}
         renderFooter={(formState) => (
-          <DialogFooter className="mt-2">
+          <DialogFooter>
             <CloseDialogButton />
 
             <Button type="submit" loading={formState.isSubmitting}>

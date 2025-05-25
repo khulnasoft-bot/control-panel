@@ -7,7 +7,9 @@ import { hasProperty } from 'src/utils/object';
 
 import { ServiceTypeItem } from './components/service-type-item';
 
-const T = createTranslate('serviceCreation.serviceType');
+// cSpell:words bun calcom ollama
+
+const T = createTranslate('modules.serviceCreation.serviceType');
 
 export function OneClickAppList() {
   const oneClickApps = useOneClickApps();
@@ -39,7 +41,7 @@ export function OneClickAppList() {
         ))}
       </ul>
 
-      <ExternalLink href="https://koyeb.com/deploy" className="row text-link ms-4 items-center gap-1">
+      <ExternalLink href="https://snipkit.com/deploy" className="row text-link ms-4 items-center gap-1">
         <T id="navigation.moreOneClickApps" />
         <IconArrowRight className="size-4" />
       </ExternalLink>

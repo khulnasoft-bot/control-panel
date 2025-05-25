@@ -2,9 +2,8 @@
 
 export type Activity = {
   id: string;
-  date: string;
+  createdAt: string;
   verb: string;
-  tokenId?: string;
   actor: ActivityActor;
   object: ActivityObject;
   metadata: unknown;
@@ -30,8 +29,7 @@ export type ApiCredential = {
   id: string;
   type: ApiCredentialType;
   name: string;
-  description?: string;
-  token?: string;
+  description: string;
   createdAt: string;
 };
 
@@ -43,6 +41,10 @@ export type Subscription = {
   id: string;
   hasPaymentFailure: boolean;
   hasPendingUpdate: boolean;
+  trial?: {
+    currentSpend: number;
+    maxSpend: number;
+  };
 };
 
 export type Invoice = {
@@ -84,45 +86,56 @@ export type InvoiceDiscountType = 'unknown' | 'amountOff' | 'percentOff';
 
 // catalog
 
+export type CatalogInstanceStatus = 'available' | 'coming_soon' | 'restricted';
+export type InstanceCategory = 'eco' | 'standard' | 'gpu';
+
 export type CatalogInstance = {
-  identifier: string;
+  id: string;
   displayName: string;
   status: CatalogInstanceStatus;
   plans?: string[];
   regions?: string[];
   regionCategory: RegionCategory;
   category: InstanceCategory;
-  cpu: number;
-  ram: string;
+  vcpuShares: number;
+  memory: string;
   vram?: number;
   disk: string;
-  hasVolumes: boolean;
-  pricePerMonth: number;
-  pricePerHour: number;
+  volumesEnabled: boolean;
+  priceMonthly: number;
+  priceHourly: number;
   pricePerSecond: number;
 };
 
-export type CatalogInstanceStatus = 'available' | 'coming_soon' | 'restricted';
-
-export type InstanceCategory = 'eco' | 'standard' | 'gpu';
-
 export type CatalogDatacenter = {
-  identifier: string;
-  regionIdentifier: string;
+  id: string;
+  regionId: string;
   domain: string;
 };
 
+export type RegionStatus = 'available' | 'coming_soon';
+export type RegionCategory = 'snipkit' | 'aws';
+export type RegionScope = 'continental' | 'metropolitan';
+
 export type CatalogRegion = {
-  identifier: string;
-  displayName: string;
-  status: 'available' | 'coming_soon';
+  id: string;
+  name: string;
+  status: RegionStatus;
   datacenters: string[];
   instances?: string[];
-  hasVolumes: boolean;
-  category: RegionCategory;
+  volumesEnabled: boolean;
+  scope: RegionScope;
 };
 
-export type RegionCategory = 'koyeb' | 'aws';
+export type CatalogAvailability = 'low' | 'medium' | 'high' | 'unknown';
+
+export type CatalogUsage = Map<
+  string,
+  {
+    availability?: CatalogAvailability;
+    byRegion: Map<string, CatalogAvailability>;
+  }
+>;
 
 export type OneClickApp = {
   name: string;
@@ -140,6 +153,7 @@ export type AiModel = {
   dockerImage: string;
   minVRam: number;
   metadata: Array<{ name: string; value: string }>;
+  env?: Array<EnvironmentVariable>;
 };
 
 // deployment
@@ -152,6 +166,7 @@ export type ComputeDeployment = {
   serviceId: string;
   name: string;
   date: string;
+  terminatedAt?: string;
   status: DeploymentStatus;
   messages: string[];
   definition: DeploymentDefinition;
@@ -166,23 +181,28 @@ export type ComputeDeployment = {
     | null;
 };
 
+export type RegionalDeployment = {
+  id: string;
+  region: string;
+};
+
 export type DeploymentStatus =
-  | 'pending'
-  | 'provisioning'
-  | 'scheduled'
-  | 'canceling'
-  | 'canceled'
-  | 'allocating'
-  | 'starting'
-  | 'healthy'
-  | 'degraded'
-  | 'unhealthy'
-  | 'stopping'
-  | 'stopped'
-  | 'erroring'
-  | 'error'
-  | 'stashed'
-  | 'sleeping';
+  | 'PENDING'
+  | 'PROVISIONING'
+  | 'SCHEDULED'
+  | 'CANCELING'
+  | 'CANCELED'
+  | 'ALLOCATING'
+  | 'STARTING'
+  | 'HEALTHY'
+  | 'DEGRADED'
+  | 'UNHEALTHY'
+  | 'STOPPING'
+  | 'STOPPED'
+  | 'ERRORING'
+  | 'ERROR'
+  | 'STASHED'
+  | 'SLEEPING';
 
 export type DeploymentBuild = {
   status: DeploymentBuildStatus;
@@ -192,7 +212,7 @@ export type DeploymentBuild = {
   finishedAt: string | null;
 };
 
-export type DeploymentBuildStatus = 'unknown' | 'pending' | 'running' | 'failed' | 'completed' | 'aborted';
+export type DeploymentBuildStatus = 'UNKNOWN' | 'PENDING' | 'RUNNING' | 'FAILED' | 'COMPLETED' | 'ABORTED';
 
 export type DeploymentBuildStep = {
   name: DeploymentBuildStepName;
@@ -212,6 +232,7 @@ export type DeploymentDefinition = {
   builder?: BuildpackBuilder | DockerfileBuilder;
   privileged?: boolean;
   environmentVariables: EnvironmentVariable[];
+  files: File[];
   volumes: AttachedVolume[];
   instanceType: string;
   regions: string[];
@@ -229,6 +250,11 @@ export type EnvironmentVariable = {
   regions: string[];
 };
 
+export type File = {
+  mountPath: string;
+  content: string;
+};
+
 export type AttachedVolume = {
   volumeId: string;
   mountPath: string;
@@ -238,12 +264,9 @@ export type Port = {
   portNumber: number;
   protocol: PortProtocol;
   path?: string;
-  public: boolean;
 };
 
 export type PortProtocol = 'http' | 'http2' | 'tcp';
-
-export type HealthCheckProtocol = 'tcp' | 'http';
 
 export type HealthCheckHeader = {
   name: string;
@@ -307,7 +330,7 @@ export type GitDeploymentTrigger = {
   repository: string;
   branch: string;
   commit: {
-    sha: string;
+    sha?: string;
     message: string;
     author: {
       name: string;
@@ -329,8 +352,17 @@ export type DatabaseDeployment = {
   roles?: Array<DatabaseRole>;
   databases?: Array<LogicalDatabase>;
   instance: string;
-  reachedQuota?: 'data-transfer' | 'written-data' | 'active-time' | 'storage-size';
+  neonPostgres: {
+    activeTimeSeconds?: string;
+    computeTimeSeconds?: string;
+    dataTransferBytes?: string;
+    writtenDataBytes?: string;
+  };
   activeTime: {
+    used?: number;
+    max?: number;
+  };
+  computeTime: {
     used?: number;
     max?: number;
   };
@@ -340,7 +372,7 @@ export type DatabaseDeployment = {
   };
 };
 
-export type PostgresVersion = 14 | 15 | 16;
+export type PostgresVersion = 14 | 15 | 16 | 17;
 
 export type DatabaseRole = {
   name: string;
@@ -359,7 +391,7 @@ export type Domain = {
   appId: string | null;
   name: string;
   intendedCname: string;
-  type: 'autoassigned' | 'custom';
+  type: DomainType;
   status: DomainStatus;
   messages: string[];
   verifiedAt: string | null;
@@ -367,7 +399,8 @@ export type Domain = {
   updatedAt: string;
 };
 
-export type DomainStatus = 'pending' | 'active' | 'error' | 'deleting' | 'deleted';
+export type DomainType = 'AUTOASSIGNED' | 'CUSTOM';
+export type DomainStatus = 'PENDING' | 'ACTIVE' | 'ERROR' | 'DELETING' | 'DELETED';
 
 // git
 
@@ -385,7 +418,7 @@ export type GitRepository = {
   url: string;
   isPrivate: boolean;
   defaultBranch: string;
-  lastPush: string;
+  lastPushDate: string;
   branches: string[];
 };
 
@@ -400,23 +433,34 @@ export type Instance = {
   replicaIndex: number;
   messages: string[];
   createdAt: string;
+  terminatedAt: string | null;
 };
 
 export type InstanceStatus =
-  | 'allocating'
-  | 'starting'
-  | 'healthy'
-  | 'unhealthy'
-  | 'stopping'
-  | 'stopped'
-  | 'error'
-  | 'sleeping';
+  | 'ALLOCATING'
+  | 'STARTING'
+  | 'HEALTHY'
+  | 'UNHEALTHY'
+  | 'STOPPING'
+  | 'STOPPED'
+  | 'ERROR'
+  | 'SLEEPING';
+
+export type Replica = {
+  region: string;
+  index: number;
+  instances: Instance[];
+  instanceId?: string;
+  status?: InstanceStatus;
+  messages?: string[];
+};
 
 // logs
 
 export type LogLine = {
-  date: string;
-  stream: 'stdout' | 'stderr' | 'koyeb';
+  id: string;
+  date: Date;
+  stream: 'stdout' | 'stderr' | 'snipkit';
   instanceId?: string;
   text: string;
   html: string;
@@ -433,12 +477,11 @@ export type Secret = {
 };
 
 export type RegistrySecret = Secret & {
-  type: 'registry';
+  type: 'REGISTRY';
   registry: RegistryType;
 };
 
-export type SecretType = 'simple' | 'registry' | 'managed';
-
+export type SecretType = 'SIMPLE' | 'REGISTRY' | 'MANAGED';
 export type RegistryType = 'docker-hub' | 'digital-ocean' | 'github' | 'gitlab' | 'azure' | 'gcp' | 'private';
 
 // service
@@ -451,20 +494,20 @@ export type App = {
 };
 
 export type AppStatus =
-  | 'starting'
-  | 'healthy'
-  | 'degraded'
-  | 'unhealthy'
-  | 'deleting'
-  | 'deleted'
-  | 'pausing'
-  | 'paused'
-  | 'resuming';
+  | 'STARTING'
+  | 'HEALTHY'
+  | 'DEGRADED'
+  | 'UNHEALTHY'
+  | 'DELETING'
+  | 'DELETED'
+  | 'PAUSING'
+  | 'PAUSED'
+  | 'RESUMING';
 
 export type AppDomain = {
   id: string;
   name: string;
-  type: 'autoassigned' | 'custom';
+  type: 'AUTOASSIGNED' | 'CUSTOM';
 };
 
 export type Service = {
@@ -483,15 +526,15 @@ export type Service = {
 export type ServiceType = 'web' | 'worker' | 'database';
 
 export type ServiceStatus =
-  | 'starting'
-  | 'healthy'
-  | 'degraded'
-  | 'unhealthy'
-  | 'deleting'
-  | 'deleted'
-  | 'pausing'
-  | 'paused'
-  | 'resuming';
+  | 'STARTING'
+  | 'HEALTHY'
+  | 'DEGRADED'
+  | 'UNHEALTHY'
+  | 'DELETING'
+  | 'DELETED'
+  | 'PAUSING'
+  | 'PAUSED'
+  | 'RESUMING';
 
 // session
 
@@ -532,42 +575,44 @@ export type Organization = {
     vatNumber?: string;
   };
   trial?: {
-    startsAt: string;
     endsAt: string;
   };
 };
 
 export type OrganizationStatus =
-  | 'warning'
-  | 'locked'
-  | 'active'
-  | 'deactivating'
-  | 'deactivated'
-  | 'deleting'
-  | 'deleted';
+  | 'WARNING'
+  | 'LOCKED'
+  | 'ACTIVE'
+  | 'DEACTIVATING'
+  | 'DEACTIVATED'
+  | 'DELETING'
+  | 'DELETED';
 
 export type OrganizationStatusMessage =
-  | 'new'
-  | 'email_not_validated'
-  | 'billing_info_missing'
-  | 'locked'
-  | 'payment_failure'
-  | 'valid'
-  | 'pending_verification'
-  | 'verification_failed'
-  | 'reviewing_account'
-  | 'plan_upgrade_required';
+  | 'NEW'
+  | 'EMAIL_NOT_VALIDATED'
+  | 'BILLING_INFO_MISSING'
+  | 'LOCKED'
+  | 'PAYMENT_FAILURE'
+  | 'VALID'
+  | 'PENDING_VERIFICATION'
+  | 'VERIFICATION_FAILED'
+  | 'REVIEWING_ACCOUNT'
+  | 'PLAN_UPGRADE_REQUIRED';
 
 export type OrganizationPlan =
   | 'hobby'
   | 'starter'
   | 'startup'
-  | 'pro'
-  | 'scale'
   | 'business'
   | 'enterprise'
   | 'internal'
-  | 'no_plan';
+  | 'hobby23'
+  | 'no_plan'
+  | 'pro'
+  | 'scale'
+  | 'partner_csp'
+  | 'partner_csp_unit';
 
 export type OrganizationInvitation = {
   id: string;
@@ -576,9 +621,7 @@ export type OrganizationInvitation = {
     id: string;
     name: string;
   };
-  invitee: {
-    email: string;
-  };
+  email: string;
   inviter: {
     name: string;
     email: string;
@@ -586,11 +629,11 @@ export type OrganizationInvitation = {
   };
 };
 
-export type InvitationStatus = 'invalid' | 'pending' | 'accepted' | 'refused' | 'expired';
+export type InvitationStatus = 'INVALID' | 'PENDING' | 'ACCEPTED' | 'REFUSED' | 'EXPIRED';
 
 export type OrganizationMember = {
   id: string;
-  member: {
+  user: {
     id: string;
     name: string;
     email: string;
@@ -608,16 +651,19 @@ export type OrganizationQuotas = {
   maxNumberOfApps: number;
   maxNumberOfServices: number;
   maxOrganizationMembers: number;
+  instanceTypes?: string[];
   maxInstancesByType: Record<string, number>;
   regions?: string[];
   volumesByRegion: Record<string, { maxVolumeSize: number; maxTotalSize: number }>;
   maxMemory: number;
   maxDomains: number;
+  logsRetention: number;
 };
 
 export type OrganizationSummary = {
   freeInstanceUsed: boolean;
   freeDatabaseUsed: boolean;
+  instancesUsed: Record<string, number>;
 };
 
 export type Address = {
@@ -642,7 +688,7 @@ export type Volume = {
   createdAt: string;
 };
 
-export type VolumeStatus = 'invalid' | 'attached' | 'detached' | 'deleting' | 'deleted';
+export type VolumeStatus = 'INVALID' | 'ATTACHED' | 'DETACHED' | 'DELETING' | 'DELETED';
 
 export type VolumeSnapshot = {
   id: string;
@@ -656,11 +702,11 @@ export type VolumeSnapshot = {
 };
 
 export type VolumeSnapshotStatus =
-  | 'invalid'
-  | 'creating'
-  | 'available'
-  | 'migrating'
-  | 'deleting'
-  | 'deleted';
+  | 'INVALID'
+  | 'CREATING'
+  | 'AVAILABLE'
+  | 'MIGRATING'
+  | 'DELETING'
+  | 'DELETED';
 
-export type VolumeSnapshotType = 'invalid' | 'local' | 'remote';
+export type VolumeSnapshotType = 'INVALID' | 'LOCAL' | 'REMOTE';

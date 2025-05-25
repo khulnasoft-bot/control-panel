@@ -12,7 +12,7 @@ const T = createTranslate('pages.organizationSettings.plans');
 
 export function PlansPage() {
   const pricing = (children: React.ReactNode) => (
-    <ExternalLink openInNewTab href="https://koyeb.com/pricing#features" className="underline">
+    <ExternalLink openInNewTab href="https://snipkit.com/pricing#features" className="underline">
       {children}
     </ExternalLink>
   );

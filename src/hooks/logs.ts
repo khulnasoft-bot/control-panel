@@ -1,93 +1,201 @@
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { AnsiUp } from 'ansi_up';
-import { useEffect, useState } from 'react';
+import { add, max, sub } from 'date-fns';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 
-import { ApiStream, apiStreams } from 'src/api/api';
+import { api, apiStreams } from 'src/api/api';
+import { useOrganizationQuotas } from 'src/api/hooks/session';
 import { LogLine } from 'src/api/model';
-import { createValidationGuard } from 'src/application/create-validation-guard';
 import { useToken } from 'src/application/token';
-import { assert } from 'src/utils/assert';
+import { createId } from 'src/utils/strings';
 
-const connectTimeout = 5 * 1000;
-const reconnectTimeouts = [1_000, 2_000, 5_000, 60_000];
+import { useDeepCompareMemo } from './lifecycle';
+import { useDebouncedValue } from './timers';
 
-export function useLogs(deploymentId: string, type: 'build' | 'runtime', connect = true) {
-  const { token } = useToken();
+export type LogType = 'build' | 'runtime';
+export type LogStream = 'stdout' | 'stderr' | 'snipkit';
+export type LogsPeriod = 'live' | '1h' | '6h' | '24h' | '7d' | '30d';
 
-  const [reconnection, setReconnection] = useState(0);
-  const [connected, setConnected] = useState(false);
-  const [error, setError] = useState<unknown>();
+export type LogsFilters = {
+  type: LogType;
+  deploymentId: string;
+  regionalDeploymentId: string | null;
+  instanceId: string | null;
+  period: LogsPeriod;
+  start: Date;
+  end: Date;
+  search: string;
+  logs: boolean;
+  events: boolean;
+};
 
-  const [lines, setLines] = useState<LogLine[]>([]);
+export type LogsApi = {
+  error?: Error;
+  lines: LogLine[];
+  loading: boolean;
+  fetching: boolean;
+  hasPrevious: boolean;
+  loadPrevious: () => void;
+};
 
-  useEffect(() => {
-    if (!connect) {
-      return;
-    }
+export function useLogs(tail: boolean, filters: LogsFilters): LogsApi {
+  const filtersMemo = useDeepCompareMemo({ ...filters, search: useDebouncedValue(filters.search, 500) });
 
-    function onOpen() {
-      setConnected(true);
-      setError(undefined);
-    }
+  const { data: historyLines = [], ...query } = useLogsHistory(filtersMemo);
+  const stream = useLogsStream(tail, filtersMemo);
 
-    function onClose() {
-      setConnected(false);
-
-      const timeout = reconnectTimeouts[reconnection];
-
-      if (timeout !== undefined) {
-        setTimeout(() => setReconnection(reconnection + 1), timeout);
+  const { search } = filtersMemo;
+  const highlightSearchMatches = useCallback(
+    (html: string) => {
+      if (search === '') {
+        return html;
       }
-    }
 
-    function onError(event: Event) {
-      setError(event);
-    }
+      return html.replaceAll(search, (value) => `<mark>${value}</mark>`);
+    },
+    [search],
+  );
 
+  const lines = useMemo<LogLine[]>(() => {
     const ansi = new AnsiUp();
 
-    function onMessage(event: MessageEvent) {
-      assert(typeof event.data === 'string');
+    return [...historyLines, ...stream.lines].map((line) => ({
+      ...line,
+      html: highlightSearchMatches(ansi.ansi_to_html(line.text)),
+    }));
+  }, [historyLines, stream.lines, highlightSearchMatches]);
 
-      const line = parseLogLine(JSON.parse(event.data));
+  return {
+    error: query.error ?? stream.error,
+    lines,
+    loading: query.isLoading,
+    fetching: query.isFetching,
+    hasPrevious: query.hasPreviousPage,
+    loadPrevious: () => !query.isFetching && void query.fetchPreviousPage(),
+  };
+}
 
-      if ('error' in line) {
-        setError(line.error);
-      } else {
-        setLines((lines) => [...lines, { ...line, html: ansi.ansi_to_html(line.text) }]);
-      }
+function useLogsHistory(filters: LogsFilters) {
+  const quotas = useOrganizationQuotas();
+  const { token } = useToken();
+
+  const initialPageParam = useMemo(() => {
+    if (!quotas) {
+      return {};
     }
 
-    setLines([]);
+    const start = max([filters.start, add(sub(new Date(), { days: quotas.logsRetention }), { minutes: 1 })]);
+    const end = max([start, filters.end]);
 
-    let socket: ApiStream | undefined = undefined;
+    return {
+      start: start.toISOString(),
+      end: end.toISOString(),
+    };
+  }, [quotas, filters.start, filters.end]);
 
-    const timeout = setTimeout(() => {
-      socket = apiStreams.logs({ token, query: { type, deployment_id: deploymentId } });
+  return useInfiniteQuery({
+    enabled: quotas !== undefined,
+    queryKey: ['logsQuery', { filters }, token],
+    queryFn: ({ pageParam: { start, end } }) => {
+      if (start === end) {
+        return { data: [], pagination: { has_more: false } };
+      }
 
-      socket.addEventListener('open', onOpen);
-      socket.addEventListener('close', onClose);
-      socket.addEventListener('error', onError);
-      socket.addEventListener('message', onMessage);
-    }, connectTimeout);
+      return api.logsQuery({
+        token,
+        query: {
+          type: filters.type,
+          deployment_id: filters.deploymentId,
+          start,
+          end,
+          regional_deployment_id: filters.regionalDeploymentId ?? undefined,
+          instance_id: filters.instanceId ?? undefined,
+          text: filters.search || undefined,
+          order: 'desc',
+          limit: String(100),
+        },
+      });
+    },
+    refetchInterval: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
+    initialPageParam,
+    getNextPageParam: () => null,
+    getPreviousPageParam: (firstPage) => {
+      const { has_more, next_start, next_end } = firstPage.pagination!;
+
+      if (!has_more) {
+        return null;
+      }
+
+      return {
+        start: next_start!,
+        end: next_end!,
+      };
+    },
+    select: (data) => {
+      return data.pages.flatMap(({ data }) =>
+        data!.map((data) => getLogLine(data as unknown as ApiLogLine)).reverse(),
+      );
+    },
+  });
+}
+
+const reconnectTimeout = [0, 1_000, 5_000, 60_000];
+
+function useLogsStream(connect: boolean, filters: LogsFilters) {
+  const { token } = useToken();
+  const filtersMemo = useDeepCompareMemo(filters);
+
+  const stream = useRef<ReturnType<typeof tailLogs>>(null);
+  const [connected, setConnected] = useState(false);
+  const [lines, setLines] = useState<Omit<LogLine, 'html'>[]>([]);
+  const [error, setError] = useState<Error>();
+
+  const [nonce, setNonce] = useState(Math.random());
+  const reconnectIndex = useRef<number>(null);
+
+  const initialize = useCallback(() => {
+    const filters = {
+      ...filtersMemo,
+      start: filtersMemo.end,
+    };
+
+    stream.current = tailLogs(token, filters, {
+      onOpen: () => {
+        setError(undefined);
+        setConnected(true);
+        reconnectIndex.current = null;
+      },
+      onClose: () => {
+        setConnected(false);
+        setNonce(Math.random());
+      },
+      onError: (error) => {
+        setError(error);
+        setNonce(Math.random());
+        reconnectIndex.current ??= 0;
+        reconnectIndex.current++;
+      },
+      onLogLine: (line) => setLines((lines) => [...lines, line]),
+    });
+  }, [token, filtersMemo]);
+
+  useEffect(() => {
+    let timeout: number;
+
+    if (connect) {
+      timeout = window.setTimeout(initialize, reconnectTimeout[reconnectIndex.current ?? 0]);
+    }
 
     return () => {
-      clearTimeout(timeout);
-
-      if (socket === undefined) {
-        return;
-      }
-
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.close();
-      }
-
-      socket?.removeEventListener('open', onOpen);
-      socket?.removeEventListener('close', onClose);
-      socket?.removeEventListener('error', onError);
-      socket?.removeEventListener('message', onMessage);
+      window.clearTimeout(timeout);
+      stream.current?.close();
+      setLines([]);
     };
-  }, [token, type, deploymentId, reconnection, connect]);
+  }, [connect, initialize, nonce]);
 
   return {
     connected,
@@ -96,50 +204,80 @@ export function useLogs(deploymentId: string, type: 'build' | 'runtime', connect
   };
 }
 
-const logLineSchema = z.object({
-  result: z.object({
-    created_at: z.string(),
-    labels: z.object({
-      stream: z.union([z.literal('stdout'), z.literal('stderr'), z.literal('koyeb')]),
-      instance_id: z.string().optional(),
-    }),
-    msg: z.string(),
-  }),
-});
+type LogStreamListeners = {
+  onOpen: () => void;
+  onClose: () => void;
+  onError: (error: Error) => void;
+  onLogLine: (line: Omit<LogLine, 'html'>) => void;
+};
 
-const isLogLine = createValidationGuard(logLineSchema);
+function tailLogs(token: string | undefined, filters: LogsFilters, listeners: Partial<LogStreamListeners>) {
+  const stream = apiStreams.logs({
+    token,
+    query: {
+      type: filters.type,
+      deployment_id: filters.deploymentId,
+      regional_deployment_id: filters.regionalDeploymentId ?? undefined,
+      instance_id: filters.instanceId ?? undefined,
+      start: filters.start.toISOString(),
+      text: filters.search || undefined,
+    },
+  });
 
-const errorLogLineSchema = z.object({
-  error: z
-    .object({
-      details: z.array(z.object({ message: z.string() })).optional(),
-      message: z.string().optional(),
-    })
-    .optional(),
-  message: z.string().optional(),
-});
+  const onOpen = () => listeners.onOpen?.();
+  const onClose = () => listeners.onClose?.();
+  const onError = () => listeners.onError?.(new Error('Websocket error'));
 
-const isErrorLogLine = createValidationGuard(errorLogLineSchema);
+  const onMessage = (event: MessageEvent) => {
+    const { success, data, error } = apiMessageSchema.safeParse(JSON.parse(event.data as string));
 
-function parseLogLine(data: unknown): Omit<LogLine, 'html'> | { error: string } {
-  if (isLogLine(data)) {
-    const { created_at, labels, msg } = data.result;
+    if (!success) {
+      listeners.onError?.(error);
+    } else if ('error' in data) {
+      listeners.onError?.(new Error(data.error.message));
+    } else {
+      listeners.onLogLine?.(getLogLine(data.result));
+    }
+  };
 
-    return {
-      date: created_at,
-      stream: labels.stream,
-      instanceId: labels.instance_id,
-      text: msg,
-    };
-  }
+  stream.addEventListener('open', onOpen);
+  stream.addEventListener('close', onClose);
+  stream.addEventListener('error', onError);
+  stream.addEventListener('message', onMessage);
 
-  if (isErrorLogLine(data)) {
-    const { error, message } = data;
-
-    return {
-      error: error?.details?.[0]?.message ?? error?.message ?? message ?? JSON.stringify(data),
-    };
-  }
-
-  throw new Error('Cannot parse log line');
+  return {
+    close() {
+      stream.close();
+      stream.removeEventListener('open', onOpen);
+      stream.removeEventListener('close', onClose);
+      stream.removeEventListener('error', onError);
+      stream.removeEventListener('message', onMessage);
+    },
+  };
 }
+
+function getLogLine(result: ApiLogLine): Omit<LogLine, 'html'> {
+  return {
+    id: createId(),
+    date: new Date(result.created_at),
+    stream: result.labels.stream,
+    instanceId: result.labels.instance_id,
+    text: result.msg,
+  };
+}
+
+type ApiLogLine = z.infer<typeof apiLogLineSchema>;
+
+const apiLogLineSchema = z.object({
+  created_at: z.string(),
+  labels: z.object({
+    stream: z.union([z.literal('stdout'), z.literal('stderr'), z.literal('snipkit')]),
+    instance_id: z.string().optional(),
+  }),
+  msg: z.string(),
+});
+
+const apiMessageSchema = z.union([
+  z.object({ result: apiLogLineSchema }),
+  z.object({ error: z.object({ message: z.string() }) }),
+]);

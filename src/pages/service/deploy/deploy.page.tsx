@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { routes } from 'src/application/routes';
-import { DeployToKoyebButton } from 'src/components/deploy-to-koyeb-button';
+import { DeployToSnipkitButton } from 'src/components/deploy-to-snipkit-button';
 import { DocumentTitle } from 'src/components/document-title';
 import { ServiceEstimatedCost } from 'src/components/service-estimated-cost';
 import { useNavigate, useSearchParam } from 'src/hooks/router';
@@ -29,7 +29,7 @@ export function DeployPage() {
   return <DeployServiceForm />;
 }
 
-export function DeployServiceForm() {
+function DeployServiceForm() {
   const t = T.useTranslate();
   const navigate = useNavigate();
 
@@ -57,7 +57,7 @@ export function DeployServiceForm() {
 
         <div className="col shrink-0 gap-8 xl:basis-80">
           <ServiceEstimatedCost cost={cost} />
-          <DeployToKoyebButton deployUrl={deployUrl} />
+          <DeployToSnipkitButton deployUrl={deployUrl} />
         </div>
       </div>
     </div>

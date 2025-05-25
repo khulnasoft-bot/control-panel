@@ -1,9 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Alert, Button, ButtonMenuItem, Dialog, MenuItem } from '@koyeb/design-system';
+import { Alert, Button, ButtonMenuItem, MenuItem } from '@snipkit/design-system';
 import { api } from 'src/api/api';
 import { App, AppDomain } from 'src/api/model';
 import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
@@ -13,6 +12,7 @@ import { useToken } from 'src/application/token';
 import { ActionsMenu } from 'src/components/actions-menu';
 import { ConfirmationDialog } from 'src/components/confirmation-dialog';
 import { ControlledInput } from 'src/components/controlled';
+import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from 'src/components/dialog';
 import { IconEllipsis } from 'src/components/icons';
 import { Link } from 'src/components/link';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
@@ -25,14 +25,14 @@ import { isSlug } from 'src/utils/strings';
 const T = createTranslate('pages.home');
 
 export function AppActions({ app }: { app: App }) {
-  const [openDialog, setOpenDialog] = useState<'edit' | 'pause' | 'delete'>();
+  const openDialog = Dialog.useOpen();
 
   return (
     <>
       <ActionsMenu Icon={IconEllipsis}>
         {(withClose, onClose) => (
           <>
-            <MenuItem className="text-dim hover:bg-inherit">
+            <MenuItem className="text-dim hover:!bg-inherit">
               <T id="appActions.label" />
             </MenuItem>
 
@@ -44,34 +44,24 @@ export function AppActions({ app }: { app: App }) {
               <T id="appActions.addDomain" />
             </MenuItem>
 
-            <ButtonMenuItem onClick={withClose(() => setOpenDialog('edit'))}>
+            <ButtonMenuItem onClick={withClose(() => openDialog('EditApp', { appId: app.id }))}>
               <T id="appActions.edit" />
             </ButtonMenuItem>
 
-            <ButtonMenuItem onClick={withClose(() => setOpenDialog('pause'))}>
+            <ButtonMenuItem onClick={withClose(() => openDialog('ConfirmPauseApp', { resourceId: app.id }))}>
               <T id="appActions.pauseServices" />
             </ButtonMenuItem>
 
-            <ButtonMenuItem onClick={withClose(() => setOpenDialog('delete'))}>
+            <ButtonMenuItem onClick={withClose(() => openDialog('ConfirmDeleteApp', { resourceId: app.id }))}>
               <T id="appActions.deleteApp" />
             </ButtonMenuItem>
           </>
         )}
       </ActionsMenu>
 
-      <EditAppDialog app={app} open={openDialog === 'edit'} onClose={() => setOpenDialog(undefined)} />
-
-      <PauseAppConfirmationDialog
-        app={app}
-        open={openDialog === 'pause'}
-        onClose={() => setOpenDialog(undefined)}
-      />
-
-      <DeleteAppConfirmationDialog
-        app={app}
-        open={openDialog === 'delete'}
-        onClose={() => setOpenDialog(undefined)}
-      />
+      <EditAppDialog app={app} />
+      <PauseAppConfirmationDialog app={app} />
+      <DeleteAppConfirmationDialog app={app} />
     </>
   );
 }
@@ -81,7 +71,7 @@ const editAppSchema = z.object({
     .string()
     .trim()
     .min(3)
-    .max(23)
+    .max(64)
     .refine(isSlug, { params: { refinement: 'isSlug' } }),
   subdomain: z
     .string()
@@ -91,28 +81,22 @@ const editAppSchema = z.object({
     .refine(isSlug, { params: { refinement: 'isSlug' } }),
 });
 
-type EditAppDialogProps = {
-  app: App;
-  open: boolean;
-  onClose: () => void;
-};
-
-function EditAppDialog({ app, open, onClose }: EditAppDialogProps) {
+function EditAppDialog({ app }: { app: App }) {
   const t = T.useTranslate();
+  const closeDialog = Dialog.useClose();
+
   const { token } = useToken();
   const invalidate = useInvalidateApiQuery();
 
-  const koyebDomain = app.domains.find(hasProperty('type', 'autoassigned'));
-  const [subdomain = '', domainSuffix] = splitDomain(koyebDomain);
+  const snipkitDomain = app.domains.find(hasProperty('type', 'AUTOASSIGNED'));
+  const [subdomain = '', domainSuffix] = splitDomain(snipkitDomain);
 
   const form = useForm<z.infer<typeof editAppSchema>>({
     defaultValues: {
       name: app.name,
       subdomain,
     },
-    resolver: useZodResolver(editAppSchema, {
-      name: t('editAppDialog.appNameLabel'),
-    }),
+    resolver: useZodResolver(editAppSchema),
   });
 
   const mutation = useMutation({
@@ -130,11 +114,11 @@ function EditAppDialog({ app, open, onClose }: EditAppDialogProps) {
         );
       }
 
-      if (koyebDomain && values.subdomain !== subdomain) {
+      if (snipkitDomain && values.subdomain !== subdomain) {
         promises.push(
           api.editDomain({
             token,
-            path: { id: koyebDomain.id },
+            path: { id: snipkitDomain.id },
             query: {},
             body: { subdomain: values.subdomain },
           }),
@@ -147,19 +131,20 @@ function EditAppDialog({ app, open, onClose }: EditAppDialogProps) {
       await invalidate('listApps');
       form.reset(values);
       notify.info(t('editAppDialog.successNotification'));
-      onClose();
+      closeDialog();
     },
     onError: useFormErrorHandler(form),
   });
 
   return (
     <Dialog
-      isOpen={open}
-      onClose={onClose}
+      id="EditApp"
+      context={{ appId: app.id }}
       onClosed={form.reset}
-      title={<T id="editAppDialog.title" />}
-      width="lg"
+      className="col w-full max-w-xl gap-4"
     >
+      <DialogHeader title={<T id="editAppDialog.title" />} />
+
       <form className="col gap-4" onSubmit={handleSubmit(form, mutation.mutateAsync)}>
         <Alert variant="warning" description={<T id="appActions.editAppNameWarning" />} />
 
@@ -172,10 +157,10 @@ function EditAppDialog({ app, open, onClose }: EditAppDialogProps) {
           end={<div className="row items-center px-2 text-dim">{domainSuffix}</div>}
         />
 
-        <footer className="row mt-2 justify-end gap-2">
-          <Button variant="ghost" color="gray" onClick={onClose}>
+        <DialogFooter>
+          <CloseDialogButton>
             <Translate id="common.cancel" />
-          </Button>
+          </CloseDialogButton>
 
           <Button
             type="submit"
@@ -184,7 +169,7 @@ function EditAppDialog({ app, open, onClose }: EditAppDialogProps) {
           >
             <Translate id="common.save" />
           </Button>
-        </footer>
+        </DialogFooter>
       </form>
     </Dialog>
   );
@@ -202,15 +187,10 @@ function splitDomain(domain: AppDomain | undefined): [string, string] {
   return [domain.name.substring(0, index), domain.name.substring(index)];
 }
 
-type ConfirmationDialogProps = {
-  app: App;
-  open: boolean;
-  onClose: () => void;
-};
-
-function PauseAppConfirmationDialog({ app, open, onClose }: ConfirmationDialogProps) {
+function PauseAppConfirmationDialog({ app }: { app: App }) {
   const t = T.useTranslate();
   const invalidate = useInvalidateApiQuery();
+  const closeDialog = Dialog.useClose();
 
   const { mutateAsync: pauseApp } = useMutation({
     ...useApiMutationFn('pauseApp', {
@@ -219,14 +199,14 @@ function PauseAppConfirmationDialog({ app, open, onClose }: ConfirmationDialogPr
     onSuccess() {
       void invalidate('listApps');
       notify.info(t('pauseAppConfirmationDialog.successNotification'));
-      onClose();
+      closeDialog();
     },
   });
 
   return (
     <ConfirmationDialog
-      open={open}
-      onClose={onClose}
+      id="ConfirmPauseApp"
+      resourceId={app.id}
       title={<T id="pauseAppConfirmationDialog.title" />}
       description={<T id="pauseAppConfirmationDialog.description" />}
       confirmationText={app.name}
@@ -236,9 +216,10 @@ function PauseAppConfirmationDialog({ app, open, onClose }: ConfirmationDialogPr
   );
 }
 
-function DeleteAppConfirmationDialog({ app, open, onClose }: ConfirmationDialogProps) {
+function DeleteAppConfirmationDialog({ app }: { app: App }) {
   const t = T.useTranslate();
   const invalidate = useInvalidateApiQuery();
+  const closeDialog = Dialog.useClose();
 
   const { mutateAsync: deleteApp } = useMutation({
     ...useApiMutationFn('deleteApp', {
@@ -247,14 +228,14 @@ function DeleteAppConfirmationDialog({ app, open, onClose }: ConfirmationDialogP
     onSuccess() {
       void invalidate('listApps');
       notify.info(t('deleteAppConfirmationDialog.successNotification'));
-      onClose();
+      closeDialog();
     },
   });
 
   return (
     <ConfirmationDialog
-      open={open}
-      onClose={onClose}
+      id="ConfirmDeleteApp"
+      resourceId={app.id}
       title={<T id="deleteAppConfirmationDialog.title" />}
       description={<T id="deleteAppConfirmationDialog.description" />}
       destructiveAction

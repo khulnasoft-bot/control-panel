@@ -1,4 +1,4 @@
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { type OneClickApp } from 'src/api/model';
 import { routes } from 'src/application/routes';
 import { IconArrowRight, IconDatabase, IconGlobe, IconSettings } from 'src/components/icons';
@@ -8,7 +8,7 @@ import { createTranslate } from 'src/intl/translate';
 
 import { useCreateServiceDialog } from '../use-create-service-dialog';
 
-const T = createTranslate('createServiceDialog');
+const T = createTranslate('modules.createServiceDialog');
 
 export function WebService() {
   const { serviceTypeChanged } = useCreateServiceDialog();

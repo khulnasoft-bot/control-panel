@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
+import { usePathname } from 'wouter/use-browser-location';
 
 import { useUserUnsafe } from 'src/api/hooks/session';
 
@@ -17,11 +18,12 @@ declare global {
   }
 }
 
-export function useTallyDialog(formId: string, onSubmitted?: () => void) {
-  const [open, setOpen] = useState(false);
-  const onOpen = useCallback(() => setOpen(true), []);
-  const onClose = useCallback(() => setOpen(false), []);
+export const tallyForms = {
+  getInTouch: 'nGLjGo',
+  tenstorrentRequest: 'npRak8',
+};
 
+export function useTallyDialog(formId: string, onSubmitted?: () => void) {
   const user = useUserUnsafe();
 
   useEffect(() => {
@@ -48,14 +50,6 @@ export function useTallyDialog(formId: string, onSubmitted?: () => void) {
     window.Tally?.closePopup(formId);
   }, [formId]);
 
-  useEffect(() => {
-    if (open) {
-      openPopup();
-    } else {
-      closePopup();
-    }
-  }, [open, openPopup, closePopup]);
-
   const addListener = useCallback((eventName: string, callback?: () => void) => {
     const listener = (event: MessageEvent) => {
       const data: unknown = event.data;
@@ -73,16 +67,22 @@ export function useTallyDialog(formId: string, onSubmitted?: () => void) {
   }, []);
 
   useEffect(() => {
-    return addListener('Tally.PopupClosed', onClose);
-  }, [addListener, onClose]);
-
-  useEffect(() => {
     return addListener('Tally.FormSubmitted', onSubmitted);
   }, [addListener, onSubmitted]);
 
   return {
-    open,
-    onOpen,
-    onClose,
+    openPopup,
+    closePopup,
   };
+}
+
+export function useTallyLink(formId: string) {
+  const pathname = usePathname();
+  const url = new URL(`/r/${formId}`, 'https://tally.so');
+
+  url.searchParams.set('utm_campaign', pathname);
+  url.searchParams.set('utm_source', 'console');
+  url.searchParams.set('utm_medium', 'app');
+
+  return url.toString();
 }

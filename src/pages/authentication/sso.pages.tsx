@@ -84,7 +84,7 @@ export function DiscourseSsoPage() {
     },
     onSuccess({ sso, sig }) {
       // don't use URLSearchParams, as `sso` is already url encoded
-      window.location.href = `https://community.koyeb.com/session/sso_login?sso=${sso}&sig=${sig}`;
+      window.location.href = `https://community.snipkit.com/session/sso_login?sso=${sso}&sig=${sig}`;
     },
     onError(error) {
       reportError(error);

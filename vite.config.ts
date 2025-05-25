@@ -56,7 +56,7 @@ export default defineConfig({
       content: () => process.env.VITE_APP_VERSION ?? 'unknown',
     }),
     sentryVitePlugin({
-      org: 'gokoyeb',
+      org: 'gosnipkit',
       project: 'kdx',
       authToken: process.env.SENTRY_AUTH_TOKEN,
       release: { name: process.env.VITE_APP_VERSION },
@@ -75,6 +75,11 @@ export default defineConfig({
           xterm: ['@xterm/xterm'],
           nivo: ['@nivo/line', '@nivo/bar'],
           analytics: ['@sentry/react', 'posthog-js'],
+          'code-mirror': [
+            '@uiw/codemirror-extensions-langs',
+            '@uiw/codemirror-theme-github',
+            '@uiw/react-codemirror',
+          ],
           vendors: [
             '@floating-ui/react',
             'ansi_up',
@@ -93,7 +98,7 @@ export default defineConfig({
   server: {
     port: 8000,
     proxy: {
-      '/v1': 'https://staging.koyeb.com',
+      '/v1': 'https://staging.snipkit.com',
     },
   },
   preview: {

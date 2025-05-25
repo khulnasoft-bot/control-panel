@@ -1,51 +1,49 @@
 import { useMemo } from 'react';
 
-import { useInstances, useRegion, useRegions } from 'src/api/hooks/catalog';
+import { useInstances, useRegions } from 'src/api/hooks/catalog';
 import { useOrganizationSummary } from 'src/api/hooks/session';
 import { CatalogInstance, CatalogRegion, OrganizationSummary, ServiceType } from 'src/api/model';
 import { useDeepCompareMemo } from 'src/hooks/lifecycle';
-import { inArray } from 'src/utils/arrays';
 import { toObject } from 'src/utils/object';
 
 export type RegionAvailability = [available: true] | [available: false, reason: RegionUnavailableReason];
 
 export type RegionUnavailableReason = 'unavailable' | 'regionNotFound' | 'unavailableForInstance';
 
-export function useRegionAvailabilities() {
+type RegionAvailabilityOptions = {
+  instance?: CatalogInstance | null;
+};
+
+export function useRegionAvailabilities(options?: RegionAvailabilityOptions) {
   const regions = useRegions();
+  const optionsMemo = useDeepCompareMemo(options);
 
   return useMemo(() => {
     return toObject(
       regions,
-      (region) => region.identifier,
-      (region) => checkRegionAvailability(region),
+      (region) => region.id,
+      (region) => checkRegionAvailability(region, optionsMemo),
     );
-  }, [regions]);
+  }, [regions, optionsMemo]);
 }
 
-export function useRegionAvailability(regionIdentifier: string) {
-  return useRegionAvailabilities()[regionIdentifier] ?? [false, 'regionNotFound'];
+export function useRegionAvailability(regionId: string, options?: RegionAvailabilityOptions) {
+  return useRegionAvailabilities(options)[regionId] ?? [false, 'regionNotFound'];
 }
 
-function checkRegionAvailability(region: CatalogRegion): RegionAvailability {
+function checkRegionAvailability(
+  region: CatalogRegion,
+  options: RegionAvailabilityOptions = {},
+): RegionAvailability {
   if (region.status !== 'available') {
     return [false, 'unavailable'];
   }
 
-  return [true];
-}
-
-export function useRegionAvailabilityForInstance(
-  regionIdentifier: string,
-  instanceIdentifier?: string | null,
-) {
-  const region = useRegion(regionIdentifier);
-
-  if (instanceIdentifier === undefined || region?.instances === undefined) {
-    return true;
+  if (options.instance && region.instances && !region.instances.includes(options.instance.id)) {
+    return [false, 'unavailableForInstance'];
   }
 
-  return inArray(instanceIdentifier, region.instances);
+  return [true];
 }
 
 export type InstanceAvailability = [available: true] | [available: false, reason: InstanceUnavailableReason];
@@ -59,7 +57,13 @@ export type InstanceUnavailableReason =
   | 'freeWorker'
   | 'freeAlreadyUsed';
 
-export function useInstanceAvailabilities(options: CheckInstanceAvailabilityOptions = {}) {
+type InstanceAvailabilityOptions = {
+  serviceType?: ServiceType;
+  hasVolumes?: boolean;
+  previousInstance?: CatalogInstance;
+};
+
+export function useInstanceAvailabilities(options: InstanceAvailabilityOptions = {}) {
   const instances = useInstances();
   const organizationSummary = useOrganizationSummary();
   const optionsMemo = useDeepCompareMemo(options);
@@ -67,22 +71,16 @@ export function useInstanceAvailabilities(options: CheckInstanceAvailabilityOpti
   return useMemo(() => {
     return toObject(
       instances,
-      (instance) => instance.identifier,
+      (instance) => instance.id,
       (instance) => checkInstanceAvailability(instance, organizationSummary, optionsMemo),
     );
   }, [instances, organizationSummary, optionsMemo]);
 }
 
-type CheckInstanceAvailabilityOptions = {
-  serviceType?: ServiceType;
-  hasVolumes?: boolean;
-  previousInstance?: CatalogInstance;
-};
-
 function checkInstanceAvailability(
   instance: CatalogInstance,
   summary: OrganizationSummary | undefined,
-  options: CheckInstanceAvailabilityOptions = {},
+  options: InstanceAvailabilityOptions = {},
 ): InstanceAvailability {
   const { serviceType, hasVolumes, previousInstance } = options;
 
@@ -91,7 +89,7 @@ function checkInstanceAvailability(
       return [false, 'changeCpuToGpuWithVolume'];
     }
 
-    if (previousInstance.category === 'gpu' && previousInstance.identifier !== instance.identifier) {
+    if (previousInstance.category === 'gpu' && previousInstance.id !== instance.id) {
       return [false, 'changeGpuWithVolume'];
     }
   }
@@ -104,12 +102,12 @@ function checkInstanceAvailability(
     return [false, 'unavailableInCatalog'];
   }
 
-  if (hasVolumes && !instance.hasVolumes) {
+  if (hasVolumes && !instance.volumesEnabled) {
     return [false, 'volumesNotEnabled'];
   }
 
-  if (instance.identifier === 'free') {
-    if (summary?.freeInstanceUsed && (!previousInstance || previousInstance.identifier !== 'free')) {
+  if (instance.id === 'free') {
+    if (summary?.freeInstanceUsed && (!previousInstance || previousInstance.id !== 'free')) {
       return [false, 'freeAlreadyUsed'];
     }
 

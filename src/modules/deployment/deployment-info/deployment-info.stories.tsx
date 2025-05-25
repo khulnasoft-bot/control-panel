@@ -6,12 +6,12 @@ import { create } from 'src/utils/factories';
 import { DeploymentInfo } from './deployment-info';
 
 export default {
-  title: 'Modules/Deployment/DeploymentInfo',
+  title: 'Components/DeploymentInfo',
 } satisfies Meta;
 
 const app = create.app({
-  name: 'koyeb',
-  domains: [create.appDomain({ name: 'app.koyeb.com' })],
+  name: 'snipkit',
+  domains: [create.appDomain({ name: 'app.snipkit.com' })],
 });
 
 const service = create.service({
@@ -22,7 +22,7 @@ const deployment = create.computeDeployment({
   definition: create.deploymentDefinition({
     source: {
       type: 'git',
-      repository: 'github.com/koyeb/api',
+      repository: 'github.com/snipkit/api',
       branch: 'master',
       autoDeploy: true,
     },
@@ -32,16 +32,16 @@ const deployment = create.computeDeployment({
     regions: ['was', 'sin', 'par'],
     environmentVariables: [
       create.environmentVariable({ name: 'ANSWER', value: '42' }),
-      create.environmentVariable({ name: 'URL', value: 'https://{{ KOYEB_PUBLIC_DOMAIN }}' }),
+      create.environmentVariable({ name: 'URL', value: 'https://{{ SNIPKIT_PUBLIC_DOMAIN }}' }),
     ],
     ports: [
-      { portNumber: 3000, protocol: 'http2', public: true, path: '/v1' },
-      { portNumber: 8000, protocol: 'http', public: true, path: '/' },
-      { portNumber: 4242, protocol: 'tcp', public: false },
+      { portNumber: 3000, protocol: 'http2', path: '/v1' },
+      { portNumber: 8000, protocol: 'http', path: '/' },
+      { portNumber: 4242, protocol: 'tcp' },
     ],
   }),
   build: {
-    status: 'completed',
+    status: 'COMPLETED',
     sha: 'a9b839512a1aecbb6c82c1c3e67fdf559b15eea8',
     startedAt: createDate(),
     finishedAt: createDate(),

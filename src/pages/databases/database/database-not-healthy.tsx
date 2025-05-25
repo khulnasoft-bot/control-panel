@@ -1,7 +1,7 @@
 import * as intercom from '@intercom/messenger-js-sdk';
 import { useMutation } from '@tanstack/react-query';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { Service } from 'src/api/model';
 import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
 import { notify } from 'src/application/notify';

@@ -2,7 +2,7 @@ import { ResponsiveBar } from '@nivo/bar';
 import { useState } from 'react';
 import { useIntl } from 'react-intl';
 
-import { useElementSize } from '@koyeb/design-system';
+import { useElementSize } from '@snipkit/design-system';
 import { createTranslate } from 'src/intl/translate';
 
 import { dateTickValues } from '../metrics-helpers';
@@ -11,7 +11,7 @@ import { GraphTooltip } from './graph-tooltip';
 import { nivoTheme } from './nivo-theme';
 import { NoMetrics } from './no-metrics';
 
-const T = createTranslate('pages.service.metrics');
+const T = createTranslate('modules.metrics');
 
 type BarGraphProps = React.ComponentProps<typeof NoMetrics> &
   React.ComponentProps<typeof ResponsiveBar> & {

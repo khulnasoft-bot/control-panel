@@ -1,42 +1,38 @@
-import { useCallback } from 'react';
+import { dequal } from 'dequal';
 
 import {
-  Dialog2 as BaseDialog,
+  Dialog as BaseDialog,
   DialogFooter as BaseDialogFooter,
   DialogHeader as BaseDialogHeader,
   Button,
-} from '@koyeb/design-system';
+} from '@snipkit/design-system';
 import { useDialogContext } from 'src/application/dialog-context';
 import { Translate } from 'src/intl/translate';
 
 type DialogProps = Omit<React.ComponentProps<typeof BaseDialog>, 'open' | 'onClose'> & {
   id: string;
+  context?: Record<string, unknown>;
 };
 
-export function Dialog({ id, ...props }: DialogProps) {
-  const { openDialogId } = useDialogContext();
+export function Dialog({ id, context: contextProp, ...props }: DialogProps) {
+  const { dialogId, context } = useDialogContext();
   const onClose = Dialog.useClose();
 
-  return <BaseDialog open={id === openDialogId} onClose={onClose} {...props} />;
+  const open = id === dialogId && dequal(context, contextProp);
+
+  return <BaseDialog open={open} onClose={onClose} {...props} />;
 }
 
 Dialog.useOpen = function useOpenDialog() {
-  const { setOpenDialogId } = useDialogContext();
-
-  return useCallback(
-    (dialogId: string) => {
-      setOpenDialogId(dialogId);
-    },
-    [setOpenDialogId],
-  );
+  return useDialogContext().openDialog;
 };
 
 Dialog.useClose = function useCloseDialog() {
-  const { setOpenDialogId } = useDialogContext();
+  return useDialogContext().closeDialog;
+};
 
-  return useCallback(() => {
-    setOpenDialogId(undefined);
-  }, [setOpenDialogId]);
+Dialog.useContext = function useCloseDialog<T>(): Partial<T> {
+  return (useDialogContext().context as T) ?? {};
 };
 
 export function DialogHeader(props: Omit<React.ComponentProps<typeof BaseDialogHeader>, 'onClose'>) {

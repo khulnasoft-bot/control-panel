@@ -1,25 +1,30 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import { FieldPath, UseFormReturn, useForm, useWatch } from 'react-hook-form';
+import { useCallback, useEffect } from 'react';
+import { FieldPath, Resolver, useForm, UseFormReturn, useWatch } from 'react-hook-form';
+import { z } from 'zod';
 
-import { useInstances, useRegions } from 'src/api/hooks/catalog';
+import { useDatacenters, useInstance, useInstances, useRegions } from 'src/api/hooks/catalog';
 import { useGithubApp } from 'src/api/hooks/git';
 import { useOrganization } from 'src/api/hooks/session';
+import { createValidationGuard } from 'src/application/create-validation-guard';
+import { isTenstorrentGpu } from 'src/application/tenstorrent';
 import { useFeatureFlag } from 'src/hooks/feature-flag';
+import { usePrevious } from 'src/hooks/lifecycle';
 import { useSearchParams } from 'src/hooks/router';
-import { useTranslate } from 'src/intl/translate';
-import { trackChanges } from 'src/utils/object';
+import { useZodResolver } from 'src/hooks/validation';
+import { TranslateFn, TranslateValues, TranslationKeys, useTranslate } from 'src/intl/translate';
+import { hasProperty, trackChanges } from 'src/utils/object';
+import { Trim } from 'src/utils/types';
 
 import { initializeServiceForm } from './helpers/initialize-service-form';
 import { getServiceFormSections, sectionHasError } from './helpers/service-form-sections';
 import { serviceFormSchema } from './helpers/service-form.schema';
+import { useUnknownInterpolationErrors } from './helpers/unknown-interpolations';
 import { Scaling, ServiceForm, ServiceFormSection } from './service-form.types';
 
 export function useServiceForm(serviceId?: string) {
-  const translate = useTranslate();
-
   const params = useSearchParams();
+  const datacenters = useDatacenters();
   const regions = useRegions();
   const instances = useInstances();
   const organization = useOrganization();
@@ -31,6 +36,7 @@ export function useServiceForm(serviceId?: string) {
     defaultValues() {
       return initializeServiceForm(
         params,
+        datacenters,
         regions,
         instances,
         organization,
@@ -39,7 +45,7 @@ export function useServiceForm(serviceId?: string) {
         queryClient,
       );
     },
-    resolver: zodResolver(serviceFormSchema(translate)),
+    resolver: useServiceFormResolver(),
   });
 
   const sections = !form.formState.isLoading ? getServiceFormSections(form.watch()) : [];
@@ -47,7 +53,7 @@ export function useServiceForm(serviceId?: string) {
   useTriggerInstanceValidationOnLoad(form);
   useExpandFirstSectionInError(form, sections);
   useTriggerValidationOnChange(form);
-  useEnsureBusinessRules(form);
+  useEnsureScalingBusinessRules(form);
 
   return form;
 }
@@ -55,6 +61,74 @@ export function useServiceForm(serviceId?: string) {
 export function useWatchServiceForm<Path extends FieldPath<ServiceForm>>(name: Path) {
   return useWatch<ServiceForm, Path>({ name });
 }
+
+function useServiceFormResolver() {
+  const translate = useTranslate();
+  const getUnknownInterpolationErrors = useUnknownInterpolationErrors();
+  const schemaResolver = useZodResolver(serviceFormSchema, errorMessageHandler(translate));
+
+  return useCallback<Resolver<ServiceForm>>(
+    async (values, context, options) => {
+      const errors = await getUnknownInterpolationErrors(values);
+
+      if (Object.keys(errors).length > 0) {
+        return { values: {}, errors };
+      }
+
+      return schemaResolver(values, context, options);
+    },
+    [schemaResolver, getUnknownInterpolationErrors],
+  );
+}
+
+function errorMessageHandler(translate: TranslateFn) {
+  const t = (key: Trim<TranslationKeys, `modules.serviceForm.errors.`>, values?: TranslateValues) => {
+    return translate(`modules.serviceForm.errors.${key}`, values);
+  };
+
+  return (error: z.ZodIssueOptionalMessage) => {
+    const path = error.path.join('.') as FieldPath<ServiceForm>;
+
+    if (isStartsWithSlash(error)) {
+      return t('startWithSlash');
+    }
+
+    if (path === 'source.git.organizationRepository.repositoryName' && error.code === 'invalid_type') {
+      return t('noRepositorySelected');
+    }
+
+    if (path === 'source.git.publicRepository.url' && error.code === 'custom') {
+      return t('invalidGithubRepositoryUrl');
+    }
+
+    if (path === 'source.docker.image' && error.code === 'too_small') {
+      return t('noDockerImageSelected');
+    }
+
+    if (path.match(/^scaling.targets.\w+.value$/)) {
+      if (error.code === 'invalid_type') return t('scalingTargetEmpty');
+      if (error.code === 'too_small') return t('scalingTargetTooSmall', { min: error.minimum });
+      if (error.code === 'too_big') return t('scalingTargetTooBig', { max: error.maximum });
+    }
+
+    if (path.match(/^ports.\d+.portNumber$/)) {
+      if (error.code === 'invalid_type') return t('portNumberTooSmall');
+      if (error.code === 'too_small') return t('portNumberTooSmall');
+      if (error.code === 'too_big') return t('portNumberTooBig', { max: error.maximum });
+    }
+
+    if (path.match(/^ports.\d+.path$/) && error.code === 'custom' && error.params?.noWhiteSpace) {
+      return t('portPathHasWhiteSpaces');
+    }
+  };
+}
+
+const isStartsWithSlash = createValidationGuard(
+  z.object({
+    code: z.literal('invalid_string'),
+    validation: z.object({ startsWith: z.literal('/') }),
+  }),
+);
 
 function useTriggerInstanceValidationOnLoad(form: UseFormReturn<ServiceForm>) {
   const { trigger, formState } = form;
@@ -121,9 +195,10 @@ const scaleAboveZeroTargets: Array<keyof Scaling['targets']> = [
   'responseTime',
 ];
 
-function useEnsureBusinessRules({ watch, setValue, trigger }: UseFormReturn<ServiceForm>) {
+function useEnsureScalingBusinessRules({ watch, setValue, trigger }: UseFormReturn<ServiceForm>) {
   const scaleToZero = useFeatureFlag('scale-to-zero');
-  const scaleToZeroIdleDelay = useFeatureFlag('scale-to-zero-idle-delay');
+  const instances = useInstances();
+  const previousInstance = usePrevious(useInstance(watch('instance')));
 
   useEffect(() => {
     const subscription = watch((formValues, { type, name }) => {
@@ -142,7 +217,27 @@ function useEnsureBusinessRules({ watch, setValue, trigger }: UseFormReturn<Serv
         }
       });
 
-      const { serviceType, scaling } = values;
+      const { meta, serviceType, scaling, ports, volumes } = values;
+
+      const hasVolumes = volumes.filter((volume) => volume.name !== '').length > 0;
+      const instance = instances.find(hasProperty('id', values.instance));
+
+      if (scaleToZero && instance?.id === 'free') {
+        scaling.min = 0;
+        scaling.max = 1;
+      }
+
+      if (instance?.category === 'eco' && instance.id !== 'free') {
+        scaling.min = scaling.max;
+      }
+
+      if (name === 'instance' && meta.serviceId === null) {
+        if (previousInstance?.category !== 'gpu' && instance?.category === 'gpu') {
+          scaling.min = 0;
+        } else if (previousInstance?.category === 'gpu' && instance?.category === 'standard') {
+          scaling.min = 1;
+        }
+      }
 
       if (scaling.min === 0 && !scaleToZero) {
         scaling.min = 1;
@@ -150,6 +245,22 @@ function useEnsureBusinessRules({ watch, setValue, trigger }: UseFormReturn<Serv
 
       if (scaling.min === 0 && serviceType !== 'web') {
         scaling.min = 1;
+      }
+
+      if (scaling.min === 0 && instance?.id !== 'free' && !ports.some((port) => port.public)) {
+        scaling.min = 1;
+      }
+
+      if (scaling.min === 0 && hasVolumes) {
+        scaling.min = 1;
+      }
+
+      if (scaling.min === 0 && isTenstorrentGpu(instance)) {
+        scaling.min = 1;
+      }
+
+      if (isTenstorrentGpu(previousInstance) && !isTenstorrentGpu(instance)) {
+        scaling.min = 0;
       }
 
       if (scaling.min > scaling.max) {
@@ -162,9 +273,7 @@ function useEnsureBusinessRules({ watch, setValue, trigger }: UseFormReturn<Serv
         }
       }
 
-      if (scaling.min > 0 && scaling.targets.sleepIdleDelay.enabled) {
-        scaling.targets.sleepIdleDelay.enabled = false;
-      }
+      scaling.targets.sleepIdleDelay.enabled = scaling.min === 0;
 
       if (scaling.min === scaling.max || scaling.max === 1) {
         scaleAboveZeroTargets.forEach((target) => {
@@ -188,5 +297,5 @@ function useEnsureBusinessRules({ watch, setValue, trigger }: UseFormReturn<Serv
     return () => {
       subscription.unsubscribe();
     };
-  }, [scaleToZero, scaleToZeroIdleDelay, watch, setValue, trigger]);
+  }, [scaleToZero, instances, previousInstance, watch, setValue, trigger]);
 }

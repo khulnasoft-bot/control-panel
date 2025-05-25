@@ -3,12 +3,13 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button, Dialog } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { VolumeSnapshot } from 'src/api/model';
 import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
 import { notify } from 'src/application/notify';
 import { routes } from 'src/application/routes';
 import { ControlledInput } from 'src/components/controlled';
+import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from 'src/components/dialog';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
 import { useNavigate } from 'src/hooks/router';
 import { useZodResolver } from 'src/hooks/validation';
@@ -20,24 +21,18 @@ const schema = z.object({
   name: z.string().min(2).max(63),
 });
 
-type UpdateSnapshotDialogProps = {
-  open: boolean;
-  onClose: () => void;
-  snapshot: VolumeSnapshot;
-};
-
-export function UpdateSnapshotDialog({ open, onClose, snapshot }: UpdateSnapshotDialogProps) {
-  const navigate = useNavigate();
-  const invalidate = useInvalidateApiQuery();
+export function UpdateSnapshotDialog({ snapshot }: { snapshot: VolumeSnapshot }) {
   const t = T.useTranslate();
+  const navigate = useNavigate();
+  const closeDialog = Dialog.useClose();
+
+  const invalidate = useInvalidateApiQuery();
 
   const form = useForm<z.infer<typeof schema>>({
     defaultValues: {
       name: snapshot.name,
     },
-    resolver: useZodResolver(schema, {
-      name: t('nameLabel'),
-    }),
+    resolver: useZodResolver(schema),
   });
 
   const mutation = useMutation({
@@ -48,8 +43,8 @@ export function UpdateSnapshotDialog({ open, onClose, snapshot }: UpdateSnapshot
     async onSuccess({ snapshot }) {
       await invalidate('listSnapshots');
       notify.success(t('successNotification', { name: snapshot!.name! }));
+      closeDialog();
       navigate(routes.volumes.snapshots());
-      onClose();
     },
     onError: useFormErrorHandler(form),
   });
@@ -59,7 +54,14 @@ export function UpdateSnapshotDialog({ open, onClose, snapshot }: UpdateSnapshot
   }, [form, snapshot]);
 
   return (
-    <Dialog isOpen={open} onClose={onClose} onClosed={() => form.reset()} title={<T id="title" />} width="lg">
+    <Dialog
+      id="UpdateSnapshot"
+      context={{ snapshotId: snapshot.id }}
+      onClosed={() => form.reset()}
+      className="col w-full max-w-xl gap-4"
+    >
+      <DialogHeader title={<T id="title" />} />
+
       <form onSubmit={handleSubmit(form, mutation.mutateAsync)} className="col gap-4">
         <ControlledInput
           control={form.control}
@@ -68,15 +70,15 @@ export function UpdateSnapshotDialog({ open, onClose, snapshot }: UpdateSnapshot
           placeholder={t('namePlaceholder')}
         />
 
-        <footer className="row mt-2 justify-end gap-2">
-          <Button variant="ghost" color="gray" onClick={onClose}>
+        <DialogFooter>
+          <CloseDialogButton>
             <Translate id="common.cancel" />
-          </Button>
+          </CloseDialogButton>
 
           <Button type="submit" loading={form.formState.isSubmitting} autoFocus>
             <Translate id="common.save" />
           </Button>
-        </footer>
+        </DialogFooter>
       </form>
     </Dialog>
   );

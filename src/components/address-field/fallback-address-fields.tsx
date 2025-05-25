@@ -1,10 +1,10 @@
-import { Input } from '@koyeb/design-system';
+import { Input } from '@snipkit/design-system';
 import { Address } from 'src/api/model';
 import { createTranslate } from 'src/intl/translate';
 
 import { CountrySelector } from './country-selector';
 
-const T = createTranslate('addressAutocomplete');
+const T = createTranslate('components.addressAutocomplete');
 
 type FallbackAddressFieldsProps = {
   value?: Address;

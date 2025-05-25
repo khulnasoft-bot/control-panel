@@ -2,10 +2,9 @@ import { parseBytes } from 'src/application/memory';
 import { inArray, last } from 'src/utils/arrays';
 import { assert } from 'src/utils/assert';
 import { round } from 'src/utils/math';
-import { hasProperty } from 'src/utils/object';
+import { hasProperty, requiredDeep, snakeToCamelDeep } from 'src/utils/object';
 import { lowerCase, removePrefix, shortId } from 'src/utils/strings';
 
-import { ApiEndpointResult } from '../api';
 import type { Api } from '../api-types';
 import {
   ComputeDeployment,
@@ -17,14 +16,20 @@ import {
   Instance,
   PortProtocol,
   PostgresVersion,
+  RegionalDeployment,
+  Replica,
 } from '../model';
 
-export function mapDeployments({ deployments }: ApiEndpointResult<'listDeployments'>): Deployment[] {
-  return deployments!.map(transformDeployment);
+export function mapDeployment(deployment: Api.Deployment): Deployment {
+  if (deployment.definition!.type === 'DATABASE') {
+    return mapDatabaseDeployment(deployment);
+  }
+
+  return mapComputeDeployment(deployment);
 }
 
-export function mapDeployment({ deployment }: ApiEndpointResult<'getDeployment'>): Deployment {
-  return transformDeployment(deployment!);
+export function mapRegionalDeployment(deployment: Api.RegionalDeployment): RegionalDeployment {
+  return snakeToCamelDeep(requiredDeep(deployment));
 }
 
 export function isComputeDeployment(deployment: Deployment | undefined): deployment is ComputeDeployment {
@@ -35,28 +40,29 @@ export function isDatabaseDeployment(deployment: Deployment | undefined): deploy
   return deployment !== undefined && 'postgresVersion' in deployment;
 }
 
-export function mapInstances({ instances }: ApiEndpointResult<'listInstances'>): Instance[] {
-  return instances!.map((instance) => ({
-    id: instance.id!,
+export function mapInstance(instance: Api.Instance): Instance {
+  return {
+    ...snakeToCamelDeep(requiredDeep(instance)),
     name: shortId(instance.id)!,
-    status: lowerCase(instance.status!),
-    type: instance.type!,
-    region: instance.region!,
-    replicaIndex: instance.replica_index ?? 0,
-    messages: instance.messages!,
-    createdAt: instance.created_at!,
-  }));
+  };
 }
 
-function transformDeployment(deployment: Api.Deployment): Deployment {
-  if (deployment.definition!.type! === 'DATABASE') {
-    return transformDatabaseDeployment(deployment);
-  }
+export function mapReplica(replica: Api.GetDeploymentScalingReplyItem): Replica {
+  const instance = replica.instances?.find(hasProperty('status', 'HEALTHY')) ?? replica.instances?.[0];
 
-  return transformComputeDeployment(deployment);
+  return {
+    index: replica.replica_index!,
+    region: replica.region!,
+    instances: replica.instances!.map(mapInstance),
+    ...(instance && {
+      instanceId: instance.id,
+      status: instance.status!,
+      messages: instance.messages!,
+    }),
+  };
 }
 
-function transformComputeDeployment(deployment: Api.Deployment): ComputeDeployment {
+function mapComputeDeployment(deployment: Api.Deployment): ComputeDeployment {
   const definition = deployment.definition!;
 
   const type = (): ComputeDeploymentType => {
@@ -86,7 +92,7 @@ function transformComputeDeployment(deployment: Api.Deployment): ComputeDeployme
 
       return steps.map((step) => ({
         name: step.name! as DeploymentBuildStepName,
-        status: lowerCase(step.status!),
+        status: step.status!,
         messages: step.messages!,
         startedAt: step.started_at!,
         finishedAt: step.finished_at!,
@@ -94,7 +100,7 @@ function transformComputeDeployment(deployment: Api.Deployment): ComputeDeployme
     };
 
     return {
-      status: lowerCase(stage.status!),
+      status: stage.status!,
       sha: deployment.provisioning_info?.sha,
       steps: steps(),
       // the API actually returns null
@@ -180,6 +186,13 @@ function transformComputeDeployment(deployment: Api.Deployment): ComputeDeployme
     }));
   };
 
+  const files = (): DeploymentDefinition['files'] => {
+    return definition.config_files!.map(({ path, content }) => ({
+      mountPath: path!,
+      content: content!,
+    }));
+  };
+
   const volumes = (): DeploymentDefinition['volumes'] => {
     return definition.volumes!.map(({ id, path }) => ({
       volumeId: id!,
@@ -191,7 +204,6 @@ function transformComputeDeployment(deployment: Api.Deployment): ComputeDeployme
     return definition.ports!.map((port) => ({
       portNumber: port.port!,
       protocol: port.protocol! as PortProtocol,
-      public: port.protocol !== 'tcp',
       path: definition.routes!.find(hasProperty('port', port.port))?.path,
     }));
   };
@@ -226,7 +238,8 @@ function transformComputeDeployment(deployment: Api.Deployment): ComputeDeployme
         repository: trigger.git!.repository!,
         branch: trigger.git!.branch!,
         commit: {
-          sha: trigger.git!.sha!,
+          sha:
+            trigger.git!.sha! === '0000000000000000000000000000000000000000' ? undefined : trigger.git!.sha!,
           message: trigger.git!.message!,
           author: {
             name: trigger.git!.sender_username!,
@@ -246,7 +259,8 @@ function transformComputeDeployment(deployment: Api.Deployment): ComputeDeployme
     serviceId: deployment.service_id!,
     name: shortId(deployment.id)!,
     date: deployment.created_at!,
-    status: lowerCase(deployment.status!),
+    terminatedAt: deployment.terminated_at!,
+    status: deployment.status!,
     messages: deployment.messages!,
     buildSkipped: deployment.skip_build,
     build: build(),
@@ -258,6 +272,7 @@ function transformComputeDeployment(deployment: Api.Deployment): ComputeDeployme
       builder: builder(),
       privileged: privileged(),
       environmentVariables: environmentVariables(),
+      files: files(),
       volumes: volumes(),
       instanceType: definition.instance_types![0]!.type!,
       regions: definition.regions!,
@@ -277,7 +292,15 @@ function getStringArray(value?: string[]) {
   return value?.length === 0 ? undefined : value;
 }
 
-function transformDatabaseDeployment(deployment: Api.Deployment): DatabaseDeployment {
+export const databaseQuotas = {
+  maxActiveTime: 50 * 60 * 60, // 50 hours
+  maxComputeTime: 5 * 60 * 60, // 5 hours
+  maxDataTransfer: parseBytes('1GB'), // 1 GB
+  maxWrittenData: parseBytes('1GB'), // 1 GB
+  maxStorageSize: parseBytes('1GB'), // 1 GB
+};
+
+function mapDatabaseDeployment(deployment: Api.Deployment): DatabaseDeployment {
   const definition = deployment.definition!.database!.neon_postgres!;
   const info = deployment.database_info?.neon_postgres;
 
@@ -290,47 +313,25 @@ function transformDatabaseDeployment(deployment: Api.Deployment): DatabaseDeploy
     appId: deployment.app_id!,
     serviceId: deployment.service_id!,
     name: deployment.definition!.name!,
-    status: lowerCase(deployment.status!),
+    status: deployment.status!,
     postgresVersion: definition.pg_version as PostgresVersion,
     region: definition.region!,
     host: info?.server_host,
     instance: definition.instance_type!,
-    reachedQuota: info ? quotaReached(info, definition) : undefined,
     roles: definition?.roles?.map((role) => ({ name: role.name!, secretId: getSecretId(role.name!) })),
     databases: definition.databases?.map((database) => ({ name: database.name!, owner: database.owner! })),
+    neonPostgres: info ? snakeToCamelDeep(info) : {},
     activeTime: {
       used: info ? round(Number(info.active_time_seconds!) / (60 * 60), 1) : undefined,
-      max: definition.instance_type === 'free' ? 50 : undefined,
+      max: definition.instance_type === 'free' ? databaseQuotas.maxActiveTime : undefined,
+    },
+    computeTime: {
+      used: info ? round(Number(info.compute_time_seconds!) / (60 * 60), 1) : undefined,
+      max: definition.instance_type === 'free' ? databaseQuotas.maxComputeTime : undefined,
     },
     disk: {
       used: info ? round(Number(info.default_branch_logical_size)) : undefined,
-      max: definition.instance_type === 'free' ? parseBytes('1GB') : undefined,
+      max: definition.instance_type === 'free' ? databaseQuotas.maxStorageSize : undefined,
     },
   };
-}
-
-function quotaReached(
-  info: Api.DeploymentNeonPostgresDatabaseInfo,
-  neon: Api.NeonPostgresDatabase,
-): DatabaseDeployment['reachedQuota'] {
-  if (neon.instance_type !== 'free') {
-    return undefined;
-  }
-
-  if (Number(info.data_transfer_bytes) >= parseBytes('1GB')) {
-    return 'data-transfer';
-  }
-
-  if (Number(info.written_data_bytes) >= parseBytes('1GB')) {
-    return 'written-data';
-  }
-
-  if (Number(info.active_time_seconds) >= 50 * 60 * 60) {
-    return 'active-time';
-  }
-
-  // we don't know how to check this quota (yet)
-  if (false as boolean) {
-    return 'storage-size';
-  }
 }

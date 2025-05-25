@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { Spinner } from '@koyeb/design-system';
+import { Spinner } from '@snipkit/design-system';
 import { isApiError } from 'src/api/api-errors';
+import { useUserUnsafe } from 'src/api/hooks/session';
 import { mapInvitation } from 'src/api/mappers/session';
 import { useApiQueryFn } from 'src/api/use-api';
 import { AcceptOrDeclineInvitation } from 'src/components/accept-or-decline-invitation';
@@ -12,12 +13,17 @@ import { createTranslate } from 'src/intl/translate';
 const T = createTranslate('pages.account.invitation');
 
 export function InvitationPage() {
+  const user = useUserUnsafe();
   const invitationId = useRouteParam('invitationId');
 
   const invitationQuery = useQuery({
     ...useApiQueryFn('getInvitation', { path: { id: invitationId } }),
-    select: mapInvitation,
+    select: ({ invitation }) => mapInvitation(invitation!),
   });
+
+  if (user === undefined) {
+    return null;
+  }
 
   if (invitationQuery.isPending) {
     return (

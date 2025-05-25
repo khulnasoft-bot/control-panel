@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { useSecrets } from 'src/api/hooks/secret';
 import { Secret } from 'src/api/model';
 import { ControlledInput, ControlledSelect } from 'src/components/controlled';
@@ -14,7 +14,7 @@ import { handleSubmit } from 'src/hooks/form';
 import { createTranslate, Translate } from 'src/intl/translate';
 import { CreateRegistrySecretDialog } from 'src/modules/secrets/registry/create-registry-secret-dialog';
 
-const T = createTranslate('serviceCreation.importProject.docker');
+const T = createTranslate('modules.serviceCreation.importProject.docker');
 
 const schema = z.object({
   image: z.string().min(1),

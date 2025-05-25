@@ -1,4 +1,4 @@
-import { Alert } from '@koyeb/design-system';
+import { Alert } from '@snipkit/design-system';
 import { useManageBillingQuery, useSubscriptionQuery } from 'src/api/hooks/billing';
 import { useOrganizationUnsafe } from 'src/api/hooks/session';
 import { useIdenfyLink } from 'src/application/idenfy';
@@ -12,7 +12,7 @@ export function GlobalAlert() {
   const organization = useOrganizationUnsafe();
   const subscriptionQuery = useSubscriptionQuery(organization?.latestSubscriptionId);
 
-  if (organization?.statusMessage === 'reviewing_account') {
+  if (organization?.statusMessage === 'REVIEWING_ACCOUNT') {
     return <AccountUnderReviewAlert />;
   }
 
@@ -29,7 +29,7 @@ export function GlobalAlert() {
 
 function AccountUnderReviewAlert() {
   const idenfyLink = useIdenfyLink();
-  const { onOpen } = useTallyDialog('wQRgBY');
+  const tally = useTallyDialog('wQRgBY');
 
   return (
     <Alert
@@ -45,7 +45,7 @@ function AccountUnderReviewAlert() {
                   {children}
                 </ExternalLink>
               ) : (
-                <button type="button" className="underline" onClick={onOpen}>
+                <button type="button" className="underline" onClick={tally.openPopup}>
                   {children}
                 </button>
               ),

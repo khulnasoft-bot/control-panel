@@ -4,7 +4,7 @@ import { UseFormReturn } from 'react-hook-form';
 import { api, ApiEndpointParams } from 'src/api/api';
 import { useOrganization } from 'src/api/hooks/session';
 import { OrganizationPlan } from 'src/api/model';
-import { useInvalidateApiQuery } from 'src/api/use-api';
+import { useInvalidateApiQuery, usePrefetchApiQuery } from 'src/api/use-api';
 import { routes } from 'src/application/routes';
 import { updateDatabaseService } from 'src/application/service-functions';
 import { useToken } from 'src/application/token';
@@ -16,6 +16,8 @@ import { randomString } from 'src/utils/random';
 import { databaseInstances } from './database-instance-types';
 import { DatabaseServiceForm } from './database-service-form.types';
 
+// cSpell:ignore snipkitdb
+
 export function useSubmitDatabaseServiceForm(
   form: UseFormReturn<DatabaseServiceForm>,
   onPlanUpgradeRequired: (plan: OrganizationPlan) => void,
@@ -24,6 +26,7 @@ export function useSubmitDatabaseServiceForm(
   const organization = useOrganization();
   const { token } = useToken();
   const invalidate = useInvalidateApiQuery();
+  const prefetch = usePrefetchApiQuery();
   const navigate = useNavigate();
 
   const mutation = useMutation({
@@ -50,7 +53,7 @@ export function useSubmitDatabaseServiceForm(
     async onSuccess(databaseServiceId) {
       await Promise.all([
         invalidate('listApps'),
-        invalidate('getService', { path: { id: databaseServiceId } }),
+        prefetch('getService', { path: { id: databaseServiceId } }),
       ]);
 
       navigate(routes.database.overview(databaseServiceId));
@@ -61,7 +64,7 @@ export function useSubmitDatabaseServiceForm(
   });
 
   return async (values: DatabaseServiceForm) => {
-    const instance = databaseInstances.find(hasProperty('identifier', values.instance));
+    const instance = databaseInstances.find(hasProperty('id', values.instance));
 
     if (instance?.plans !== undefined && !instance.plans.includes(organization.plan)) {
       onPlanUpgradeRequired(instance.plans[0] as OrganizationPlan);
@@ -106,7 +109,7 @@ function createApiService(
           region: values.region,
           roles: [{ name: values.defaultRole, secret: databaseRoleSecret(values.serviceName) }],
           instance_type: values.instance,
-          databases: [{ name: 'koyebdb', owner: values.defaultRole }],
+          databases: [{ name: 'snipkitdb', owner: values.defaultRole }],
         },
       },
     },

@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 
-import { AccordionSection } from '@koyeb/design-system';
+import { AccordionSection } from '@snipkit/design-system';
 import { IconChevronDown } from 'src/components/icons';
 import { Shortcut } from 'src/components/shortcut';
 

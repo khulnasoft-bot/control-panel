@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { useEffect } from 'react';
 
-import { Button, ButtonGroup, InfoTooltip } from '@koyeb/design-system';
+import { Button, ButtonGroup, InfoTooltip } from '@snipkit/design-system';
 import type { Api } from 'src/api/api-types';
 import { useInstance } from 'src/api/hooks/catalog';
 import { useDeployment, useService } from 'src/api/hooks/service';
@@ -84,7 +84,7 @@ function ServiceMetrics({ serviceId, timeFrame }: { serviceId: string; timeFrame
             loading={queries.isPending}
             error={queries.error['MEM_RSS']}
             data={queries.data['MEM_RSS']}
-            max={parseBytes(instance?.ram)}
+            max={parseBytes(instance?.memory)}
           />
         </GraphCard>
       </div>

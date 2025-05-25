@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { FieldValues, FormState, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { IconButton } from '@koyeb/design-system';
+import { IconButton } from '@snipkit/design-system';
 import { api } from 'src/api/api';
 import { Secret } from 'src/api/model';
 import { useInvalidateApiQuery } from 'src/api/use-api';
@@ -16,7 +16,7 @@ import { useUpdateEffect } from 'src/hooks/lifecycle';
 import { useZodResolver } from 'src/hooks/validation';
 import { createTranslate } from 'src/intl/translate';
 
-const T = createTranslate('secrets.simpleSecretForm');
+const T = createTranslate('modules.secrets.simpleSecretForm');
 
 const schema = z.object({
   name: z.string().min(2).max(64),
@@ -41,10 +41,7 @@ export function SecretForm({ secret, renderFooter, onSubmitted }: SecretFormProp
       value: '',
       multiline: false,
     },
-    resolver: useZodResolver(schema, {
-      name: t('nameLabel'),
-      value: t('valueLabel'),
-    }),
+    resolver: useZodResolver(schema),
   });
 
   useUpdateEffect(() => {
@@ -70,8 +67,12 @@ export function SecretForm({ secret, renderFooter, onSubmitted }: SecretFormProp
       }
     },
     async onSuccess({ secret }) {
-      await invalidate('listSecrets');
-      await invalidate('revealSecret', { path: { id: secret!.id! } });
+      await Promise.all([
+        invalidate('listSecrets'),
+        invalidate('revealSecret', { path: { id: secret!.id! } }),
+        invalidate('getServiceVariables', { body: { definition: {} } }),
+      ]);
+
       form.reset();
       onSubmitted(secret!.name!);
     },

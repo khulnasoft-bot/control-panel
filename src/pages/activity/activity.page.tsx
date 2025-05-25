@@ -1,14 +1,12 @@
 import { useInfiniteQuery, UseInfiniteQueryResult, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { useCallback, useMemo, useState } from 'react';
+import { useState } from 'react';
 
-import { Spinner } from '@koyeb/design-system';
+import { Spinner } from '@snipkit/design-system';
 import { api } from 'src/api/api';
-import { mapActivities } from 'src/api/mappers/activity';
+import { mapActivity } from 'src/api/mappers/activity';
 import { Activity } from 'src/api/model';
 import { useToken } from 'src/application/token';
-import { ActivityIcon } from 'src/components/activity/activity-icon';
-import { ActivityItem } from 'src/components/activity/activity-item';
 import { DocumentTitle } from 'src/components/document-title';
 import { Loading } from 'src/components/loading';
 import { QueryError } from 'src/components/query-error';
@@ -17,6 +15,8 @@ import { Title } from 'src/components/title';
 import { useIntersectionObserver } from 'src/hooks/intersection-observer';
 import { useMount } from 'src/hooks/lifecycle';
 import { createTranslate } from 'src/intl/translate';
+import { ActivityIcon } from 'src/modules/activity/activity-icon';
+import { ActivityItem } from 'src/modules/activity/activity-item';
 import { createArray } from 'src/utils/arrays';
 
 const T = createTranslate('pages.activity');
@@ -39,7 +39,7 @@ export function ActivityPage() {
             limit: String(pageSize),
           },
         })
-        .then(mapActivities);
+        .then(({ activities }) => activities!.map(mapActivity));
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage: Activity[], pages, lastPageParam) => {
@@ -90,19 +90,17 @@ function useInfiniteScroll(query: UseInfiniteQueryResult) {
 
   useIntersectionObserver(
     elementRef,
-    useMemo(() => ({ root: null }), []),
-    useCallback(
-      (entry) => {
-        if (entry.intersectionRatio === 0) {
-          return;
-        }
+    { root: null },
+    ([entry]) => {
+      if (entry?.intersectionRatio === 0) {
+        return;
+      }
 
-        if (!error && hasNextPage && !isFetchingNextPage) {
-          void fetchNextPage();
-        }
-      },
-      [error, hasNextPage, isFetchingNextPage, fetchNextPage],
-    ),
+      if (!error && hasNextPage && !isFetchingNextPage) {
+        void fetchNextPage();
+      }
+    },
+    [error, hasNextPage, isFetchingNextPage, fetchNextPage],
   );
 
   return setElementRef;

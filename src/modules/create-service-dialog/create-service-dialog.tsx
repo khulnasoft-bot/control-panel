@@ -1,8 +1,8 @@
 import { useCallback, useRef } from 'react';
 
-import { Dialog } from '@koyeb/design-system';
 import { useOneClickApps } from 'src/api/hooks/catalog';
 import { useGithubApp } from 'src/api/hooks/git';
+import { Dialog } from 'src/components/dialog';
 import {
   IconArrowDown,
   IconArrowLeft,
@@ -36,7 +36,7 @@ import {
   useCreateServiceDialog,
 } from './use-create-service-dialog';
 
-const T = createTranslate('createServiceDialog');
+const T = createTranslate('modules.createServiceDialog');
 
 function useGetSections() {
   const t = T.useTranslate();
@@ -160,18 +160,16 @@ export function CreateServiceDialog() {
   );
 }
 
-export function CreateServiceDialogDialog() {
-  const { isOpen, dialogOpened, dialogClosed, reset } = useCreateServiceDialog();
+function CreateServiceDialogDialog() {
+  const { dialogOpened, reset } = useCreateServiceDialog();
 
   useShortcut(['meta', 'k'], useFeatureFlag('new-command-palette') ? undefined : dialogOpened);
 
   return (
     <Dialog
-      width="2xl"
-      isOpen={isOpen}
-      onClose={dialogClosed}
+      id="CreateService"
       onClosed={reset}
-      className="col h-96 overflow-hidden rounded-lg border !p-0"
+      className="col h-96 w-full max-w-2xl overflow-hidden rounded-lg border !p-0"
     >
       <CreateServiceDialogShortcuts />
       <SearchInput />

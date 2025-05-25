@@ -12,7 +12,7 @@ type DocumentationLinkProps = {
 
 export function DocumentationLink({ path, className, children }: DocumentationLinkProps) {
   return (
-    <ExternalLink openInNewTab href={`https://koyeb.com${path}`} className={clsx('text-link', className)}>
+    <ExternalLink openInNewTab href={`https://snipkit.com${path}`} className={clsx('text-link', className)}>
       {children}
       <IconExternalLink className="inline-block h-4 align-middle" />
     </ExternalLink>

@@ -1,11 +1,11 @@
-import { Alert } from '@koyeb/design-system';
+import { Alert } from '@snipkit/design-system';
 import { useRegion } from 'src/api/hooks/catalog';
 import { useOrganization } from 'src/api/hooks/session';
 import { CatalogInstance, CatalogRegion } from 'src/api/model';
 import { createTranslate } from 'src/intl/translate';
 import { QuotaAlert } from 'src/modules/service-form/components/quota-alert';
 
-const T = createTranslate('serviceCreation.instanceRegions.alerts');
+const T = createTranslate('modules.serviceCreation.instanceRegions.alerts');
 
 type InstanceRegionAlertsProps = {
   selectedInstance: CatalogInstance | null;
@@ -16,8 +16,8 @@ export function InstanceRegionAlerts({
   selectedInstance: instance,
   selectedRegions: regions,
 }: InstanceRegionAlertsProps) {
-  const fra = useRegion('fra')?.displayName;
-  const was = useRegion('was')?.displayName;
+  const fra = useRegion('fra')?.name;
+  const was = useRegion('was')?.name;
 
   const organization = useOrganization();
   const requireUpgrade = instance?.plans !== undefined && !instance.plans.includes(organization.plan);
@@ -36,9 +36,9 @@ export function InstanceRegionAlerts({
     );
   }
 
-  if (instance?.identifier === 'free') {
+  if (instance?.id === 'free') {
     return <Alert variant="info" description={<T id="freeMessage" values={{ fra, was }} />} />;
   }
 
-  return <QuotaAlert instance={instance?.identifier} regions={regions.map((region) => region.identifier)} />;
+  return <QuotaAlert instance={instance?.id} regions={regions.map((region) => region.id)} />;
 }

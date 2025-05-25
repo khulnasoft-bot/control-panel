@@ -1,141 +1,169 @@
 import clsx from 'clsx';
-import { isBefore, sub } from 'date-fns';
+import { Duration, format, sub } from 'date-fns';
 import { useCallback, useMemo } from 'react';
-import { Controller, UseFormReturn, useForm } from 'react-hook-form';
+import { Controller, useForm, UseFormReturn } from 'react-hook-form';
 
+import { IconButton, Menu, MenuItem, Spinner } from '@snipkit/design-system';
 import { useRegions } from 'src/api/hooks/catalog';
-import {
-  App,
-  CatalogRegion,
-  ComputeDeployment,
-  Instance,
-  LogLine as LogLineType,
-  Service,
-} from 'src/api/model';
-import { ControlledCheckbox, ControlledSelect } from 'src/components/controlled';
+import { useRegionalDeployments } from 'src/api/hooks/service';
+import { useOrganization, useOrganizationQuotas } from 'src/api/hooks/session';
+import { App, ComputeDeployment, Instance, LogLine, LogLine as LogLineType, Service } from 'src/api/model';
+import { isDeploymentRunning } from 'src/application/service-functions';
+import { ControlledCheckbox, ControlledInput, ControlledSelect } from 'src/components/controlled';
+import { FullScreen } from 'src/components/full-screen';
+import { IconFullscreen } from 'src/components/icons';
+import { getInitialLogOptions } from 'src/components/logs/log-options';
 import {
   LogLineContent,
   LogLineDate,
   LogLineInstanceId,
+  LogLines,
   LogLineStream,
   LogOptions,
-  Logs,
+  LogsFooter,
 } from 'src/components/logs/logs';
 import waitingForLogsImage from 'src/components/logs/waiting-for-logs.gif';
+import { QueryError } from 'src/components/query-error';
 import { RegionFlag } from 'src/components/region-flag';
+import { RegionName } from 'src/components/region-name';
 import { SelectInstance } from 'src/components/select-instance';
-import { useFormValues } from 'src/hooks/form';
+import { FeatureFlag } from 'src/hooks/feature-flag';
+import { LogsApi, LogsFilters, LogsPeriod } from 'src/hooks/logs';
 import { createTranslate, Translate } from 'src/intl/translate';
-import { inArray } from 'src/utils/arrays';
-import { hasProperty } from 'src/utils/object';
+import { inArray, last } from 'src/utils/arrays';
+import { identity } from 'src/utils/generic';
+import { getId, hasProperty } from 'src/utils/object';
 
-const T = createTranslate('deploymentLogs.runtime');
-
-type Filters = {
-  region: string | null;
-  instance: string | null;
-  logs: boolean;
-  events: boolean;
-};
+const T = createTranslate('modules.deployment.deploymentLogs.runtime');
 
 type RuntimeLogsProps = {
   app: App;
   service: Service;
   deployment: ComputeDeployment;
   instances: Instance[];
-  error?: unknown;
-  lines: LogLineType[];
+  filters: UseFormReturn<LogsFilters>;
+  logs: LogsApi;
 };
 
-export function RuntimeLogs({ app, service, deployment, instances, error, lines }: RuntimeLogsProps) {
-  const regions = useRegions().filter((region) => deployment.definition.regions.includes(region.identifier));
-
-  const form = useForm<Filters>({
-    defaultValues: {
-      region: null,
-      instance: null,
-      logs: true,
-      events: true,
-    },
+export function RuntimeLogs({ app, service, deployment, instances, filters, logs }: RuntimeLogsProps) {
+  const optionsForm = useForm<LogOptions>({
+    defaultValues: () => Promise.resolve(getInitialLogOptions()),
   });
 
-  const filters = useFormValues(form);
-  const filteredLines = useFilteredLines(lines, filters, instances);
-  const filteredInstances = useFilteredInstances(filters, instances);
+  const filterLine = useFilterLine(filters.watch());
 
   const renderLine = useCallback((line: LogLineType, options: LogOptions) => {
-    return <LogLine options={options} line={line} />;
+    return <RuntimeLogLine options={options} line={line} />;
   }, []);
 
-  if (error) {
-    if (typeof error === 'string') {
-      return <Translate id="common.errorMessage" values={{ message: error }} />;
-    }
-
-    return <Translate id="common.unknownError" />;
+  if (logs.error) {
+    return <QueryError error={logs.error} className="m-4" />;
   }
 
-  const waitingForLogs = instances.length === 0;
-  const hasFilters = form.formState.isDirty;
-
-  const expired = [
-    lines.length === 0,
-    inArray(deployment.status, ['canceled', 'error', 'stopped']),
-    isBefore(new Date(deployment.date), sub(new Date(), { hours: 72 })),
-  ].every(Boolean);
-
-  if (waitingForLogs && inArray(deployment.status, ['pending', 'provisioning', 'scheduled', 'allocating'])) {
+  if (
+    logs.lines.length === 0 &&
+    inArray(deployment.status, ['PENDING', 'PROVISIONING', 'SCHEDULED', 'ALLOCATING'])
+  ) {
     return <WaitingForLogs />;
   }
 
   return (
-    <Logs
-      appName={app.name}
-      serviceName={service.name}
-      header={<LogsFilters form={form} regions={regions} instances={filteredInstances} />}
-      expired={expired}
-      hasFilters={hasFilters}
-      hasInstanceOption
-      lines={filteredLines}
-      renderLine={renderLine}
-    />
+    <FullScreen
+      enabled={optionsForm.watch('fullScreen')}
+      exit={() => optionsForm.setValue('fullScreen', false)}
+      className="col gap-2 p-4"
+    >
+      <LogsHeader deployment={deployment} filters={filters} options={optionsForm} instances={instances} />
+
+      <LogLines
+        options={optionsForm.watch()}
+        setOption={optionsForm.setValue}
+        logs={logs}
+        filterLine={filterLine}
+        renderLine={renderLine}
+        renderNoLogs={() => (
+          <NoRuntimeLogs running={isDeploymentRunning(deployment)} loading={logs.loading} filters={filters} />
+        )}
+      />
+
+      <LogsFooter
+        appName={app.name}
+        serviceName={service.name}
+        lines={logs.lines}
+        renderMenu={(props) => (
+          <Menu className={clsx(optionsForm.watch('fullScreen') && 'z-60')} {...props}>
+            {(['tail', 'stream', 'date', 'instance', 'wordWrap'] as const).map((option) => (
+              <MenuItem key={option}>
+                <ControlledCheckbox
+                  control={optionsForm.control}
+                  name={option}
+                  label={<Translate id={`components.logs.options.${option}`} />}
+                  className="flex-1"
+                />
+              </MenuItem>
+            ))}
+          </Menu>
+        )}
+      />
+    </FullScreen>
   );
 }
 
-function useFilteredLines(lines: LogLineType[], filters: Filters, instances: Instance[]) {
-  return useMemo(() => {
-    return lines.filter((line) => {
-      const instance = instances.find(hasProperty('id', line.instanceId));
-
-      if (!filters.logs && line.stream !== 'koyeb') {
+function useFilterLine({ logs, events }: LogsFilters) {
+  return useCallback(
+    (line: LogLineType) => {
+      if (!logs && inArray(line.stream, ['stdout', 'stderr'])) {
         return false;
       }
 
-      if (!filters.events && line.stream === 'koyeb') {
-        return false;
-      }
-
-      if (filters.region !== null && filters.region !== instance?.region) {
-        return false;
-      }
-
-      if (filters.instance !== null && filters.instance !== line.instanceId) {
+      if (!events && inArray(line.stream, ['snipkit'])) {
         return false;
       }
 
       return true;
-    });
-  }, [lines, filters, instances]);
+    },
+    [logs, events],
+  );
 }
 
-function useFilteredInstances(filters: Filters, instances: Instance[]) {
-  return useMemo(() => {
-    if (filters.region === null) {
-      return instances;
-    }
+type NoLogsProps = {
+  running: boolean;
+  loading: boolean;
+  filters: UseFormReturn<LogsFilters>;
+};
 
-    return instances.filter(hasProperty('region', filters.region));
-  }, [filters, instances]);
+export function NoRuntimeLogs({ running, loading, filters }: NoLogsProps) {
+  const { plan } = useOrganization();
+  const periods = useRetentionPeriods();
+  const period = filters.watch('period');
+
+  if (loading) {
+    return <Spinner className="size-6" />;
+  }
+
+  return (
+    <>
+      <p className="text-base">
+        {period === 'live' ? (
+          <T id="noLogs.expiredLive" />
+        ) : (
+          <T id="noLogs.expired" values={{ period: <T id={`retentionPeriods.${period}`} /> }} />
+        )}
+      </p>
+
+      {inArray(plan, ['hobby', 'starter', 'pro', 'scale']) && period === last(periods) && (
+        <p>
+          <T id="noLogs.upgrade" />
+        </p>
+      )}
+
+      {running && (
+        <p>
+          <T id="noLogs.tailing" />
+        </p>
+      )}
+    </>
+  );
 }
 
 function WaitingForLogs() {
@@ -146,6 +174,7 @@ function WaitingForLogs() {
       <p className="font-medium">
         <T id="waitingForLogs.title" />
       </p>
+
       <p className="max-w-xl text-center">
         <T id="waitingForLogs.description" />
       </p>
@@ -153,77 +182,168 @@ function WaitingForLogs() {
   );
 }
 
-type LogsFiltersProps = {
-  form: UseFormReturn<Filters>;
-  regions: CatalogRegion[];
+type LogsHeaderProps = {
+  deployment: ComputeDeployment;
+  filters: UseFormReturn<LogsFilters>;
+  options: UseFormReturn<LogOptions>;
   instances: Instance[];
 };
 
-function LogsFilters({ form, regions, instances }: LogsFiltersProps) {
-  return (
-    <div className="col sm:row gap-4">
-      <ControlledSelect
-        control={form.control}
-        name="region"
-        items={regions}
-        placeholder={<T id="filters.allRegions" />}
-        getKey={(region) => region.identifier}
-        itemToString={(region) => region.displayName}
-        itemToValue={(region) => region.identifier}
-        onItemClick={(region) => region.identifier === form.watch('region') && form.setValue('region', null)}
-        renderItem={(region) => (
-          <div className="row gap-2 whitespace-nowrap">
-            <RegionFlag identifier={region.identifier} className="size-4 rounded-full shadow-badge" />
-            {region.displayName}
-          </div>
-        )}
-        onChangeEffect={() => form.setValue('instance', null)}
-        className="md:min-w-48"
-      />
+function LogsHeader({ deployment, filters, options, instances }: LogsHeaderProps) {
+  const regionalDeployments = useRegionalDeployments(deployment.id);
+  const periods = useRetentionPeriods();
+  const regions = useRegions();
+  const t = T.useTranslate();
 
-      <Controller
-        control={form.control}
-        name="instance"
-        render={({ field }) => (
-          <SelectInstance
-            instances={instances}
-            placeholder={<T id="filters.allInstances" />}
-            value={instances.find(hasProperty('id', field.value)) ?? null}
-            onChange={(instance) => field.onChange(instance.id)}
-            unselect={<T id="filters.allInstances" />}
-            onUnselect={() => field.onChange(null)}
+  const formatPeriodDate = (date: Date) => format(date, 'MMM dd, hh:mm aa');
+
+  return (
+    <header className="col gap-4">
+      <div>
+        <T id="header.title" />
+      </div>
+
+      <div className="row flex-wrap gap-2">
+        <FeatureFlag feature="logs-filters">
+          <ControlledSelect
+            control={filters.control}
+            name="period"
+            items={periods}
+            getKey={identity}
+            itemToString={identity}
+            itemToValue={identity}
+            renderItem={(period) => (
+              <div className="first-letter:capitalize">
+                <T id={`retentionPeriods.${period}`} />
+              </div>
+            )}
+            renderSelectedItem={() =>
+              [
+                formatPeriodDate(filters.watch('start')),
+                filters.watch('period') === 'live' ? t('header.now') : formatPeriodDate(filters.watch('end')),
+              ].join(' - ')
+            }
+            onChangeEffect={(period) => {
+              const now = new Date();
+              const duration: Duration = {};
+
+              if (period === '1h') duration.hours = 1;
+              if (period === '6h') duration.hours = 6;
+              if (period === '24h') duration.hours = 24;
+              if (period === '7d') duration.days = 7;
+              if (period === '30d') duration.days = 30;
+
+              filters.setValue('start', sub(now, duration));
+              filters.setValue('end', now);
+            }}
+            className="min-w-80"
+          />
+        </FeatureFlag>
+
+        <ControlledSelect
+          control={filters.control}
+          name="regionalDeploymentId"
+          items={regionalDeployments ?? []}
+          placeholder={<T id="header.allRegions" />}
+          getKey={getId}
+          itemToString={({ id }) => regions.find(hasProperty('id', id))?.name ?? ''}
+          itemToValue={getId}
+          onItemClick={({ id }) =>
+            id === filters.watch('regionalDeploymentId') && filters.setValue('regionalDeploymentId', null)
+          }
+          renderItem={({ region }) => (
+            <div className="row gap-2 whitespace-nowrap">
+              <RegionFlag regionId={region} className="size-4" />
+              <RegionName regionId={region} className="size-4" />
+            </div>
+          )}
+          className="min-w-48"
+        />
+
+        <Controller
+          control={filters.control}
+          name="instanceId"
+          render={({ field }) => (
+            <SelectInstance
+              instances={instances}
+              placeholder={<T id="header.allInstances" />}
+              value={instances.find(hasProperty('id', field.value)) ?? null}
+              onChange={(instance) => field.onChange(instance.id)}
+              unselect={<T id="header.allInstances" />}
+              onUnselect={() => field.onChange(null)}
+              className="min-w-64"
+            />
+          )}
+        />
+
+        <FeatureFlag feature="logs-filters">
+          <ControlledInput
+            control={filters.control}
+            name="search"
+            type="search"
+            placeholder={t('header.search')}
             className="min-w-64"
           />
-        )}
-      />
+        </FeatureFlag>
 
-      <div className="row gap-4">
-        <ControlledCheckbox control={form.control} name="logs" label={<T id="filters.logs" />} />
-        <ControlledCheckbox control={form.control} name="events" label={<T id="filters.events" />} />
+        <div className="row ml-auto gap-4">
+          <ControlledCheckbox control={filters.control} name="logs" label={<T id="header.logs" />} />
+          <ControlledCheckbox control={filters.control} name="events" label={<T id="header.events" />} />
+
+          <IconButton
+            variant="solid"
+            Icon={IconFullscreen}
+            onClick={() => options.setValue('fullScreen', !options.getValues('fullScreen'))}
+          >
+            <T id="header.fullScreen" />
+          </IconButton>
+        </div>
       </div>
-    </div>
+    </header>
   );
 }
 
-function LogLine({ options, line }: { options: LogOptions; line: LogLineType }) {
+function useRetentionPeriods() {
+  const quotas = useOrganizationQuotas();
+
+  return useMemo(() => {
+    const periods: LogsPeriod[] = ['live', '1h', '6h'];
+
+    if (quotas?.logsRetention === undefined) {
+      return periods;
+    }
+
+    if (quotas.logsRetention >= 1) {
+      periods.push('24h');
+    }
+
+    if (quotas.logsRetention >= 7) {
+      periods.push('7d');
+    }
+
+    if (quotas.logsRetention >= 30) {
+      periods.push('30d');
+    }
+
+    return periods;
+  }, [quotas]);
+}
+
+export function RuntimeLogLine({ options, line }: { options: LogOptions; line: LogLine }) {
+  const dateProps: Partial<React.ComponentProps<typeof LogLineDate>> = {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  };
+
   return (
-    <div className={clsx('row px-4', line.stream === 'koyeb' && 'bg-blue/10')}>
-      {options.date && (
-        <LogLineDate
-          line={line}
-          year="numeric"
-          month="2-digit"
-          day="2-digit"
-          hour="2-digit"
-          minute="2-digit"
-          second="2-digit"
-        />
-      )}
-
+    <div className={clsx('row px-4', line.stream === 'snipkit' && 'bg-blue/10')}>
+      {options.date && <LogLineDate line={line} {...dateProps} />}
       {options.stream && <LogLineStream line={line} />}
-
       {options.instance && <LogLineInstanceId line={line} />}
-
       <LogLineContent line={line} options={options} />
     </div>
   );

@@ -3,13 +3,13 @@ import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button, Input } from '@koyeb/design-system';
+import { Button, Input } from '@snipkit/design-system';
 import { useOrganization, useUser } from 'src/api/hooks/session';
 import { ApiCredential } from 'src/api/model';
 import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
-import { CopyIconButton } from 'src/components/copy-icon-button';
 import { notify } from 'src/application/notify';
 import { ControlledInput } from 'src/components/controlled';
+import { CopyIconButton } from 'src/components/copy-icon-button';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
 import { useZodResolver } from 'src/hooks/validation';
 import { createTranslate, Translate } from 'src/intl/translate';
@@ -24,7 +24,6 @@ type CreateApiCredentialDialogProps = {
 export function CreateApiCredentialDialog({ type }: CreateApiCredentialDialogProps) {
   const T = createTranslate(`pages.${type}Settings.apiCredential`);
   const openDialog = Dialog.useOpen();
-  const closeDialog = Dialog.useClose();
 
   const user = useUser();
   const organization = useOrganization();
@@ -46,7 +45,6 @@ export function CreateApiCredentialDialog({ type }: CreateApiCredentialDialogPro
 
         <CreateApiCredentialForm
           type={type}
-          onCancel={closeDialog}
           onCreated={(created) => {
             setCreated(created);
             openDialog('ApiCredentialCreated');
@@ -89,11 +87,10 @@ const schema = z.object({
 
 type CreateApiCredentialFormProps = {
   type: ApiCredential['type'];
-  onCancel: () => void;
   onCreated: (value: string) => void;
 };
 
-function CreateApiCredentialForm({ type, onCancel, onCreated }: CreateApiCredentialFormProps) {
+function CreateApiCredentialForm({ type, onCreated }: CreateApiCredentialFormProps) {
   const T = createTranslate(`pages.${type}Settings.apiCredential`);
   const t = T.useTranslate();
 
@@ -104,10 +101,7 @@ function CreateApiCredentialForm({ type, onCancel, onCreated }: CreateApiCredent
       name: '',
       description: '',
     },
-    resolver: useZodResolver(schema, {
-      name: t('createDialog.nameLabel'),
-      description: t('createDialog.descriptionLabel'),
-    }),
+    resolver: useZodResolver(schema),
   });
 
   const invalidate = useInvalidateApiQuery();

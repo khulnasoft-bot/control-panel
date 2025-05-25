@@ -1,4 +1,4 @@
-import React, { forwardRef, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Control, FieldPath, FieldValues, PathValue, useController } from 'react-hook-form';
 
 import {
@@ -12,21 +12,24 @@ import {
   Switch,
   TextArea,
   mergeRefs,
-} from '@koyeb/design-system';
+} from '@snipkit/design-system';
 import { usePureFunction } from 'src/hooks/lifecycle';
 
-import { StringArrayInput } from './string-array-input';
+import { Extend } from '../../design-system/src/utils/types';
 
 type ControlledProps<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Component extends React.JSXElementConstructor<any>,
   Form extends FieldValues = FieldValues,
   Name extends FieldPath<Form> = FieldPath<Form>,
-> = React.ComponentProps<Component> & {
-  control?: Control<Form>;
-  name: Name;
-  onChangeEffect?: (event: React.ChangeEvent<React.ComponentRef<Component>>) => void;
-};
+> = Extend<
+  React.ComponentProps<Component>,
+  {
+    control?: Control<Form>;
+    name: Name;
+    onChangeEffect?: (event: React.ChangeEvent<React.ComponentRef<Component>>) => void;
+  }
+>;
 
 export function ControlledCheckbox<
   Form extends FieldValues = FieldValues,
@@ -112,13 +115,10 @@ export function ControlledSelectBox<
   return <SelectBox {...field} {...controlProps} {...props} />;
 }
 
-function ControlledInput_<
+export function ControlledInput<
   Form extends FieldValues = FieldValues,
   Name extends FieldPath<Form> = FieldPath<Form>,
->(
-  { control, name, helperText, onChangeEffect, ...props }: ControlledProps<typeof Input, Form, Name>,
-  ref: React.ForwardedRef<HTMLInputElement>,
-) {
+>({ ref, control, name, helperText, onChangeEffect, ...props }: ControlledProps<typeof Input, Form, Name>) {
   const { field, fieldState } = useController({ control, name });
 
   return (
@@ -127,29 +127,11 @@ function ControlledInput_<
       ref={mergeRefs(ref, field.ref)}
       invalid={fieldState.invalid}
       helperText={fieldState.error?.message ?? helperText}
-      value={Number.isNaN(field.value) ? '' : field.value}
+      value={Number.isNaN(field.value) ? '' : (field.value ?? '')}
       onChange={(event) => {
         field.onChange(props.type === 'number' ? event.target.valueAsNumber : event.target.value);
         onChangeEffect?.(event);
       }}
-      {...props}
-    />
-  );
-}
-
-export const ControlledInput = forwardRef(ControlledInput_);
-
-export function ControlledStringArrayInput<
-  Form extends FieldValues = FieldValues,
-  Name extends FieldPath<Form> = FieldPath<Form>,
->({ control, name, ...props }: ControlledProps<typeof StringArrayInput, Form, Name>) {
-  const { field, fieldState } = useController({ control, name });
-
-  return (
-    <StringArrayInput
-      {...field}
-      invalid={fieldState.invalid}
-      helperText={fieldState.error?.message}
       {...props}
     />
   );

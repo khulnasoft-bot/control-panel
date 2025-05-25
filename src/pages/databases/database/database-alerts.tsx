@@ -1,12 +1,14 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { Alert, Button } from '@koyeb/design-system';
+import { Alert, Button } from '@snipkit/design-system';
 import { useOrganization } from 'src/api/hooks/session';
 import { DatabaseDeployment, Service } from 'src/api/model';
 import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
 import { notify } from 'src/application/notify';
 import { routes } from 'src/application/routes';
+import { getDatabaseServiceReachedQuota } from 'src/application/service-functions';
 import { ExternalLink, LinkButton } from 'src/components/link';
+import { useFeatureFlag } from 'src/hooks/feature-flag';
 import { createTranslate } from 'src/intl/translate';
 
 const T = createTranslate('pages.database.layout.alerts');
@@ -17,12 +19,15 @@ type DatabaseAlertsProps = {
 };
 
 export function DatabaseAlerts({ service, deployment }: DatabaseAlertsProps) {
-  if (service.status === 'paused') {
+  const hasDatabaseActiveTime = useFeatureFlag('database-active-time');
+  const reachedQuota = getDatabaseServiceReachedQuota(Boolean(hasDatabaseActiveTime), service, deployment);
+
+  if (service.status === 'PAUSED') {
     return <DatabasePausedAlert service={service} />;
   }
 
-  if (deployment.reachedQuota !== undefined) {
-    return <QuotaReachedAlert service={service} quota={deployment.reachedQuota} />;
+  if (reachedQuota !== undefined) {
+    return <QuotaReachedAlert service={service} quota={reachedQuota} />;
   }
 
   return null;
@@ -53,7 +58,7 @@ function DatabasePausedAlert({ service }: { service: Service }) {
 
 type QuotaReachedAlertProps = {
   service: Service;
-  quota: Exclude<DatabaseDeployment['reachedQuota'], undefined>;
+  quota: NonNullable<ReturnType<typeof getDatabaseServiceReachedQuota>>;
 };
 
 function QuotaReachedAlert({ service, quota }: QuotaReachedAlertProps) {
@@ -63,7 +68,7 @@ function QuotaReachedAlert({ service, quota }: QuotaReachedAlertProps) {
     <ExternalLink
       openInNewTab
       className="underline"
-      href="https://www.koyeb.com/docs/databases#database-instance-types"
+      href="https://www.snipkit.com/docs/databases#database-instance-types"
     >
       {children}
     </ExternalLink>

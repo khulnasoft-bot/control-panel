@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { parse } from 'tldts';
 
-import { Button, Table, useBreakpoint } from '@koyeb/design-system';
+import { Button, Table, useBreakpoint } from '@snipkit/design-system';
 import { Domain } from 'src/api/model';
 import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
 import { notify } from 'src/application/notify';
@@ -71,7 +71,7 @@ export function DnsConfiguration({ domain }: { domain: Domain }) {
 }
 
 function getDocumentationLink(isApex: boolean) {
-  const link = 'https://www.koyeb.com/docs/run-and-scale/domains';
+  const link = 'https://www.snipkit.com/docs/run-and-scale/domains';
   const anchor = isApex ? '#for-an-apex-domain' : '#for-a-subdomain';
 
   return `${link}${anchor}`;

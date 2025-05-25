@@ -1,13 +1,13 @@
-import { Badge, Tooltip } from '@koyeb/design-system';
+import { Badge, Tooltip } from '@snipkit/design-system';
 import { App, ComputeDeployment, Service } from 'src/api/model';
-import { CopyIconButton } from 'src/components/copy-icon-button';
 import { ServiceUrl, getServiceUrls } from 'src/application/service-functions';
+import { CopyIconButton } from 'src/components/copy-icon-button';
 import { Metadata } from 'src/components/metadata';
 import { useClipboard } from 'src/hooks/clipboard';
 import { createTranslate, Translate } from 'src/intl/translate';
 import { assert, defined } from 'src/utils/assert';
 
-const T = createTranslate('deploymentInfo');
+const T = createTranslate('modules.deployment.deploymentInfo');
 
 type InternalUrlProps = {
   app: App;
@@ -16,9 +16,9 @@ type InternalUrlProps = {
 };
 
 export function InternalUrl({ app, service, deployment }: InternalUrlProps) {
-  const urls = getServiceUrls(app, service, deployment);
+  const urls = getServiceUrls(app, service, deployment).filter((url) => url.internalUrl !== undefined);
 
-  if (urls.find((url) => url.internalUrl !== undefined) === undefined) {
+  if (urls.length === 0) {
     return null;
   }
 

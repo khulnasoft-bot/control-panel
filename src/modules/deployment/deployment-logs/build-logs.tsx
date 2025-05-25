@@ -1,28 +1,46 @@
-import { isBefore, sub } from 'date-fns';
+import clsx from 'clsx';
 import { useCallback } from 'react';
+import { useForm, UseFormReturn } from 'react-hook-form';
 
-import { Alert } from '@koyeb/design-system';
+import { Alert, IconButton, Menu, MenuItem } from '@snipkit/design-system';
+import { useOrganization, useOrganizationQuotas } from 'src/api/hooks/session';
 import { App, ComputeDeployment, LogLine as LogLineType, Service } from 'src/api/model';
 import { routes } from 'src/application/routes';
+import { ControlledCheckbox } from 'src/components/controlled';
+import { FullScreen } from 'src/components/full-screen';
+import { IconFullscreen } from 'src/components/icons';
 import { Link } from 'src/components/link';
-import { LogLineContent, LogLineDate, LogLineStream, LogOptions, Logs } from 'src/components/logs/logs';
+import { getInitialLogOptions } from 'src/components/logs/log-options';
+import {
+  LogLineContent,
+  LogLineDate,
+  LogLines,
+  LogLineStream,
+  LogOptions,
+  LogsFooter,
+} from 'src/components/logs/logs';
 import waitingForLogsImage from 'src/components/logs/waiting-for-logs.gif';
+import { QueryError } from 'src/components/query-error';
+import { LogsApi } from 'src/hooks/logs';
 import { createTranslate, Translate } from 'src/intl/translate';
 import { inArray } from 'src/utils/arrays';
-import { AssertionError, assert } from 'src/utils/assert';
+import { assert, AssertionError } from 'src/utils/assert';
 import { shortId } from 'src/utils/strings';
 
-const T = createTranslate('deploymentLogs.build');
+const T = createTranslate('modules.deployment.deploymentLogs.build');
 
 type BuildLogsProps = {
   app: App;
   service: Service;
   deployment: ComputeDeployment;
-  error?: unknown;
-  lines: LogLineType[];
+  logs: LogsApi;
 };
 
-export function BuildLogs({ app, service, deployment, error, lines }: BuildLogsProps) {
+export function BuildLogs({ app, service, deployment, logs }: BuildLogsProps) {
+  const optionsForm = useForm<LogOptions>({
+    defaultValues: () => Promise.resolve(getInitialLogOptions()),
+  });
+
   const renderLine = useCallback((line: LogLineType, options: LogOptions) => {
     return <LogLine line={line} options={options} />;
   }, []);
@@ -31,29 +49,50 @@ export function BuildLogs({ app, service, deployment, error, lines }: BuildLogsP
     return <BuiltInPreviousDeployment service={service} />;
   }
 
-  if (error) {
-    if (typeof error === 'string') {
-      return error;
-    }
-
-    return <Translate id="common.unknownError" />;
+  if (logs.error) {
+    return <QueryError error={logs.error} className="m-4" />;
   }
 
-  const waitingForLogs = lines.length === 0;
-  const expired = isBefore(new Date(deployment.date), sub(new Date(), { hours: 72 }));
-
-  if (waitingForLogs && inArray(deployment.status, ['pending', 'provisioning'])) {
+  if (logs.lines.length === 0 && inArray(deployment.status, ['PENDING', 'PROVISIONING'])) {
     return <WaitingForLogs />;
   }
 
   return (
-    <Logs
-      appName={app.name}
-      serviceName={service.name}
-      expired={expired}
-      lines={lines}
-      renderLine={renderLine}
-    />
+    <FullScreen
+      enabled={optionsForm.watch('fullScreen')}
+      exit={() => optionsForm.setValue('fullScreen', false)}
+      className="col gap-2 p-4"
+    >
+      <LogsHeader options={optionsForm} />
+
+      <LogLines
+        options={optionsForm.watch()}
+        setOption={optionsForm.setValue}
+        logs={logs}
+        renderLine={renderLine}
+        renderNoLogs={() => <NoLogs />}
+      />
+
+      <LogsFooter
+        appName={app.name}
+        serviceName={service.name}
+        lines={logs.lines}
+        renderMenu={(props) => (
+          <Menu className={clsx(optionsForm.watch('fullScreen') && 'z-60')} {...props}>
+            {(['tail', 'stream', 'date', 'wordWrap'] as const).map((option) => (
+              <MenuItem key={option}>
+                <ControlledCheckbox
+                  control={optionsForm.control}
+                  name={option}
+                  label={<Translate id={`components.logs.options.${option}`} />}
+                  className="flex-1"
+                />
+              </MenuItem>
+            ))}
+          </Menu>
+        )}
+      />
+    </FullScreen>
   );
 }
 
@@ -69,6 +108,21 @@ function WaitingForLogs() {
         <T id="waitingForLogs.description" />
       </p>
     </div>
+  );
+}
+
+function NoLogs() {
+  const { plan } = useOrganization();
+  const quotas = useOrganizationQuotas();
+
+  return (
+    <>
+      <p className="text-base">
+        <T id="noLogs.expired" values={{ retention: quotas?.logsRetention }} />
+      </p>
+
+      <p>{inArray(plan, ['hobby', 'starter', 'pro', 'scale']) && <T id="noLogs.upgrade" />}</p>
+    </>
   );
 }
 
@@ -100,7 +154,32 @@ function BuiltInPreviousDeployment({ service }: { service: Service }) {
           }}
         />
       }
+      className="m-4"
     />
+  );
+}
+
+type LogsHeaderProps = {
+  options: UseFormReturn<LogOptions>;
+};
+
+function LogsHeader({ options }: LogsHeaderProps) {
+  const quotas = useOrganizationQuotas();
+
+  return (
+    <header className="row items-center gap-4">
+      <div className="mr-auto">
+        <T id="header.title" values={{ retention: quotas?.logsRetention }} />
+      </div>
+
+      <IconButton
+        variant="solid"
+        Icon={IconFullscreen}
+        onClick={() => options.setValue('fullScreen', !options.getValues('fullScreen'))}
+      >
+        <T id="header.fullScreen" />
+      </IconButton>
+    </header>
   );
 }
 

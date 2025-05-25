@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 
-import { Spinner, Tooltip } from '@koyeb/design-system';
+import { Spinner, Tooltip } from '@snipkit/design-system';
 import { Service, ServiceStatus } from 'src/api/model';
 import { getServiceLink } from 'src/application/service-functions';
 import { SvgComponent } from 'src/application/types';
@@ -56,13 +56,13 @@ function ServiceStatusIcon({ status, ...props }: ServiceIconProps) {
 }
 
 const icons: Record<ServiceStatus, [SvgComponent, string]> = {
-  starting: [Spinner, ''],
-  healthy: [IconCircleCheck, clsx('text-green')],
-  degraded: [IconCircleAlert, clsx('text-orange')],
-  unhealthy: [IconCircleAlert, clsx('text-red')],
-  deleting: [Spinner, ''],
-  deleted: [Spinner, ''],
-  pausing: [IconCirclePause, clsx('text-orange')],
-  paused: [IconCirclePause, clsx('text-orange')],
-  resuming: [Spinner, ''],
+  STARTING: [Spinner, ''],
+  HEALTHY: [IconCircleCheck, clsx('text-green')],
+  DEGRADED: [IconCircleAlert, clsx('text-orange')],
+  UNHEALTHY: [IconCircleAlert, clsx('text-red')],
+  DELETING: [Spinner, ''],
+  DELETED: [Spinner, ''],
+  PAUSING: [IconCirclePause, clsx('text-orange')],
+  PAUSED: [IconCirclePause, clsx('text-orange')],
+  RESUMING: [Spinner, ''],
 };

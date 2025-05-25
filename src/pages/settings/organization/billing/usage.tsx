@@ -5,7 +5,7 @@ import { Fragment } from 'react/jsx-runtime';
 import { useForm } from 'react-hook-form';
 import { FormattedDate, FormattedNumber } from 'react-intl';
 
-import { Button, Tooltip } from '@koyeb/design-system';
+import { Button, Tooltip } from '@snipkit/design-system';
 import { useNextInvoiceQuery } from 'src/api/hooks/billing';
 import { useOrganization } from 'src/api/hooks/session';
 import { InvoiceDiscount, InvoicePeriod } from 'src/api/model';
@@ -17,6 +17,7 @@ import { SectionHeader } from 'src/components/section-header';
 import { FormValues, handleSubmit } from 'src/hooks/form';
 import { FormattedPrice } from 'src/intl/formatted';
 import { createTranslate, Translate, TranslateEnum } from 'src/intl/translate';
+import { useTrial } from 'src/modules/trial/use-trial';
 import { removeTimezoneOffset } from 'src/utils/date';
 
 const T = createTranslate('pages.organizationSettings.billing.usage');
@@ -24,22 +25,22 @@ const T = createTranslate('pages.organizationSettings.billing.usage');
 export function Usage() {
   const organization = useOrganization();
   const invoiceQuery = useNextInvoiceQuery();
+  const trial = useTrial();
 
   return (
     <section className="col gap-6">
       <SectionHeader
         title={<T id="title" />}
         description={
-          <>
-            <T
-              id={organization.trial ? 'descriptionTrial' : 'description'}
-              values={{
-                strong: (children) => <strong className="text-default">{children}</strong>,
-                plan: <TranslateEnum enum="plans" value={organization.plan} />,
-                upgrade: <T id="upgrade" />,
-              }}
-            />
-          </>
+          <T
+            id={trial ? 'descriptionTrial' : 'description'}
+            values={{
+              strong: (children) => <strong className="text-default">{children}</strong>,
+              days: trial?.daysLeft,
+              plan: <TranslateEnum enum="plans" value={organization.plan} />,
+              upgrade: <T id="upgrade" />,
+            }}
+          />
         }
       />
 
@@ -69,7 +70,7 @@ function UsageDetails({ periods, discounts, totalWithoutDiscount, total }: Usage
   return (
     <div className="col rounded-md border">
       {periods.map(({ start, end, lines }, index) => (
-        <Fragment key={start}>
+        <Fragment key={`${start}-${end}`}>
           <div className={clsx('row bg-muted px-3 py-2 text-xs text-dim', index === 0 && 'rounded-t-md')}>
             <Period start={start} end={end} />
           </div>
@@ -86,7 +87,7 @@ function UsageDetails({ periods, discounts, totalWithoutDiscount, total }: Usage
       <div className="divide-y">
         {totalWithoutDiscount !== undefined && (
           <UsageTotalRow label={<T id="subtotal" />}>
-            <Price value={totalWithoutDiscount / 100} />
+            <Price value={totalWithoutDiscount} />
           </UsageTotalRow>
         )}
 
@@ -97,7 +98,7 @@ function UsageDetails({ periods, discounts, totalWithoutDiscount, total }: Usage
         ))}
 
         <UsageTotalRow label={<T id="total" />}>
-          <Price value={total / 100} />
+          <Price value={total} />
         </UsageTotalRow>
       </div>
     </div>
@@ -196,9 +197,7 @@ function UsageRowPrice({ price }: UsageRowPriceProps) {
     return null;
   }
 
-  return (
-    <T id="pricePerHour" values={{ price: <FormattedPrice value={(price * 60 * 60) / 100} digits={6} /> }} />
-  );
+  return <T id="pricePerHour" values={{ price: <FormattedPrice value={price * 60 * 60} digits={6} /> }} />;
 }
 
 type UsageRowTotalProps = {
@@ -206,7 +205,7 @@ type UsageRowTotalProps = {
 };
 
 function UsageRowTotal({ total }: UsageRowTotalProps) {
-  return <Price value={total / 100} />;
+  return <Price value={total} />;
 }
 
 type UsageTotalRowProps = {
@@ -230,13 +229,13 @@ type DiscountValueProps = {
 
 function DiscountValue({ discount }: DiscountValueProps) {
   if (discount.type === 'amountOff') {
-    return <Price value={-discount.value / 100} />;
+    return <Price value={-discount.value} />;
   }
 
   if (discount.type === 'percentOff') {
     return (
       <span className="font-medium">
-        <FormattedNumber style="percent" value={-discount.value / 100} />
+        <FormattedNumber style="percent" value={-discount.value} />
       </span>
     );
   }
@@ -292,7 +291,7 @@ function DownloadUsage() {
     }),
     onSuccess(result, { period }) {
       const { start, end } = getStartEnd(period);
-      const filename = `koyeb-usage-${format(start, 'yyyy-MM')}-${format(end, 'yyyy-MM')}.csv`;
+      const filename = `snipkit-usage-${format(start, 'yyyy-MM')}-${format(end, 'yyyy-MM')}.csv`;
 
       downloadFileFromString(filename, result as string);
     },

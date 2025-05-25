@@ -1,10 +1,13 @@
+import { useController } from 'react-hook-form';
+
 import { ControlledCheckbox } from 'src/components/controlled';
 import { createTranslate } from 'src/intl/translate';
 
-import { OverridableInput, OverridableInputArray } from '../../components/overridable-input';
+import { OverridableInput } from '../../components/overridable-input';
+import { ShellCommandInput } from '../../components/shell-command-input';
 import { ServiceForm } from '../../service-form.types';
 
-const T = createTranslate('serviceForm.builder.dockerfileConfiguration');
+const T = createTranslate('modules.serviceForm.builder.dockerfileConfiguration');
 
 export function DockerfileOptions() {
   const t = T.useTranslate();
@@ -25,23 +28,9 @@ export function DockerfileOptions() {
         placeholder={t('dockerfileLocationPlaceholder')}
       />
 
-      <OverridableInputArray
-        name="builder.dockerfileOptions.entrypoint"
-        label={<T id="entrypointLabel" />}
-        helpTooltip={<T id="entrypointTooltip" />}
-      />
+      <EntrypointInput />
 
-      <OverridableInput
-        name="builder.dockerfileOptions.command"
-        label={<T id="commandLabel" />}
-        helpTooltip={<T id="commandTooltip" />}
-      />
-
-      <OverridableInputArray
-        name="builder.dockerfileOptions.args"
-        label={<T id="argsLabel" />}
-        helpTooltip={<T id="argsTooltip" />}
-      />
+      <CommandInput />
 
       <OverridableInput
         name="builder.dockerfileOptions.target"
@@ -62,5 +51,54 @@ export function DockerfileOptions() {
         helpTooltip={<T id="privilegedTooltip" />}
       />
     </div>
+  );
+}
+
+type EntrypointPath = 'builder.dockerfileOptions.entrypoint';
+type CommandPath = 'builder.dockerfileOptions.command';
+type ArgsPath = 'builder.dockerfileOptions.args';
+
+function EntrypointInput() {
+  const { field, fieldState } = useController<ServiceForm, EntrypointPath>({
+    name: 'builder.dockerfileOptions.entrypoint',
+  });
+
+  return (
+    <ShellCommandInput
+      label={<T id="entrypointLabel" />}
+      helpTooltip={<T id="entrypointTooltip" />}
+      instruction="ENTRYPOINT"
+      value={field.value}
+      onChange={field.onChange}
+      error={fieldState.error?.message}
+      className="w-full max-w-md"
+    />
+  );
+}
+
+function CommandInput() {
+  const { field: command, fieldState: commandState } = useController<ServiceForm, CommandPath>({
+    name: 'builder.dockerfileOptions.command',
+  });
+
+  const { field: args, fieldState: argsState } = useController<ServiceForm, ArgsPath>({
+    name: 'builder.dockerfileOptions.args',
+  });
+
+  const value = command.value === null ? null : [command.value, ...(args.value ?? [])];
+
+  return (
+    <ShellCommandInput
+      label={<T id="commandLabel" />}
+      helpTooltip={<T id="commandTooltip" />}
+      instruction="CMD"
+      value={value}
+      onChange={(value) => {
+        command.onChange(value ? (value[0] ?? '') : null);
+        args.onChange(value ? value.slice(1) : null);
+      }}
+      error={commandState.error?.message ?? argsState.error?.message}
+      className="w-full max-w-md"
+    />
   );
 }

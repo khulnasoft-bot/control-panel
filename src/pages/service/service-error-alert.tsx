@@ -1,4 +1,4 @@
-import { Alert, ButtonColor } from '@koyeb/design-system';
+import { Alert, ButtonColor } from '@snipkit/design-system';
 import { useDeployment } from 'src/api/hooks/service';
 import { Service } from 'src/api/model';
 import { routes } from 'src/application/routes';
@@ -26,11 +26,11 @@ export function ServiceErrorAlert({ service }: ServiceErrorAlertProps) {
     return null;
   }
 
-  if (service.status === 'unhealthy') {
+  if (service.status === 'UNHEALTHY') {
     return <ServiceUnhealthyAlert serviceId={service.id} latestDeploymentId={latestDeploymentId} />;
   }
 
-  if (service.status === 'degraded' && activeDeploymentId !== undefined) {
+  if (service.status === 'DEGRADED' && activeDeploymentId !== undefined) {
     return (
       <ServiceDegradedAlert
         serviceId={service.id}
@@ -48,7 +48,7 @@ type ServiceUnhealthyAlertProps = {
   latestDeploymentId: string;
 };
 
-export function ServiceUnhealthyAlert({ serviceId, latestDeploymentId }: ServiceUnhealthyAlertProps) {
+function ServiceUnhealthyAlert({ serviceId, latestDeploymentId }: ServiceUnhealthyAlertProps) {
   return (
     <Alert
       variant="error"
@@ -78,7 +78,7 @@ type ServiceDegradedAlertProps = {
   latestDeploymentId: string;
 };
 
-export function ServiceDegradedAlert({
+function ServiceDegradedAlert({
   serviceId,
   activeDeploymentId,
   latestDeploymentId,

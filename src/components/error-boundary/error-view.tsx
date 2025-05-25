@@ -1,11 +1,11 @@
 import { routes } from 'src/application/routes';
-import LogoKoyeb from 'src/components/logo-koyeb.svg?react';
+import LogoSnipkit from 'src/components/logo-snipkit.svg?react';
 import { ThemeMode, useForceThemeMode } from 'src/hooks/theme';
 import { createTranslate } from 'src/intl/translate';
 
 import { ExternalLink, Link } from '../link';
 
-const T = createTranslate('errorBoundary.unhandledError');
+const T = createTranslate('components.errorBoundary.unhandledError');
 
 type ErrorViewProps = {
   httpStatus?: number;
@@ -23,7 +23,7 @@ export function ErrorView({ httpStatus, message, code, expected, onReset }: Erro
       className="h-screen bg-cover bg-center bg-no-repeat"
       style={{ backgroundImage: 'url(/static/images/backgrounds/black-hole.svg)' }}
     >
-      <LogoKoyeb className="absolute m-6 h-8" />
+      <LogoSnipkit className="absolute m-6 h-8" />
 
       <main className="col mx-auto h-full max-w-4xl items-center justify-center gap-4 px-4 text-center leading-tight">
         {httpStatus && (
@@ -44,7 +44,7 @@ export function ErrorView({ httpStatus, message, code, expected, onReset }: Erro
               id="statusLink"
               values={{
                 link: (children) => (
-                  <ExternalLink href="https://status.koyeb.com" className="text-link">
+                  <ExternalLink href="https://status.snipkit.com" className="text-link">
                     {children}
                   </ExternalLink>
                 ),

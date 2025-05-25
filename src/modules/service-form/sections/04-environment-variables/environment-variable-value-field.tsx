@@ -13,19 +13,19 @@ import {
   InputBox,
   useDropdown,
   useId,
-} from '@koyeb/design-system';
+} from '@snipkit/design-system';
 import { DocumentationLink } from 'src/components/documentation-link';
 import { IconChevronDown } from 'src/components/icons';
+import { useFormValues } from 'src/hooks/form';
 import { createTranslate } from 'src/intl/translate';
 import { identity } from 'src/utils/generic';
 import { lowerCase } from 'src/utils/strings';
 
+import { useServiceVariables } from '../../helpers/service-variables';
 import { ServiceForm } from '../../service-form.types';
 import { useWatchServiceForm } from '../../use-service-form';
 
-import { useServiceVariables } from './service-variables';
-
-const T = createTranslate('serviceForm.environmentVariables');
+const T = createTranslate('modules.serviceForm.environmentVariables');
 
 type EnvironmentVariableValueFieldProps = {
   index: number;
@@ -43,7 +43,7 @@ export function EnvironmentVariableValueField({
   const id = useId();
   const helperTextId = `${id}-helper-text`;
 
-  const variables = useServiceVariables();
+  const variables = useServiceVariables(useFormValues<ServiceForm>());
 
   const [isOpen, setIsOpen] = useState(false);
 
@@ -66,7 +66,7 @@ export function EnvironmentVariableValueField({
     },
     {
       key: 'systemEnv',
-      label: 'Koyeb variables',
+      label: 'Snipkit variables',
       items: filterItems(variables?.systemEnv ?? [], variableName, field.value),
     },
     {

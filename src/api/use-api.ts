@@ -10,6 +10,14 @@ type AnyFunction = (...params: any[]) => any;
 
 type Endpoint = keyof typeof api;
 
+export function getApiQueryKey<E extends Endpoint>(
+  endpoint: E,
+  params: ApiEndpointParams<E>,
+  token: string | undefined,
+) {
+  return [endpoint, params, token];
+}
+
 type UseApiQueryResult<E extends Endpoint> = {
   queryKey: QueryKey;
   queryFn: () => Promise<ApiEndpointResult<E>>;
@@ -22,7 +30,7 @@ export function useApiQueryFn<E extends Endpoint>(
   const { token } = useToken();
 
   return {
-    queryKey: [endpoint, params, token],
+    queryKey: getApiQueryKey(endpoint, params, token),
     queryFn() {
       const fn = api[endpoint] as AnyFunction;
 
@@ -81,7 +89,32 @@ export function useInvalidateApiQuery() {
       params: ApiEndpointParams<E> = {},
       filters: InvalidateQueryFilters = {},
     ) => {
-      return queryClient.invalidateQueries({ queryKey: [endpoint, params, token], ...filters });
+      return queryClient.invalidateQueries({
+        queryKey: getApiQueryKey(endpoint, params, token),
+        ...filters,
+      });
+    },
+    [queryClient, token],
+  );
+}
+
+export function usePrefetchApiQuery() {
+  const queryClient = useQueryClient();
+  const { token } = useToken();
+
+  return useCallback(
+    <E extends Endpoint>(endpoint: E, params: ApiEndpointParams<E> = {}) => {
+      return queryClient.prefetchQuery({
+        queryKey: getApiQueryKey(endpoint, params, token),
+        queryFn() {
+          const fn = api[endpoint] as AnyFunction;
+
+          return fn({
+            token,
+            ...params,
+          }) as Promise<ApiEndpointResult<E>>;
+        },
+      });
     },
     [queryClient, token],
   );

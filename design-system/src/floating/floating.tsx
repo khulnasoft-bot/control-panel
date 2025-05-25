@@ -1,4 +1,11 @@
-import { FloatingPortal, Middleware, Placement, Strategy, UseRoleProps } from '@floating-ui/react';
+import {
+  FloatingPortal,
+  Middleware,
+  Placement,
+  safePolygon,
+  Strategy,
+  UseRoleProps,
+} from '@floating-ui/react';
 
 import { useFloating } from './use-floating';
 
@@ -9,9 +16,10 @@ type FloatingProps = {
   placement?: Placement;
   middlewares?: Array<Middleware | false>;
   offset?: number;
+  hover?: boolean;
   role?: UseRoleProps['role'];
-  renderReference: (ref: React.RefCallback<Element>, props: Record<string, unknown>) => React.ReactNode;
-  renderFloating: (ref: React.RefCallback<Element>, props: Record<string, unknown>) => React.ReactNode;
+  renderReference: (props: Record<string, unknown>) => React.ReactNode;
+  renderFloating: (props: Record<string, unknown>) => React.ReactNode;
 };
 
 export function Floating({
@@ -21,6 +29,7 @@ export function Floating({
   placement,
   middlewares,
   offset,
+  hover,
   role,
   renderReference,
   renderFloating,
@@ -33,18 +42,23 @@ export function Floating({
     middlewares,
     offset,
     interactions: {
-      hover: { enabled: false },
-      role: { role },
+      hover: {
+        enabled: hover ?? false,
+        handleClose: safePolygon(),
+      },
+      role: {
+        role,
+      },
     },
   });
 
   return (
     <>
-      {renderReference(setReference, getReferenceProps())}
+      {renderReference(getReferenceProps({ ref: setReference }))}
 
       {isMounted && (
         <FloatingPortal>
-          {renderFloating(setFloating, { style: styles, ...getFloatingProps() })}
+          {renderFloating(getFloatingProps({ ref: setFloating, style: styles }))}
         </FloatingPortal>
       )}
     </>

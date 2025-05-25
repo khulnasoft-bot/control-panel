@@ -1,16 +1,16 @@
+import { useController } from 'react-hook-form';
+
 import { ControlledCheckbox } from 'src/components/controlled';
 import { createTranslate } from 'src/intl/translate';
 
-import { OverridableInput, OverridableInputArray } from '../../components/overridable-input';
 import { ServiceFormSection } from '../../components/service-form-section';
+import { ShellCommandInput } from '../../components/shell-command-input';
 import { DockerDeploymentOptions, ServiceForm } from '../../service-form.types';
 import { useWatchServiceForm } from '../../use-service-form';
 
-const T = createTranslate('serviceForm.deployment');
+const T = createTranslate('modules.serviceForm.deployment');
 
 export function DeploymentSection() {
-  const t = T.useTranslate();
-
   return (
     <ServiceFormSection
       section="deployment"
@@ -19,26 +19,9 @@ export function DeploymentSection() {
       description={<T id="description" />}
       className="col gaps"
     >
-      <OverridableInputArray
-        name="dockerDeployment.entrypoint"
-        label={<T id="entrypointLabel" />}
-        helpTooltip={<T id="entrypointTooltip" />}
-        placeholder={t('entrypointPlaceholder')}
-      />
+      <EntrypointInput />
 
-      <OverridableInput
-        name="dockerDeployment.command"
-        label={<T id="commandLabel" />}
-        helpTooltip={<T id="commandTooltip" />}
-        placeholder={t('commandPlaceholder')}
-      />
-
-      <OverridableInputArray
-        name="dockerDeployment.args"
-        label={<T id="argsLabel" />}
-        helpTooltip={<T id="argsTooltip" />}
-        placeholder={t('argsPlaceholder')}
-      />
+      <CommandInput />
 
       <ControlledCheckbox<ServiceForm>
         name="dockerDeployment.privileged"
@@ -57,4 +40,55 @@ function SectionTitle() {
 
 function isDefaultConfiguration(options: DockerDeploymentOptions) {
   return Object.values(options).every((value) => value === null || value === false);
+}
+
+function EntrypointInput() {
+  const t = T.useTranslate();
+
+  const { field, fieldState } = useController<ServiceForm, 'dockerDeployment.entrypoint'>({
+    name: 'dockerDeployment.entrypoint',
+  });
+
+  return (
+    <ShellCommandInput
+      label={<T id="entrypointLabel" />}
+      helpTooltip={<T id="entrypointTooltip" />}
+      placeholder={t('entrypointPlaceholder')}
+      instruction="ENTRYPOINT"
+      value={field.value}
+      onChange={field.onChange}
+      error={fieldState.error?.message}
+      className="w-full max-w-md"
+    />
+  );
+}
+
+function CommandInput() {
+  const t = T.useTranslate();
+
+  const { field: command, fieldState: cmdState } = useController<ServiceForm, 'dockerDeployment.command'>({
+    name: 'dockerDeployment.command',
+  });
+
+  const { field: args, fieldState: argsState } = useController<ServiceForm, 'dockerDeployment.args'>({
+    name: 'dockerDeployment.args',
+  });
+
+  const value = command.value === null ? null : [command.value, ...(args.value ?? [])];
+
+  return (
+    <ShellCommandInput
+      label={<T id="commandLabel" />}
+      helpTooltip={<T id="commandTooltip" />}
+      placeholder={t('commandPlaceholder')}
+      instruction="CMD"
+      value={value}
+      onChange={(value) => {
+        command.onChange(value ? (value[0] ?? '') : null);
+        args.onChange(value ? value.slice(1) : null);
+      }}
+      error={cmdState.error?.message ?? argsState.error?.message}
+      className="w-full max-w-md"
+    />
+  );
 }

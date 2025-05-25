@@ -1,146 +1,39 @@
 import clsx from 'clsx';
-import { useEffect, useRef, useState } from 'react';
-import { Fragment } from 'react/jsx-runtime';
-import { useForm, UseFormReturn } from 'react-hook-form';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { FormattedTime } from 'react-intl';
 
-import { Floating, IconButton, Menu, MenuItem, useBreakpoint } from '@koyeb/design-system';
+import { Floating, IconButton, Spinner } from '@snipkit/design-system';
 import { LogLine } from 'src/api/model';
 import { downloadFileFromString } from 'src/application/download-file-from-string';
 import { notify } from 'src/application/notify';
-import { IconCopy, IconDownload, IconEllipsis, IconFullscreen } from 'src/components/icons';
+import { IconCopy, IconDownload, IconEllipsis } from 'src/components/icons';
 import { useClipboard } from 'src/hooks/clipboard';
-import { useShortcut } from 'src/hooks/shortcut';
+import { useIntersectionObserver } from 'src/hooks/intersection-observer';
+import { LogsApi } from 'src/hooks/logs';
 import { createTranslate } from 'src/intl/translate';
 import { shortId } from 'src/utils/strings';
 
-import { ControlledCheckbox } from '../controlled';
-
-import { getInitialLogOptions, LogOptions, storeLogOptions } from './log-options';
+import { LogOptions } from './log-options';
 
 export { type LogOptions };
 
-const T = createTranslate('logs');
-
-type LogsProps = {
-  appName: string;
-  serviceName: string;
-  expired?: boolean;
-  hasFilters?: boolean;
-  hasInstanceOption?: boolean;
-  header?: React.ReactNode;
-  lines: LogLine[];
-  renderLine: (line: LogLine, options: LogOptions) => React.ReactNode;
-};
-
-export function Logs({
-  appName,
-  serviceName,
-  expired,
-  hasFilters,
-  hasInstanceOption,
-  header,
-  lines,
-  renderLine,
-}: LogsProps) {
-  const form = useForm<LogOptions>({
-    defaultValues: () => Promise.resolve(getInitialLogOptions()),
-  });
-
-  useEffect(() => {
-    return form.watch(storeLogOptions).unsubscribe;
-  }, [form]);
-
-  return (
-    <section
-      className={clsx(
-        'col divide-y bg-neutral',
-        form.watch('fullScreen') ? 'fixed inset-0 z-50' : 'rounded-lg border',
-      )}
-    >
-      <LogsHeader expired={expired} header={header} form={form} />
-
-      <div className="flex-1 overflow-hidden">
-        <LogLines
-          expired={expired}
-          hasFilters={hasFilters}
-          options={form.watch()}
-          setOption={form.setValue}
-          lines={lines}
-          renderLine={renderLine}
-        />
-      </div>
-
-      <LogsFooter
-        appName={appName}
-        serviceName={serviceName}
-        expired={expired}
-        hasInstanceOption={hasInstanceOption}
-        lines={lines}
-        form={form}
-      />
-    </section>
-  );
-}
-
-type LogsHeaderProps = {
-  expired?: boolean;
-  header?: React.ReactNode;
-  form: UseFormReturn<LogOptions>;
-};
-
-function LogsHeader({ expired, header, form }: LogsHeaderProps) {
-  const toggleFullScreen = useFullScreen(form);
-  const isDesktop = useBreakpoint('md');
-
-  const fullScreenButton = !expired && (
-    <IconButton variant="solid" Icon={IconFullscreen} onClick={toggleFullScreen} className="sm:self-start">
-      <T id="fullScreen" />
-    </IconButton>
-  );
-
-  if (form.watch('fullScreen') && !isDesktop) {
-    return <div className="absolute right-0 top-0 m-4">{fullScreenButton}</div>;
-  }
-
-  return (
-    <header className="col lg:row gap-4 p-4 lg:items-center">
-      <div className="mr-auto font-medium">
-        <T id="title" />
-      </div>
-
-      {!expired && header}
-
-      {fullScreenButton}
-    </header>
-  );
-}
+const T = createTranslate('components.logs');
 
 type LogsFooterProps = {
   appName: string;
   serviceName: string;
-  expired?: boolean;
-  hasInstanceOption?: boolean;
   lines: LogLine[];
-  form: UseFormReturn<LogOptions>;
+  renderMenu: (props: Record<string, unknown>) => React.ReactNode;
 };
 
-function LogsFooter({ appName, serviceName, expired, hasInstanceOption, lines, form }: LogsFooterProps) {
+export function LogsFooter({ appName, serviceName, lines, renderMenu }: LogsFooterProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const downloadLogs = useDownloadLogs(appName, serviceName, lines);
   const copyLogs = useCopyLogs(lines);
 
-  if (expired) {
-    return null;
-  }
-
-  const options: Array<keyof LogOptions> = hasInstanceOption
-    ? ['tail', 'stream', 'date', 'instance', 'wordWrap']
-    : ['tail', 'stream', 'date', 'wordWrap'];
-
   return (
-    <footer className="row flex-wrap items-center justify-end gap-4 px-4 py-2">
+    <footer className="row flex-wrap items-center justify-end gap-4">
       <button type="button" className="text-link row items-center gap-2" onClick={downloadLogs}>
         <IconDownload className="size-em" />
         <T id="download" />
@@ -155,8 +48,8 @@ function LogsFooter({ appName, serviceName, expired, hasInstanceOption, lines, f
         open={menuOpen}
         setOpen={setMenuOpen}
         placement="bottom-start"
-        renderReference={(ref, props) => (
-          <div ref={ref}>
+        renderReference={(props) => (
+          <div>
             <IconButton
               variant="ghost"
               color="gray"
@@ -166,20 +59,7 @@ function LogsFooter({ appName, serviceName, expired, hasInstanceOption, lines, f
             />
           </div>
         )}
-        renderFloating={(ref, props) => (
-          <Menu ref={ref} className={clsx(form.watch('fullScreen') && 'z-50')} {...props}>
-            {options.map((option) => (
-              <MenuItem key={option}>
-                <ControlledCheckbox
-                  control={form.control}
-                  name={option}
-                  label={<T id={option} />}
-                  className="flex-1"
-                />
-              </MenuItem>
-            ))}
-          </Menu>
-        )}
+        renderFloating={renderMenu}
       />
     </footer>
   );
@@ -203,120 +83,88 @@ function useCopyLogs(lines: LogLine[]) {
   };
 }
 
-function useFullScreen(form: UseFormReturn<LogOptions>) {
-  useShortcut(['escape'], () => {
-    if (form.getValues('fullScreen')) {
-      form.setValue('fullScreen', false);
-    }
-  });
-
-  useEffect(() => {
-    const { unsubscribe } = form.watch((values) => {
-      if (values.fullScreen) {
-        document.body.style.overflow = 'hidden';
-      } else {
-        document.body.style.overflow = '';
-      }
-    });
-
-    return unsubscribe;
-  });
-
-  return () => {
-    form.setValue('fullScreen', !form.getValues('fullScreen'));
-  };
-}
-
 type LogLinesProps = {
-  expired?: boolean;
-  hasFilters?: boolean;
   options: LogOptions;
   setOption: (option: keyof LogOptions, value: boolean) => void;
-  lines: LogLine[];
+  logs: LogsApi;
+  filterLine?: (line: LogLine) => boolean;
   renderLine: (line: LogLine, options: LogOptions) => React.ReactNode;
+  renderNoLogs: () => React.ReactNode;
 };
 
-function LogLines({ expired, hasFilters, options, setOption, lines, renderLine }: LogLinesProps) {
+export function LogLines({ options, setOption, logs, filterLine, renderLine, renderNoLogs }: LogLinesProps) {
+  const lines = logs.lines.filter(filterLine ?? (() => true));
   const container = useRef<HTMLDivElement>(null);
-  const ignoreNextScrollEventRef = useRef(false);
+  const [before, setBefore] = useState<HTMLDivElement | null>(null);
+  const [after, setAfter] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (container.current && options.tail) {
-      container.current.scrollTop = container.current.scrollHeight;
-      ignoreNextScrollEventRef.current = true;
+    if (options.tail) {
+      container.current?.scrollTo({ top: container.current.scrollHeight });
     }
-  }, [lines, options.fullScreen, options.tail]);
+  }, [options.tail, lines]);
 
-  const onScroll = () => {
-    if (ignoreNextScrollEventRef.current === true) {
-      ignoreNextScrollEventRef.current = false;
-      return;
-    }
+  useIntersectionObserver(
+    before,
+    { root: container.current },
+    ([entry]) => entry?.isIntersecting && logs.hasPrevious && logs.loadPrevious(),
+    [before, logs.hasPrevious],
+  );
 
-    if (isScrollable(container.current)) {
-      setOption('tail', hasReachedEnd(container.current));
+  useIntersectionObserver(
+    after,
+    { root: container.current },
+    ([entry]) => setOption('tail', Boolean(entry?.isIntersecting)),
+    [after],
+  );
+
+  const lastScrollHeight = useRef<number>(null);
+
+  useEffect(() => {
+    if (lastScrollHeight.current !== null && container.current?.scrollTop === 0) {
+      container.current.scrollTo({ top: container.current.scrollHeight - lastScrollHeight.current });
+      lastScrollHeight.current = null;
     }
-  };
+  }, [lines]);
+
+  const loaderRef = useCallback((elem: HTMLDivElement | null) => {
+    elem?.scrollIntoView({ block: 'nearest' });
+    lastScrollHeight.current = container.current?.scrollHeight ?? null;
+  }, []);
 
   return (
     <div
       ref={container}
-      onScroll={onScroll}
       // eslint-disable-next-line tailwindcss/no-arbitrary-value
       className={clsx(
-        'scrollbar-green scrollbar-thin overflow-auto py-2',
+        'scrollbar-green scrollbar-thin overflow-auto rounded border py-2',
         !options.fullScreen && 'h-[32rem] resize-y',
+        options.fullScreen && 'flex-1',
       )}
-      // set height with style to clear the one set manually when resizing
-      style={{ height: options.fullScreen ? '100%' : undefined }}
     >
-      {lines.length === 0 && <NoLogs expired={expired} hasFilters={hasFilters} />}
+      {lines.length === 0 && (
+        <div className="col h-full items-center justify-center gap-2 py-12">{renderNoLogs()}</div>
+      )}
 
-      <div className="min-w-min break-all font-mono">
-        {lines.map((line, index) => (
-          <Fragment key={index}>{renderLine(line, options)}</Fragment>
-        ))}
-      </div>
-    </div>
-  );
-}
+      {lines.length > 0 && (
+        <>
+          <div ref={setBefore} />
 
-const isScrollable = (element: HTMLElement | null) => {
-  if (!element) {
-    return false;
-  }
+          {logs.fetching && (
+            <div ref={loaderRef} className="row justify-center">
+              <Spinner className="mt-1 size-4" />
+            </div>
+          )}
 
-  return element.scrollHeight > element.clientHeight;
-};
+          <div className="min-w-min break-all font-mono">
+            {lines.map((line) => (
+              <Fragment key={line.id}>{renderLine(line, options)}</Fragment>
+            ))}
+          </div>
 
-const hasReachedEnd = (element: HTMLElement | null) => {
-  if (!element) {
-    return false;
-  }
-
-  return element.scrollTop + element.clientHeight >= element.scrollHeight;
-};
-
-type NoLogsFallbackProps = {
-  expired?: boolean;
-  hasFilters?: boolean;
-};
-
-function NoLogs({ expired, hasFilters }: NoLogsFallbackProps) {
-  const prefix = ((hasFilters) => {
-    if (expired) return 'logsExpired' as const;
-    if (hasFilters) return 'logsFiltered' as const;
-    return 'noLogs' as const;
-  })(hasFilters);
-
-  return (
-    <div className="col h-full items-center justify-center gap-2 py-12">
-      <p className="font-medium">
-        <T id={`${prefix}.title`} />
-      </p>
-      <p className="max-w-xl text-center">
-        <T id={`${prefix}.description`} />
-      </p>
+          <div ref={setAfter} />
+        </>
+      )}
     </div>
   );
 }
@@ -334,7 +182,7 @@ export function LogLineDate({ line, ...props }: LogLineDateProps) {
 export function LogLineStream({ line }: { line: LogLine }) {
   return (
     <LogLineMeta className={clsx(line.stream === 'stderr' && 'text-red')}>
-      {(line.stream === 'koyeb' ? 'event' : line.stream).padEnd(6, ' ')}
+      {(line.stream === 'snipkit' ? 'event' : line.stream).padEnd(6, ' ')}
     </LogLineMeta>
   );
 }

@@ -29,10 +29,10 @@ function getDomain(): string | undefined {
   const { environment } = getConfig();
 
   if (environment === 'production') {
-    return 'app.koyeb.com';
+    return 'app.snipkit.com';
   }
 
   if (environment === 'staging') {
-    return 'staging.koyeb.com';
+    return 'staging.snipkit.com';
   }
 }

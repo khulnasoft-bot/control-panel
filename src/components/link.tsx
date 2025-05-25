@@ -1,9 +1,17 @@
 import clsx from 'clsx';
-import { createElement, forwardRef } from 'react';
+import { createElement } from 'react';
 // eslint-disable-next-line no-restricted-imports
 import { Link } from 'wouter';
 
-import { ButtonVariant, ButtonSize, ButtonColor, buttonClassName, Spinner } from '@koyeb/design-system';
+import {
+  buttonClassName,
+  ButtonColor,
+  ButtonSize,
+  ButtonVariant,
+  Spinner,
+  TabButton,
+} from '@snipkit/design-system';
+import { Extend } from 'src/utils/types';
 
 export { Link };
 
@@ -18,16 +26,21 @@ type LinkButtonOwnProps = {
   state?: unknown;
 };
 
-type LinkButtonProps = LinkButtonOwnProps & React.AnchorHTMLAttributes<HTMLAnchorElement>;
+type LinkButtonProps = Extend<React.ComponentProps<'a'>, LinkButtonOwnProps>;
 
-export const LinkButton = forwardRef<HTMLAnchorElement, LinkButtonProps>(function LinkButton(
-  { component = Link, disabled, openInNewTab, state, href = '', loading, className, children, ...rest },
-  ref,
-) {
+export function LinkButton({
+  component = Link,
+  disabled,
+  openInNewTab,
+  state,
+  href = '',
+  loading,
+  className,
+  children,
+  ...rest
+}: LinkButtonProps) {
   const props: React.ComponentProps<typeof Link> & { state?: unknown } = {
-    ref,
     href,
-
     'aria-disabled': disabled,
     className: buttonClassName(rest, clsx(disabled && 'pointer-events-none opacity-50', className)),
     ...rest,
@@ -53,7 +66,7 @@ export const LinkButton = forwardRef<HTMLAnchorElement, LinkButtonProps>(functio
       {children}
     </>,
   );
-});
+}
 
 type TabButtonLinkProps = {
   href: string;
@@ -68,12 +81,7 @@ export function TabButtonLink({ href, selected, panelId, className, children }: 
     <Link
       href={href}
       role="tab"
-      className={clsx(
-        'col focusable flex-1 items-center rounded px-3 py-2 font-medium transition-all',
-        !selected && 'text-dim hover:bg-neutral/50 hover:text-default',
-        selected && 'bg-neutral',
-        className,
-      )}
+      className={clsx(TabButton.class({ selected, className }))}
       aria-selected={selected}
       aria-controls={panelId}
     >
@@ -86,15 +94,10 @@ type ExternalLinkProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
   openInNewTab?: boolean;
 };
 
-export const ExternalLink = forwardRef<HTMLAnchorElement, ExternalLinkProps>(function ExternalLink(
-  { openInNewTab, ...props },
-  ref,
-) {
-  return <a ref={ref} target={openInNewTab ? '_blank' : undefined} rel="noopener noreferrer" {...props} />;
-});
+export function ExternalLink({ openInNewTab, ...props }: ExternalLinkProps) {
+  return <a target={openInNewTab ? '_blank' : undefined} rel="noopener noreferrer" {...props} />;
+}
 
-export const ExternalLinkButton = forwardRef<HTMLAnchorElement, LinkButtonProps>(
-  function ExternalLink(props, ref) {
-    return <LinkButton ref={ref} component="a" rel="noopener noreferrer" {...props} />;
-  },
-);
+export function ExternalLinkButton(props: LinkButtonProps) {
+  return <LinkButton component="a" rel="noopener noreferrer" {...props} />;
+}

@@ -1,14 +1,15 @@
 import { useMutation } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
 
-import { Tooltip, Button } from '@koyeb/design-system';
+import { Button, Tooltip } from '@snipkit/design-system';
 import { useOrganization } from 'src/api/hooks/session';
 import { OrganizationPlan } from 'src/api/model';
-import { useInvalidateApiQuery, useApiMutationFn } from 'src/api/use-api';
+import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
 import { notify } from 'src/application/notify';
+import { Dialog } from 'src/components/dialog';
 import { ExternalLinkButton } from 'src/components/link';
-import { PaymentDialog } from 'src/components/payment-form';
-import { createTranslate } from 'src/intl/translate';
+import { UpgradeDialog } from 'src/components/payment-form';
+import { tallyForms, useTallyLink } from 'src/hooks/tally';
+import { createTranslate, TranslateEnum } from 'src/intl/translate';
 
 type Plan = Extract<OrganizationPlan, 'starter' | 'pro' | 'scale' | 'enterprise'>;
 
@@ -16,13 +17,13 @@ const T = createTranslate('pages.organizationSettings.plans');
 
 export function ChangePlanButton({ plan }: { plan: Plan }) {
   const organization = useOrganization();
-  const oldPlan = useRef(organization.plan);
 
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const openDialog = Dialog.useOpen();
+  const closeDialog = Dialog.useClose();
 
   const onPlanChanged = () => {
-    setPaymentDialogOpen(false);
-    notify.success(<PlanChangedNotification oldPlan={oldPlan.current} newPlan={plan} />);
+    closeDialog();
+    notify.success(<PlanChangedNotification plan={plan} />);
   };
 
   const mutation = useChangePlan(onPlanChanged);
@@ -31,17 +32,17 @@ export function ChangePlanButton({ plan }: { plan: Plan }) {
     if (organization.hasPaymentMethod) {
       mutation.mutate(plan);
     } else {
-      setPaymentDialogOpen(true);
+      openDialog('Upgrade', { plan });
     }
   };
 
   const text = () => {
-    if (organization.plan === plan) {
-      return <T id="currentPlan" />;
+    if (organization.trial || organization.plan === 'startup') {
+      return <T id="select" />;
     }
 
-    if (organization.plan === 'startup') {
-      return <T id="select" />;
+    if (organization.plan === plan) {
+      return <T id="currentPlan" />;
     }
 
     if (isUpgrade(organization.plan, plan)) {
@@ -51,16 +52,24 @@ export function ChangePlanButton({ plan }: { plan: Plan }) {
     return <T id="downgrade" />;
   };
 
+  const disabled = () => {
+    if (organization.trial) {
+      return false;
+    }
+
+    return organization.plan === plan || organization.plan === 'enterprise';
+  };
+
   return (
     <>
       <Tooltip content={organization.plan === 'enterprise' && plan !== 'enterprise' && <T id="contactUs" />}>
         {(props) => (
           <div {...props}>
             <Button
-              disabled={organization.plan === plan || organization.plan === 'enterprise'}
-              className="w-full"
+              disabled={disabled()}
               loading={mutation.isPending}
               onClick={onChangePlan}
+              className="w-full"
             >
               {text()}
             </Button>
@@ -68,14 +77,11 @@ export function ChangePlanButton({ plan }: { plan: Plan }) {
         )}
       </Tooltip>
 
-      <PaymentDialog
+      <UpgradeDialog
         plan={plan}
-        open={paymentDialogOpen}
-        onClose={() => setPaymentDialogOpen(false)}
         onPlanChanged={onPlanChanged}
-        title={<T id="paymentDialog.title" values={{ plan: <T id={`plans.${plan}.name`} /> }} />}
-        description={null}
-        submit={<T id="paymentDialog.submit" />}
+        title={<T id="upgradeDialog.title" values={{ plan: <TranslateEnum enum="plans" value={plan} /> }} />}
+        submit={<T id="upgradeDialog.submit" />}
       />
     </>
   );
@@ -83,11 +89,12 @@ export function ChangePlanButton({ plan }: { plan: Plan }) {
 
 export function ChangePlanEnterpriseButton() {
   const organization = useOrganization();
+  const tallyLink = useTallyLink(tallyForms.getInTouch);
 
   return (
     <ExternalLinkButton
       openInNewTab
-      href="https://app.reclaim.ai/m/koyeb-intro/short-call"
+      href={tallyLink}
       disabled={organization.plan === 'enterprise'}
       className="w-full"
     >
@@ -96,20 +103,15 @@ export function ChangePlanEnterpriseButton() {
   );
 }
 
-function PlanChangedNotification({ oldPlan, newPlan }: { oldPlan: OrganizationPlan; newPlan: Plan }) {
-  const planName = <T id={`plans.${newPlan}.name`} />;
-
+function PlanChangedNotification({ plan }: { plan: Plan }) {
   return (
     <>
       <strong>
-        <T id="planChangedNotification.title" values={{ plan: planName }} />
+        <T id="planChangedNotification.title" values={{ plan: <T id={`plans.${plan}.name`} /> }} />
       </strong>
 
       <div>
-        <T
-          id="planChangedNotification.details"
-          values={{ upgraded: isUpgrade(oldPlan, newPlan), plan: planName }}
-        />
+        <T id="planChangedNotification.details" />
       </div>
     </>
   );

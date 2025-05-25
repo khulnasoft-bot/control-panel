@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { useSecrets } from 'src/api/hooks/secret';
 import { routes } from 'src/application/routes';
 import { ControlledInput, ControlledSelect, ControlledSwitch } from 'src/components/controlled';
@@ -16,7 +16,7 @@ import { getId, getName } from 'src/utils/object';
 
 import { useCreateServiceDialog } from '../use-create-service-dialog';
 
-const T = createTranslate('createServiceDialog');
+const T = createTranslate('modules.createServiceDialog');
 
 const schema = z.object({
   image: z.string().min(1),
@@ -46,7 +46,7 @@ export function DockerImageSelection() {
     if (secretName !== null) {
       // todo: remove
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-      (window as any).__KOYEB_REGISTRY_SECRET_HACK = secretName;
+      (window as any).__SNIPKIT_REGISTRY_SECRET_HACK = secretName;
     }
 
     navigate(`${routes.deploy()}?${params.toString()}`);

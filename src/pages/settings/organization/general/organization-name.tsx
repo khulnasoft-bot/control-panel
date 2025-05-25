@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { useOrganization } from 'src/api/hooks/session';
 import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
 import { notify } from 'src/application/notify';
@@ -21,10 +21,8 @@ const schema = z.object({
 export function OrganizationName() {
   const organization = useOrganization();
 
-  const form = useForm({
-    defaultValues: {
-      organizationName: organization.name,
-    },
+  const form = useForm<z.infer<typeof schema>>({
+    defaultValues: { organizationName: organization.name },
     resolver: useZodResolver(schema),
   });
 

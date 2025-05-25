@@ -18,7 +18,7 @@ const T = createTranslate('pages.service.console');
 
 const { brightBlack, brightRed } = terminalColors;
 
-export function useTerminal(instanceId: string) {
+export function useTerminal(instanceId: string, { readOnly }: { readOnly?: boolean } = {}) {
   const { token } = useToken();
   const t = T.useTranslate();
 
@@ -43,6 +43,15 @@ export function useTerminal(instanceId: string) {
     return () => stream?.close();
   }, [stream]);
 
+  useEffect(() => {
+    if (stream && terminal) {
+      stream?.close();
+      reset(terminal);
+      connect(instanceId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instanceId]);
+
   const onData = useCallback(
     (data: string) => {
       if (prompt !== undefined) {
@@ -54,13 +63,15 @@ export function useTerminal(instanceId: string) {
           },
         };
 
-        stream.send(JSON.stringify(message));
+        if (!readOnly) {
+          stream.send(JSON.stringify(message));
+        }
       } else if (terminal) {
         reset(terminal);
         connect(instanceId);
       }
     },
-    [prompt, stream, terminal, reset, connect, instanceId],
+    [prompt, stream, terminal, reset, connect, instanceId, readOnly],
   );
 
   useEffect(() => {

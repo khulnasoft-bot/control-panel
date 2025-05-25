@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import { Alert } from '@koyeb/design-system';
-import { useInstancesQuery } from 'src/api/hooks/service';
+import { Alert } from '@snipkit/design-system';
+import { useInstanceQuery, useInstancesQuery } from 'src/api/hooks/service';
 import { Instance } from 'src/api/model';
 import { Loading } from 'src/components/loading';
 import { QueryError } from 'src/components/query-error';
@@ -9,7 +9,6 @@ import { SelectInstance } from 'src/components/select-instance';
 import Terminal from 'src/components/terminal/terminal';
 import { useRouteParam } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
-import { hasProperty } from 'src/utils/object';
 
 import { useTerminal } from './use-terminal';
 
@@ -17,17 +16,13 @@ const T = createTranslate('pages.service.console');
 
 export function ServiceConsolePage() {
   const serviceId = useRouteParam('serviceId');
-  const instancesQuery = useInstancesQuery({ serviceId, status: 'healthy' });
+  const instancesQuery = useInstancesQuery({ serviceId, statuses: ['HEALTHY'] });
   const [instance, setInstance] = useState<Instance | null>(null);
 
   useEffect(() => {
-    const instances = instancesQuery.data;
+    const instances = instancesQuery.data?.instances ?? [];
 
-    if (instances?.[0] === undefined) {
-      return;
-    }
-
-    if (instance === null || !instances.find(hasProperty('id', instance.id))) {
+    if (instance === null && instances[0] !== undefined) {
       setInstance(instances[0]);
     }
   }, [instancesQuery.data, instance]);
@@ -40,17 +35,7 @@ export function ServiceConsolePage() {
     return <QueryError error={instancesQuery.error} />;
   }
 
-  const instances = instancesQuery.data;
-
-  if (instances.length === 0) {
-    return (
-      <Alert
-        variant="warning"
-        title={<T id="noInstance.title" />}
-        description={<T id="noInstance.description" />}
-      />
-    );
-  }
+  const instances = instancesQuery.data?.instances ?? [];
 
   return (
     <>
@@ -59,8 +44,19 @@ export function ServiceConsolePage() {
         instances={instances}
         value={instance}
         onChange={setInstance}
+        renderNoItems={() => (
+          <div className="col h-10 items-center justify-center text-dim">No healthy instances</div>
+        )}
         className="w-full max-w-xs self-start"
       />
+
+      {instances.length === 0 && (
+        <Alert
+          variant="warning"
+          title={<T id="noInstance.title" />}
+          description={<T id="noInstance.description" />}
+        />
+      )}
 
       {instance && <InstanceTerminal instanceId={instance.id} />}
     </>
@@ -68,7 +64,11 @@ export function ServiceConsolePage() {
 }
 
 function InstanceTerminal({ instanceId }: { instanceId: string }) {
-  const { setTerminal, onData, onSizeChanged } = useTerminal(instanceId);
+  const { data: instance } = useInstanceQuery(instanceId);
+
+  const { setTerminal, onData, onSizeChanged } = useTerminal(instanceId, {
+    readOnly: instance?.status !== 'HEALTHY',
+  });
 
   return <Terminal ref={setTerminal} onSizeChange={onSizeChanged} onData={onData} />;
 }

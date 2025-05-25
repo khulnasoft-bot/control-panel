@@ -1,10 +1,10 @@
 import clsx from 'clsx';
-import { useState } from 'react';
 
-import { ButtonMenuItem, Table, Tooltip, useBreakpoint } from '@koyeb/design-system';
+import { ButtonMenuItem, Table, Tooltip, useBreakpoint } from '@snipkit/design-system';
 import { useVolumes } from 'src/api/hooks/volume';
 import { VolumeSnapshot } from 'src/api/model';
 import { ActionsMenu } from 'src/components/actions-menu';
+import { Dialog } from 'src/components/dialog';
 import { NoResource } from 'src/components/no-resource';
 import { RegionFlag } from 'src/components/region-flag';
 import { RegionName } from 'src/components/region-name';
@@ -12,6 +12,7 @@ import { VolumeSnapshotStatusBadge } from 'src/components/status-badges';
 import { FormattedDistanceToNow } from 'src/intl/formatted';
 import { createTranslate } from 'src/intl/translate';
 import { hasProperty } from 'src/utils/object';
+import { lowerCase } from 'src/utils/strings';
 
 import { CreateVolumeDialog } from '../create-volume-dialog';
 
@@ -51,14 +52,14 @@ export function VolumeSnapshotsList({ snapshots }: { snapshots: VolumeSnapshot[]
           header: <T id="region" />,
           render: (volume) => (
             <div className="row items-center gap-2">
-              <RegionFlag identifier={volume.region} className="size-4 rounded-full shadow-badge" />
-              <RegionName identifier={volume.region} />
+              <RegionFlag regionId={volume.region} className="size-4" />
+              <RegionName regionId={volume.region} />
             </div>
           ),
         },
         type: {
           header: <T id="type" />,
-          render: (snapshot) => <T id={`snapshotType.${snapshot.type}`} />,
+          render: (snapshot) => <T id={`snapshotType.${lowerCase(snapshot.type)}`} />,
         },
         volumeName: {
           header: <T id="volumeName" />,
@@ -80,8 +81,8 @@ export function VolumeSnapshotsList({ snapshots }: { snapshots: VolumeSnapshot[]
 }
 
 function Actions({ snapshot }: { snapshot: VolumeSnapshot }) {
-  const [openDialog, setOpenDialog] = useState<'create' | 'update' | 'delete'>();
-  const canCreate = snapshot.status === 'available' && snapshot.type === 'remote';
+  const canCreate = snapshot.status === 'AVAILABLE' && snapshot.type === 'REMOTE';
+  const openDialog = Dialog.useOpen();
 
   return (
     <>
@@ -93,41 +94,31 @@ function Actions({ snapshot }: { snapshot: VolumeSnapshot }) {
                 <ButtonMenuItem
                   {...props}
                   disabled={!canCreate}
-                  onClick={withClose(() => setOpenDialog('create'))}
+                  onClick={withClose(() => openDialog('CreateVolume', { snapshotId: snapshot.id }))}
                 >
                   <T id="actions.createVolume" />
                 </ButtonMenuItem>
               )}
             </Tooltip>
 
-            <ButtonMenuItem onClick={withClose(() => setOpenDialog('update'))}>
+            <ButtonMenuItem
+              onClick={withClose(() => openDialog('UpdateSnapshot', { snapshotId: snapshot.id }))}
+            >
               <T id="actions.update" />
             </ButtonMenuItem>
 
-            <ButtonMenuItem onClick={withClose(() => setOpenDialog('delete'))}>
+            <ButtonMenuItem
+              onClick={withClose(() => openDialog('ConfirmDeleteSnapshot', { resourceId: snapshot.id }))}
+            >
               <T id="actions.delete" />
             </ButtonMenuItem>
           </>
         )}
       </ActionsMenu>
 
-      <CreateVolumeDialog
-        open={openDialog === 'create'}
-        onClose={() => setOpenDialog(undefined)}
-        snapshot={snapshot}
-      />
-
-      <UpdateSnapshotDialog
-        open={openDialog === 'update'}
-        onClose={() => setOpenDialog(undefined)}
-        snapshot={snapshot}
-      />
-
-      <DeleteSnapshotDialog
-        open={openDialog === 'delete'}
-        onClose={() => setOpenDialog(undefined)}
-        snapshot={snapshot}
-      />
+      <CreateVolumeDialog snapshot={snapshot} />
+      <UpdateSnapshotDialog snapshot={snapshot} />
+      <DeleteSnapshotDialog snapshot={snapshot} />
     </>
   );
 }

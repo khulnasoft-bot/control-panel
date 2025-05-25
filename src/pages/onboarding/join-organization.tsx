@@ -1,28 +1,25 @@
 import { useMutation } from '@tanstack/react-query';
-import clsx from 'clsx';
-import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button, InfoTooltip, Tooltip } from '@koyeb/design-system';
+import { Button, InfoTooltip, Stepper } from '@snipkit/design-system';
 import { api } from 'src/api/api';
 import { useInvitationsQuery } from 'src/api/hooks/invitation';
 import { useUser } from 'src/api/hooks/session';
+import { User } from 'src/api/model';
 import { useInvalidateApiQuery } from 'src/api/use-api';
 import { useToken } from 'src/application/token';
 import { AcceptOrDeclineInvitation } from 'src/components/accept-or-decline-invitation';
-import { ControlledInput } from 'src/components/controlled';
-import { IconCheck, IconArrowRight } from 'src/components/icons';
+import { IconArrowRight } from 'src/components/icons';
 import { Loading } from 'src/components/loading';
+import { OrganizationNameField } from 'src/components/organization-name-field';
 import { QueryError } from 'src/components/query-error';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
 import { useZodResolver } from 'src/hooks/validation';
 import { createTranslate, Translate } from 'src/intl/translate';
-import { entries } from 'src/utils/object';
+import { slugify } from 'src/utils/strings';
 
-import { OnboardingStepper } from './stepper';
-
-const T = createTranslate('onboarding.joinOrganization');
+const T = createTranslate('pages.onboarding.joinOrganization');
 
 const schema = z.object({
   organizationName: z
@@ -34,7 +31,7 @@ const schema = z.object({
 
 export function JoinOrganization() {
   const user = useUser();
-  const invitationsQuery = useInvitationsQuery({ userId: user.id, status: 'pending' });
+  const invitationsQuery = useInvitationsQuery({ userId: user.id, status: 'PENDING' });
 
   if (invitationsQuery.isPending) {
     return <Loading />;
@@ -53,14 +50,14 @@ export function JoinOrganization() {
   return <CreateOrganization />;
 }
 
-export function CreateOrganization() {
+function CreateOrganization() {
+  const user = useUser();
   const { token, setToken } = useToken();
   const invalidate = useInvalidateApiQuery();
-  const [inputFocused, setInputFocused] = useState(false);
 
   const form = useForm<z.infer<typeof schema>>({
     defaultValues: {
-      organizationName: '',
+      organizationName: defaultOrganizationName(user),
     },
     resolver: useZodResolver(schema),
   });
@@ -93,7 +90,7 @@ export function CreateOrganization() {
 
   return (
     <section className="col w-full max-w-xl gap-6">
-      <OnboardingStepper step={2} />
+      <Stepper totalSteps={3} activeStep={2} />
 
       <div>
         <h1 className="typo-heading mb-1">
@@ -106,27 +103,7 @@ export function CreateOrganization() {
       </div>
 
       <form onSubmit={handleSubmit(form, mutation.mutateAsync)} className="col gap-4">
-        <Tooltip
-          open={inputFocused}
-          allowHover
-          arrow={false}
-          placement="bottom-end"
-          offset={8}
-          content={<OrganizationNameTooltip name={form.watch('organizationName')} />}
-          className="!bg-muted"
-        >
-          {(props) => (
-            <div {...props}>
-              <ControlledInput
-                control={form.control}
-                name="organizationName"
-                label={<T id="organizationNameLabel" />}
-                onFocus={() => setInputFocused(true)}
-                onBlur={() => setInputFocused(false)}
-              />
-            </div>
-          )}
-        </Tooltip>
+        <OrganizationNameField form={form} label={<T id="organizationNameLabel" />} />
 
         <Button
           type="submit"
@@ -142,28 +119,10 @@ export function CreateOrganization() {
   );
 }
 
-function OrganizationNameTooltip({ name }: { name: string }) {
-  const rules = useMemo(
-    () => ({
-      maxLength: name !== '' && name.length < 40,
-      letters: name !== '' && name.match(/[A-Z]/) === null,
-      whitespace: name !== '' && name.match(/ /) === null,
-      alphanumeric: name !== '' && name.match(/^[- A-Za-z0-9]+$/) !== null,
-    }),
-    [name],
-  );
+function defaultOrganizationName(user: User): string {
+  if (user.githubUser) {
+    return slugify(user.githubUser, 39);
+  }
 
-  return (
-    <ul className="col gap-1">
-      {entries(rules).map(([rule, valid]) => (
-        <li
-          key={rule}
-          className={clsx('row items-center gap-1', valid && 'text-green', !valid && 'text-dim')}
-        >
-          <IconCheck className="size-em" />
-          <T id={`organizationNameRules.${rule}`} />
-        </li>
-      ))}
-    </ul>
-  );
+  return slugify(user.email.replace(/@.*/, ''), 39);
 }

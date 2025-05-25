@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
-import { Input } from '@koyeb/design-system';
+import { Input } from '@snipkit/design-system';
 import { GitRepository } from 'src/api/model';
 import { useTranslate } from 'src/intl/translate';
 

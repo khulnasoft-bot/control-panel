@@ -1,12 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { useState } from 'react';
 
-import { Badge, ButtonMenuItem, Select, Table, useBreakpoint } from '@koyeb/design-system';
+import { Badge, ButtonMenuItem, Select, Table, useBreakpoint } from '@snipkit/design-system';
 import { api } from 'src/api/api';
 import { useInvitationsQuery } from 'src/api/hooks/invitation';
 import { useOrganization, useUser } from 'src/api/hooks/session';
-import { mapOrganizationMembers } from 'src/api/mappers/session';
+import { mapOrganizationMember } from 'src/api/mappers/session';
 import { OrganizationInvitation, type OrganizationMember } from 'src/api/model';
 import { useApiMutationFn, useApiQueryFn, useInvalidateApiQuery } from 'src/api/use-api';
 import { notify } from 'src/application/notify';
@@ -14,6 +13,7 @@ import { routes } from 'src/application/routes';
 import { useToken } from 'src/application/token';
 import { ActionsMenu } from 'src/components/actions-menu';
 import { ConfirmationDialog } from 'src/components/confirmation-dialog';
+import { Dialog } from 'src/components/dialog';
 import { Loading } from 'src/components/loading';
 import { QueryError } from 'src/components/query-error';
 import { useSha256 } from 'src/hooks/hash';
@@ -28,11 +28,11 @@ export function MembersList() {
   const isMobile = !useBreakpoint('sm');
 
   const organization = useOrganization();
-  const invitationsQuery = useInvitationsQuery({ status: 'pending' });
+  const invitationsQuery = useInvitationsQuery({ status: 'PENDING' });
 
   const membersQuery = useQuery({
     ...useApiQueryFn('listOrganizationMembers', { query: { organization_id: organization.id } }),
-    select: mapOrganizationMembers,
+    select: ({ members }) => members!.map(mapOrganizationMember),
   });
 
   if (invitationsQuery.isError) {
@@ -108,18 +108,18 @@ export function MembersList() {
 }
 
 function isInvitation(item: OrganizationInvitation | OrganizationMember): item is OrganizationInvitation {
-  return 'status' in item;
+  return 'email' in item;
 }
 
 function InvitationMember({ invitation }: { invitation: OrganizationInvitation }) {
-  const emailHash = useSha256(invitation.invitee.email);
+  const emailHash = useSha256(invitation.email);
 
   return (
     <div className="row items-center gap-4">
       <img src={`https://gravatar.com/avatar/${emailHash ?? ''}`} className="size-8 rounded-full" />
 
       <div>
-        <div className="font-medium">{invitation.invitee.email}</div>
+        <div className="font-medium">{invitation.email}</div>
 
         <Badge color="blue" size={1}>
           <T id="invited" />
@@ -132,23 +132,22 @@ function InvitationMember({ invitation }: { invitation: OrganizationInvitation }
 function OrganizationMember({ membership }: { membership: OrganizationMember }) {
   return (
     <div className="row items-center gap-4">
-      <img src={membership.member.avatarUrl} className="size-8 rounded-full" />
+      <img src={membership.user.avatarUrl} className="size-8 rounded-full" />
 
       <div>
-        <div className="font-medium">{membership.member.name}</div>
-        <div className="text-dim">{membership.member.email}</div>
+        <div className="font-medium">{membership.user.name}</div>
+        <div className="text-dim">{membership.user.email}</div>
       </div>
     </div>
   );
 }
 
 function Actions({ item }: { item: OrganizationInvitation | OrganizationMember }) {
-  const user = useUser();
+  const openDialog = Dialog.useOpen();
 
+  const user = useUser();
   const organization = useOrganization();
   const organizationName = organization.name;
-
-  const [openDialog, setOpenDialog] = useState<'removeMember' | 'leaveOrganization'>();
 
   const resendInvitationMutation = useResendInvitation();
   const deleteInvitationMutation = useDeleteInvitation();
@@ -174,14 +173,20 @@ function Actions({ item }: { item: OrganizationInvitation | OrganizationMember }
 
             {!isInvitation(item) && (
               <>
-                {item.member.id === user.id && (
-                  <ButtonMenuItem onClick={withClose(() => setOpenDialog('leaveOrganization'))}>
+                {item.user.id === user.id && (
+                  <ButtonMenuItem
+                    onClick={withClose(() =>
+                      openDialog('ConfirmLeaveOrganization', { resourceId: item.user.id }),
+                    )}
+                  >
                     <T id="actions.leave" />
                   </ButtonMenuItem>
                 )}
 
-                {item.member.id !== user.id && (
-                  <ButtonMenuItem onClick={withClose(() => setOpenDialog('removeMember'))}>
+                {item.user.id !== user.id && (
+                  <ButtonMenuItem
+                    onClick={withClose(() => openDialog('ConfirmRemoveMember', { resourceId: item.user.id }))}
+                  >
                     <T id="actions.removeMember" />
                   </ButtonMenuItem>
                 )}
@@ -194,11 +199,11 @@ function Actions({ item }: { item: OrganizationInvitation | OrganizationMember }
       {!isInvitation(item) && (
         <>
           <ConfirmationDialog
-            open={openDialog === 'removeMember'}
-            onClose={() => setOpenDialog(undefined)}
+            id="ConfirmRemoveMember"
+            resourceId={item.user.id}
             title={<T id="removeMember.title" />}
             description={
-              <T id="removeMember.description" values={{ name: item.member.name, organizationName }} />
+              <T id="removeMember.description" values={{ name: item.user.name, organizationName }} />
             }
             confirmationText={organizationName}
             submitText={<T id="removeMember.submitButton" />}
@@ -206,8 +211,8 @@ function Actions({ item }: { item: OrganizationInvitation | OrganizationMember }
           />
 
           <ConfirmationDialog
-            open={openDialog === 'leaveOrganization'}
-            onClose={() => setOpenDialog(undefined)}
+            id="ConfirmLeaveOrganization"
+            resourceId={item.user.id}
             title={<T id="leaveOrganization.title" />}
             description={<T id="leaveOrganization.description" values={{ organizationName }} />}
             confirmationText={organizationName}
@@ -227,8 +232,8 @@ function useResendInvitation() {
     ...useApiMutationFn('resendInvitation', (invitation: OrganizationInvitation) => ({
       path: { id: invitation.id },
     })),
-    onSuccess(_, { invitee }) {
-      notify.success(t('actions.resendInvitationSuccessNotification', { email: invitee.email }));
+    onSuccess(_, { email }) {
+      notify.success(t('actions.resendInvitationSuccessNotification', { email }));
     },
   });
 }
@@ -241,9 +246,9 @@ function useDeleteInvitation() {
     ...useApiMutationFn('deleteInvitation', (invitation: OrganizationInvitation) => ({
       path: { id: invitation.id },
     })),
-    async onSuccess(_, { invitee }) {
+    async onSuccess(_, { email }) {
       await invalidate('listInvitations');
-      notify.info(t('actions.deleteInvitationSuccessNotification', { email: invitee.email }));
+      notify.info(t('actions.deleteInvitationSuccessNotification', { email }));
     },
   });
 }
@@ -256,12 +261,12 @@ function useRemoveOrganizationMember() {
     ...useApiMutationFn('deleteOrganizationMember', (membership: OrganizationMember) => ({
       path: { id: membership.id },
     })),
-    async onSuccess(_, { member, organization }) {
+    async onSuccess(_, { user, organization }) {
       await invalidate('listOrganizationMembers');
 
       notify.info(
         t('actions.removeMemberSuccessNotification', {
-          memberName: member.name,
+          memberName: user.name,
           organizationName: organization.name,
         }),
       );

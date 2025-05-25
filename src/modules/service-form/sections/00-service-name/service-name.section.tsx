@@ -1,6 +1,6 @@
 import { useFormState } from 'react-hook-form';
 
-import { Alert } from '@koyeb/design-system';
+import { Alert } from '@snipkit/design-system';
 import { ControlledInput } from 'src/components/controlled';
 import { createTranslate } from 'src/intl/translate';
 import { capitalize } from 'src/utils/strings';
@@ -9,7 +9,7 @@ import { ServiceFormSection } from '../../components/service-form-section';
 import { ServiceForm } from '../../service-form.types';
 import { useWatchServiceForm } from '../../use-service-form';
 
-const T = createTranslate('serviceForm.serviceName');
+const T = createTranslate('modules.serviceForm.serviceName');
 
 export function ServiceNameSection() {
   const serviceId = useWatchServiceForm('meta.serviceId');

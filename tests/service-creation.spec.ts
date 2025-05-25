@@ -1,11 +1,11 @@
 import { expect, PlaywrightTestArgs, test } from '@playwright/test';
 
-import { authenticate, catchNewPage, deleteKoyebResources } from './test-utils';
+import { authenticate, catchNewPage, deleteSnipkitResources } from './test-utils';
 
 async function cleanup({ page }: PlaywrightTestArgs) {
   test.setTimeout(5 * 60 * 1000);
   await authenticate(page);
-  await deleteKoyebResources(page);
+  await deleteSnipkitResources(page);
 }
 
 test.beforeEach(cleanup);
@@ -17,7 +17,7 @@ test('github service creation', async ({ context, page }) => {
 
   await page.getByRole('link', { name: 'Create service' }).click();
   await page.getByRole('button', { name: 'GitHub' }).click();
-  await page.getByPlaceholder('https://github.com/koyeb/example-go').fill('koyeb/example-go-gin');
+  await page.getByPlaceholder('https://github.com/snipkit/example-go').fill('snipkit/example-go-gin');
   await page.getByRole('button', { name: 'Import' }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Deploy' }).click();
@@ -41,7 +41,7 @@ test('docker service creation', async ({ context, page }) => {
 
   await page.getByRole('link', { name: 'Create service' }).click();
   await page.getByRole('button', { name: 'Docker' }).click();
-  await page.getByPlaceholder('docker.io/koyeb/demo:latest').fill('koyeb/demo');
+  await page.getByPlaceholder('docker.io/snipkit/demo:latest').fill('snipkit/demo');
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Deploy' }).click();
@@ -54,6 +54,6 @@ test('docker service creation', async ({ context, page }) => {
 
   await expect(async () => {
     await servicePage.reload();
-    await expect(servicePage.getByText('Welcome to Koyeb')).toBeVisible();
+    await expect(servicePage.getByText('Welcome to Snipkit')).toBeVisible();
   }).toPass({ timeout: 60 * 1000 });
 });

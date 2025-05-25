@@ -1,4 +1,4 @@
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { RegistrySecret } from 'src/api/model';
 import { notify } from 'src/application/notify';
 import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from 'src/components/dialog';
@@ -16,7 +16,7 @@ export function EditRegistrySecretDialog({ secret }: EditRegistrySecretDialogPro
   const closeDialog = Dialog.useClose();
 
   return (
-    <Dialog id={`EditRegistrySecret-${secret.id}`} className="col w-full max-w-xl gap-4">
+    <Dialog id="EditRegistrySecret" context={{ secretId: secret.id }} className="col w-full max-w-xl gap-4">
       <DialogHeader title={<T id="title" />} />
 
       <p className="text-dim">
@@ -30,7 +30,7 @@ export function EditRegistrySecretDialog({ secret }: EditRegistrySecretDialogPro
           closeDialog();
         }}
         renderFooter={(formState) => (
-          <DialogFooter className="mt-2">
+          <DialogFooter>
             <CloseDialogButton>
               <Translate id="common.cancel" />
             </CloseDialogButton>

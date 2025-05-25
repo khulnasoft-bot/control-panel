@@ -30,7 +30,7 @@ describe('cookies', () => {
     test('domain', () => {
       vi.stubEnv('VITE_ENVIRONMENT', 'production');
       setCookie('name', 'value');
-      expect(cookie).toHaveBeenCalledWith('name=value;Domain=app.koyeb.com');
+      expect(cookie).toHaveBeenCalledWith('name=value;Domain=app.snipkit.com');
     });
   });
 });

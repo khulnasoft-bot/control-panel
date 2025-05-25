@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { useMemo, useState } from 'react';
 
-import { Json, TabButton, TabButtons } from '@koyeb/design-system';
+import { Json, TabButton, TabButtons } from '@snipkit/design-system';
 import { useInstance } from 'src/api/hooks/catalog';
 import type {
   BuildpackBuilder,
@@ -25,7 +25,7 @@ import IconDocker from 'src/icons/docker.svg?react';
 import { createTranslate, Translate } from 'src/intl/translate';
 import { assert } from 'src/utils/assert';
 
-const T = createTranslate('deploymentInfo.definitionDialog');
+const T = createTranslate('modules.deployment.deploymentInfo.definitionDialog');
 
 type DeploymentDefinitionDialogProps = {
   deployment: ComputeDeployment;
@@ -252,7 +252,7 @@ function Instances({ definition }: { definition: DeploymentDefinition }) {
         <div className="text-dim">
           <Translate
             id="common.instanceSpec"
-            values={{ cpu: instance?.cpu, ram: instance?.ram, disk: instance?.disk }}
+            values={{ cpu: instance?.vcpuShares, ram: instance?.memory, disk: instance?.disk }}
           />
         </div>
       </Data>
@@ -265,10 +265,10 @@ function Instances({ definition }: { definition: DeploymentDefinition }) {
 
       <Data name={<T id="instances.regionsLabel" />}>
         <div className="row flex-wrap gap-4">
-          {definition.regions.map((identifier) => (
-            <div key={identifier} className="row items-center gap-2">
-              <RegionFlag identifier={identifier} className="size-4 rounded-full shadow-badge" />
-              <RegionName identifier={identifier} />
+          {definition.regions.map((regionId) => (
+            <div key={regionId} className="row items-center gap-2">
+              <RegionFlag regionId={regionId} className="size-4" />
+              <RegionName regionId={regionId} />
             </div>
           ))}
         </div>
@@ -295,14 +295,14 @@ function Ports({ definition }: { definition: DeploymentDefinition }) {
       <ul>
         {definition.ports.map((port, index) => (
           <li key={index}>
-            {port.public && (
+            {port.path && (
               <T
                 id="ports.publicPort"
                 values={{ portNumber: port.portNumber, path: port.path, protocol: port.protocol }}
               />
             )}
 
-            {!port.public && <T id="ports.privatePort" values={{ portNumber: port.portNumber }} />}
+            {!port.path && <T id="ports.privatePort" values={{ portNumber: port.portNumber }} />}
           </li>
         ))}
       </ul>

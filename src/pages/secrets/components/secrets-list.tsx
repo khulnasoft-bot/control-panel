@@ -5,12 +5,12 @@ import { useState } from 'react';
 import {
   Button,
   ButtonMenuItem,
-  Checkbox,
   Spinner,
   Table,
+  TableColumnSelection,
   Tooltip,
   useBreakpoint,
-} from '@koyeb/design-system';
+} from '@snipkit/design-system';
 import { Secret } from 'src/api/model';
 import { useApiQueryFn } from 'src/api/use-api';
 import { notify } from 'src/application/notify';
@@ -30,20 +30,10 @@ const T = createTranslate('pages.secrets.secretsList');
 type SecretListProps = {
   secrets: Secret[];
   onCreate: () => void;
-  selected: Set<Secret>;
-  toggleSelected: (secret: Secret) => void;
-  selectAll: () => void;
-  clearSelection: () => void;
+  selection: TableColumnSelection<Secret>;
 };
 
-export function SecretsList({
-  secrets,
-  onCreate,
-  selected,
-  toggleSelected,
-  selectAll,
-  clearSelection,
-}: SecretListProps) {
+export function SecretsList({ secrets, onCreate, selection }: SecretListProps) {
   const isMobile = !useBreakpoint('sm');
 
   if (secrets.length === 0) {
@@ -52,26 +42,9 @@ export function SecretsList({
 
   return (
     <Table
+      selection={selection}
       items={secrets}
       columns={{
-        select: {
-          className: 'w-4',
-          header: (
-            <SelectionHeader
-              secrets={secrets}
-              selected={selected}
-              selectAll={selectAll}
-              clearSelection={clearSelection}
-            />
-          ),
-          render: (secret) => (
-            <Checkbox
-              className="mt-1"
-              checked={selected.has(secret)}
-              onChange={() => toggleSelected(secret)}
-            />
-          ),
-        },
         name: {
           className: 'md:w-64',
           header: <T id="name" />,
@@ -92,25 +65,6 @@ export function SecretsList({
           render: (secret) => <SecretActions secret={secret} />,
         },
       }}
-    />
-  );
-}
-
-type SelectionHeaderProps = {
-  secrets: Array<Secret>;
-  selected: Set<Secret>;
-  selectAll: () => void;
-  clearSelection: () => void;
-};
-
-function SelectionHeader({ secrets, selected, selectAll, clearSelection }: SelectionHeaderProps) {
-  const indeterminate = selected.size < secrets.length;
-
-  return (
-    <Checkbox
-      checked={selected.size > 0}
-      indeterminate={indeterminate}
-      onChange={() => (indeterminate ? selectAll() : clearSelection())}
     />
   );
 }
@@ -173,7 +127,6 @@ function Value({ secret }: { secret: Secret }) {
 }
 
 function SecretActions({ secret }: { secret: Secret }) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const openDialog = Dialog.useOpen();
 
   return (
@@ -181,10 +134,12 @@ function SecretActions({ secret }: { secret: Secret }) {
       <ActionsMenu>
         {(withClose) => (
           <>
-            <ButtonMenuItem onClick={withClose(() => openDialog(`EditSecret-${secret.id}`))}>
+            <ButtonMenuItem onClick={withClose(() => openDialog('EditSecret', { secretId: secret.id }))}>
               <T id="actions.edit" />
             </ButtonMenuItem>
-            <ButtonMenuItem onClick={withClose(() => setDeleteDialogOpen(true))}>
+            <ButtonMenuItem
+              onClick={withClose(() => openDialog('ConfirmDeleteSecret', { resourceId: secret.id }))}
+            >
               <T id="actions.delete" />
             </ButtonMenuItem>
           </>
@@ -192,12 +147,7 @@ function SecretActions({ secret }: { secret: Secret }) {
       </ActionsMenu>
 
       <EditSecretDialog secret={secret} />
-
-      <DeleteSecretDialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        secret={secret}
-      />
+      <DeleteSecretDialog secret={secret} />
     </>
   );
 }
