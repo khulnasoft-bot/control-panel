@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { Spinner } from '@koyeb/design-system';
+import { Spinner } from '@snipkit/design-system';
 import { useApiQueryFn } from 'src/api/use-api';
 import { createTranslate } from 'src/intl/translate';
 
-const T = createTranslate('onboarding.automaticReview');
+const T = createTranslate('pages.onboarding.automaticReview');
 
 export function AutomaticReview() {
   useQuery({

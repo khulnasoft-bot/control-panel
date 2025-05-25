@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { api } from 'src/api/api';
 import { useInvalidateApiQuery } from 'src/api/use-api';
 import { notify } from 'src/application/notify';

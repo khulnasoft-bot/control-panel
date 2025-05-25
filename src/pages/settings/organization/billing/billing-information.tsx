@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { useOrganization, useUser } from 'src/api/hooks/session';
 import { addressSchema } from 'src/api/mappers/session';
 import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';

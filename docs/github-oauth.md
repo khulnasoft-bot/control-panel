@@ -1,6 +1,6 @@
 # GitHub authentication
 
-User can link their Koyeb account to a github account in order to authenticate using
+User can link their Snipkit account to a github account in order to authenticate using
 [github oauth](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authenticating-to-the-rest-api-with-an-oauth-app).
 
 ## OAuth flow
@@ -23,9 +23,9 @@ These values are then sent to the API in the last step, and the API returns the 
 
 There are three different type of OAuth actions:
 
-- `signin`: the user authenticates to an existing Koyeb account
-- `signup`: the user creates a new Koyeb account and authenticates to it
-- `register`: the user is already authenticated and links a github account to their Koyeb account
+- `signin`: the user authenticates to an existing Snipkit account
+- `signup`: the user creates a new Snipkit account and authenticates to it
+- `register`: the user is already authenticated and links a github account to their Snipkit account
 
 The action is passed to the initial API call on step 1, using the `action` query parameter.
 
@@ -50,10 +50,10 @@ When there was an error during the authorization of the OAuth app, GitHub redire
 an `error_description` query parameter instead of `code` and `state`. The control panel then redirects to the
 sign in page and shows the parameter's value in a toast.
 
-If the user tries to sign in but does not have a Koyeb account, API call on step 5 fails with a validation
+If the user tries to sign in but does not have a Snipkit account, API call on step 5 fails with a validation
 error where the description is `not found`.
 
-If the user tries to sign up but already have a Koyeb account,
+If the user tries to sign up but already have a Snipkit account,
 the API call fails with a validation error where the description s `Email: '{email}' already used` (yes, the
 capitalization isn't consistent. Disturbing, huh?)
 
@@ -62,4 +62,4 @@ the error message `This OAuth2 account is not authorized to sign up`.
 
 ## Unlinking the GitHub OAuth app
 
-The only way to unlink a OAuth app from a Koyeb account is to delete the account and re-create it.
+The only way to unlink a OAuth app from a Snipkit account is to delete the account and re-create it.

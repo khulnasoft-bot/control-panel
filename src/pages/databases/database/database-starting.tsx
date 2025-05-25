@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { ProgressBar } from '@koyeb/design-system';
+import { ProgressBar } from '@snipkit/design-system';
 import { createTranslate } from 'src/intl/translate';
 
 const T = createTranslate('pages.database.layout.databaseStarting');

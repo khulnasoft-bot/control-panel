@@ -18,7 +18,7 @@ test('log in', async ({ page }) => {
 test('log out', async ({ page }) => {
   await authenticate(page);
 
-  await page.getByRole('button', { name: 'koyeb e2e' }).last().click();
+  await page.getByRole('button', { name: 'snipkit e2e' }).last().click();
   await page.getByRole('button', { name: 'Log Out' }).click();
 
   await expect.poll(() => pathname(page)).toEqual('/auth/signin');
@@ -61,7 +61,7 @@ test('switch organization', async ({ page }) => {
   await authenticate(page);
 
   await page.getByTestId('organization-switcher').click();
-  await page.getByRole('button', { name: 'koyeb-e2e-2' }).click();
+  await page.getByRole('button', { name: 'snipkit-e2e-2' }).click();
 
-  await expect(page.getByTestId('organization-switcher')).toHaveText(/koyeb-e2e-2/);
+  await expect(page.getByTestId('organization-switcher')).toHaveText(/snipkit-e2e-2/);
 });

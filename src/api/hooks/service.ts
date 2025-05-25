@@ -1,16 +1,23 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
-import { upperCase } from 'src/utils/strings';
+import { assert } from 'src/utils/assert';
+import { hasProperty } from 'src/utils/object';
 
-import { mapDeployment, mapInstances } from '../mappers/deployment';
-import { mapApp, mapApps, mapService, mapServices } from '../mappers/service';
-import { InstanceStatus } from '../model';
+import {
+  isComputeDeployment,
+  mapDeployment,
+  mapInstance,
+  mapRegionalDeployment,
+  mapReplica,
+} from '../mappers/deployment';
+import { mapApp, mapService } from '../mappers/service';
+import { DeploymentStatus, InstanceStatus } from '../model';
 import { useApiQueryFn } from '../use-api';
 
 export function useAppsQuery() {
   return useQuery({
     ...useApiQueryFn('listApps', { query: { limit: '100' } }),
-    select: mapApps,
+    select: ({ apps }) => apps!.map(mapApp),
   });
 }
 
@@ -22,7 +29,7 @@ export function useAppQuery(appId?: string) {
   return useQuery({
     ...useApiQueryFn('getApp', { path: { id: appId! } }),
     enabled: appId !== undefined,
-    select: mapApp,
+    select: ({ app }) => mapApp(app!),
   });
 }
 
@@ -33,7 +40,7 @@ export function useApp(appId?: string) {
 export function useServicesQuery(appId?: string) {
   return useQuery({
     ...useApiQueryFn('listServices', { query: { limit: '100', app_id: appId } }),
-    select: mapServices,
+    select: ({ services }) => services!.map(mapService),
   });
 }
 
@@ -45,7 +52,7 @@ export function useServiceQuery(serviceId?: string) {
   return useQuery({
     ...useApiQueryFn('getService', { path: { id: serviceId! } }),
     enabled: serviceId !== undefined,
-    select: mapService,
+    select: ({ service }) => mapService(service!),
   });
 }
 
@@ -53,11 +60,22 @@ export function useService(serviceId?: string) {
   return useServiceQuery(serviceId).data;
 }
 
+export function useDeploymentsQuery(serviceId: string, statuses?: DeploymentStatus[]) {
+  return useQuery({
+    ...useApiQueryFn('listDeployments', { query: { service_id: serviceId, statuses } }),
+    select: ({ deployments }) => deployments!.map(mapDeployment),
+  });
+}
+
+export function useDeployments(serviceId: string, statuses?: DeploymentStatus[]) {
+  return useDeploymentsQuery(serviceId, statuses).data;
+}
+
 export function useDeploymentQuery(deploymentId: string | undefined) {
   return useQuery({
     ...useApiQueryFn('getDeployment', { path: { id: deploymentId as string } }),
     enabled: deploymentId !== undefined,
-    select: mapDeployment,
+    select: ({ deployment }) => mapDeployment(deployment!),
   });
 }
 
@@ -65,24 +83,95 @@ export function useDeployment(deploymentId: string | undefined) {
   return useDeploymentQuery(deploymentId).data;
 }
 
+export function useComputeDeployment(deploymentId: string | undefined) {
+  const deployment = useDeploymentQuery(deploymentId).data;
+
+  if (deployment !== undefined) {
+    assert(isComputeDeployment(deployment));
+  }
+
+  return deployment;
+}
+
+export function useRegionalDeploymentsQuery(deploymentId: string | undefined) {
+  return useQuery({
+    ...useApiQueryFn('listRegionalDeployments', { query: { deployment_id: deploymentId } }),
+    enabled: deploymentId !== undefined,
+    select: ({ regional_deployments }) => regional_deployments!.map(mapRegionalDeployment),
+  });
+}
+
+export function useRegionalDeployments(deploymentId: string | undefined) {
+  return useRegionalDeploymentsQuery(deploymentId).data;
+}
+
+export function useRegionalDeployment(deploymentId: string | undefined, region: string) {
+  return useRegionalDeployments(deploymentId)?.find(hasProperty('region', region));
+}
+
+export function useDeploymentScalingQuery(deploymentId: string | undefined, filters?: { region?: string }) {
+  return useQuery({
+    ...useApiQueryFn('getDeploymentScaling', {
+      path: { id: deploymentId! },
+      query: { ...filters },
+    }),
+    enabled: deploymentId !== undefined,
+    placeholderData: keepPreviousData,
+    select: ({ replicas }) => replicas!.map(mapReplica),
+  });
+}
+
+export function useDeploymentScaling(deploymentId: string | undefined, filters?: { region?: string }) {
+  const { data } = useDeploymentScalingQuery(deploymentId, filters);
+
+  return data;
+}
+
 type InstancesQueryOptions = {
-  deploymentId?: string;
   serviceId?: string;
-  status?: InstanceStatus;
+  deploymentId?: string;
+  regionalDeploymentId?: string;
+  statuses?: InstanceStatus[];
+  replicaIndex?: number;
+  limit?: number;
+  offset?: number;
 };
 
-export function useInstancesQuery({ deploymentId, serviceId, status }: InstancesQueryOptions = {}) {
+export function useInstancesQuery({
+  serviceId,
+  deploymentId,
+  regionalDeploymentId,
+  statuses,
+  replicaIndex,
+  limit = 100,
+  offset,
+}: InstancesQueryOptions = {}) {
   return useQuery({
     ...useApiQueryFn('listInstances', {
       query: {
-        deployment_id: deploymentId,
         service_id: serviceId,
-        limit: '100',
+        deployment_id: deploymentId,
+        regional_deployment_id: regionalDeploymentId,
+        replica_index: replicaIndex !== undefined ? String(replicaIndex) : undefined,
+        limit: String(limit),
+        offset: offset !== undefined ? String(offset) : undefined,
         order: 'desc',
-        statuses: status ? [upperCase(status)] : undefined,
+        statuses,
       },
     }),
-    enabled: deploymentId !== undefined || serviceId !== undefined,
-    select: mapInstances,
+    placeholderData: keepPreviousData,
+    enabled: serviceId !== undefined || deploymentId !== undefined || regionalDeploymentId !== undefined,
+    select: ({ count, instances }) => ({
+      instances: instances!.map((instance) => mapInstance(instance)),
+      count: count!,
+    }),
+  });
+}
+
+export function useInstanceQuery(instanceId: string) {
+  return useQuery({
+    ...useApiQueryFn('getInstance', { path: { id: instanceId } }),
+    placeholderData: keepPreviousData,
+    select: ({ instance }) => mapInstance(instance!),
   });
 }

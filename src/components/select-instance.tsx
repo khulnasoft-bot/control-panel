@@ -1,4 +1,4 @@
-import { Select } from '@koyeb/design-system';
+import { Select } from '@snipkit/design-system';
 import { useInstance, useRegion } from 'src/api/hooks/catalog';
 import { Instance } from 'src/api/model';
 import { getId, getName } from 'src/utils/object';
@@ -47,7 +47,7 @@ function InstanceItem({ instance }: { instance: Instance }) {
     <div className="row items-center gap-4">
       {instance.name}
       <div className="row ml-auto items-center gap-2 text-xs">
-        {instanceType?.displayName} - {region?.displayName}
+        {instanceType?.displayName} - {region?.name}
       </div>
     </div>
   );

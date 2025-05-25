@@ -3,12 +3,12 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Code, CodeLang, Tab, Tabs } from '@koyeb/design-system';
+import { Code, CodeLang, Tab, Tabs } from '@snipkit/design-system';
 import { DatabaseDeployment, DatabaseRole, LogicalDatabase } from 'src/api/model';
 import { useApiQueryFn } from 'src/api/use-api';
-import { CopyIconButton } from 'src/components/copy-icon-button';
 import { createValidationGuard } from 'src/application/create-validation-guard';
 import { ControlledSelect } from 'src/components/controlled';
+import { CopyIconButton } from 'src/components/copy-icon-button';
 import { IconEye, IconEyeOff } from 'src/components/icons';
 import { createTranslate } from 'src/intl/translate';
 import { getName, hasProperty } from 'src/utils/object';

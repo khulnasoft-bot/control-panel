@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import clsx from 'clsx';
 
-import { Badge, Button, Collapse, Tooltip } from '@koyeb/design-system';
+import { Badge, Button, Collapse, Tooltip } from '@snipkit/design-system';
 import { ComputeDeployment, GitDeploymentTrigger, Service } from 'src/api/model';
 import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
 import { withStopPropagation } from 'src/application/dom-events';
@@ -250,7 +250,7 @@ function DeploymentItem({ service, deployment, selected, onClick }: DeploymentIt
       {upcoming && (
         <footer className="p-2">
           <div className="text-xs text-dim">
-            {deployment.status === 'pending' && <T id="upcoming.inQueue" />}
+            {deployment.status === 'PENDING' && <T id="upcoming.inQueue" />}
           </div>
 
           <Button

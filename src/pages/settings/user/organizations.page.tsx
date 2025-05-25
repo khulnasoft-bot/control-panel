@@ -1,58 +1,55 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button, Dialog, Spinner } from '@koyeb/design-system';
+import { Button, Spinner } from '@snipkit/design-system';
 import { api } from 'src/api/api';
-import { useOrganizationUnsafe, useUser } from 'src/api/hooks/session';
-import { mapOrganizationMembers } from 'src/api/mappers/session';
+import { useOrganizationUnsafe, useUserOrganizationMemberships } from 'src/api/hooks/session';
 import { OrganizationMember } from 'src/api/model';
-import { useApiMutationFn, useApiQueryFn, useInvalidateApiQuery } from 'src/api/use-api';
+import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
 import { notify } from 'src/application/notify';
 import { routes } from 'src/application/routes';
 import { useToken } from 'src/application/token';
-import { ControlledInput } from 'src/components/controlled';
+import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from 'src/components/dialog';
 import { OrganizationAvatar } from 'src/components/organization-avatar';
+import { OrganizationNameField } from 'src/components/organization-name-field';
 import { QueryError } from 'src/components/query-error';
 import { Title } from 'src/components/title';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
-import { useHistoryState, useNavigate } from 'src/hooks/router';
+import { useNavigate, useOnRouteStateCreate } from 'src/hooks/router';
 import { useZodResolver } from 'src/hooks/validation';
 import { createTranslate, Translate } from 'src/intl/translate';
-import { isSlug } from 'src/utils/strings';
 
 const T = createTranslate('pages.userSettings.organizations');
 
 export function OrganizationsPage() {
-  const historyState = useHistoryState<{ create: boolean }>();
-  const [createDialogOpen, setCreateDialogOpen] = useState(Boolean(historyState.create));
+  const openDialog = Dialog.useOpen();
+
+  useOnRouteStateCreate(() => {
+    openDialog('CreateOrganization');
+  });
 
   return (
     <>
       <Title
         title={<T id="title" />}
         end={
-          <Button onClick={() => setCreateDialogOpen(true)}>
+          <Button onClick={() => openDialog('CreateOrganization')}>
             <T id="createOrganization" />
           </Button>
         }
       />
-      <CreateOrganizationDialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} />
+      <CreateOrganizationDialog />
       <OrganizationList />
     </>
   );
 }
 
 const schema = z.object({
-  organizationName: z
-    .string()
-    .min(1)
-    .max(39)
-    .refine(isSlug, { params: { refinement: 'isSlug' } }),
+  organizationName: z.string().min(1).max(39),
 });
 
-function CreateOrganizationDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function CreateOrganizationDialog() {
   const t = T.useTranslate();
   const navigate = useNavigate();
   const { token, setToken } = useToken();
@@ -62,9 +59,7 @@ function CreateOrganizationDialog({ open, onClose }: { open: boolean; onClose: (
     defaultValues: {
       organizationName: '',
     },
-    resolver: useZodResolver(schema, {
-      organizationName: t('createOrganizationDialog.organizationNameLabel'),
-    }),
+    resolver: useZodResolver(schema),
   });
 
   const mutation = useMutation({
@@ -94,25 +89,24 @@ function CreateOrganizationDialog({ open, onClose }: { open: boolean; onClose: (
   });
 
   return (
-    <Dialog
-      isOpen={open}
-      onClose={onClose}
-      onClosed={form.reset}
-      width="lg"
-      title={<T id="createOrganizationDialog.title" />}
-      description={<T id="createOrganizationDialog.description" />}
-    >
+    <Dialog id="CreateOrganization" onClosed={form.reset} className="col w-full max-w-xl gap-4">
+      <DialogHeader title={<T id="createOrganizationDialog.title" />} />
+
+      <p className="text-dim">
+        <T id="createOrganizationDialog.description" />
+      </p>
+
       <form onSubmit={handleSubmit(form, mutation.mutateAsync)} className="col gap-4">
-        <ControlledInput
-          control={form.control}
-          name="organizationName"
+        <OrganizationNameField
+          form={form}
           label={<T id="createOrganizationDialog.organizationNameLabel" />}
         />
 
-        <footer className="row mt-2 justify-end gap-2">
-          <Button variant="ghost" color="gray" onClick={onClose}>
+        <DialogFooter>
+          <CloseDialogButton>
             <Translate id="common.cancel" />
-          </Button>
+          </CloseDialogButton>
+
           <Button
             type="submit"
             loading={form.formState.isSubmitting}
@@ -121,29 +115,24 @@ function CreateOrganizationDialog({ open, onClose }: { open: boolean; onClose: (
           >
             <Translate id="common.next" />
           </Button>
-        </footer>
+        </DialogFooter>
       </form>
     </Dialog>
   );
 }
 
 function OrganizationList() {
-  const user = useUser();
+  const query = useUserOrganizationMemberships();
 
-  const membersQuery = useQuery({
-    ...useApiQueryFn('listOrganizationMembers', { query: { user_id: user.id } }),
-    select: mapOrganizationMembers,
-  });
-
-  if (membersQuery.isPending) {
+  if (query.isPending) {
     return <Spinner className="size-4" />;
   }
 
-  if (membersQuery.isError) {
-    return <QueryError error={membersQuery.error} />;
+  if (query.isError) {
+    return <QueryError error={query.error} />;
   }
 
-  const memberships = membersQuery.data;
+  const memberships = query.data;
 
   if (memberships.length === 0) {
     return <>No organizations</>;

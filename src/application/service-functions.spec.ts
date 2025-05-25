@@ -7,13 +7,13 @@ import { ServiceUrl, getServiceUrls } from './service-functions';
 describe('getServiceUrls', () => {
   it('web service urls', () => {
     const urls = getServiceUrls(
-      create.app({ name: 'app', domains: [{ id: '', name: 'test.com', type: 'custom' }] }),
+      create.app({ name: 'app', domains: [{ id: '', name: 'test.com', type: 'CUSTOM' }] }),
       create.service({ name: 'svc', type: 'web' }),
       create.computeDeployment({
         definition: create.deploymentDefinition({
           ports: [
-            { portNumber: 8000, protocol: 'http', public: true, path: '/' },
-            { portNumber: 8001, protocol: 'http', public: true, path: '/path' },
+            { portNumber: 8000, protocol: 'http', path: '/' },
+            { portNumber: 8001, protocol: 'http', path: '/path' },
           ],
         }),
       }),
@@ -27,12 +27,12 @@ describe('getServiceUrls', () => {
 
   it('free instance has no private address', () => {
     const urls = getServiceUrls(
-      create.app({ name: 'app', domains: [{ id: '', name: 'test.com', type: 'custom' }] }),
+      create.app({ name: 'app', domains: [{ id: '', name: 'test.com', type: 'CUSTOM' }] }),
       create.service({ name: 'svc', type: 'web' }),
       create.computeDeployment({
         definition: create.deploymentDefinition({
           instanceType: 'free',
-          ports: [{ portNumber: 8000, protocol: 'http', public: true, path: '/' }],
+          ports: [{ portNumber: 8000, protocol: 'http', path: '/' }],
         }),
       }),
     );
@@ -42,11 +42,11 @@ describe('getServiceUrls', () => {
 
   it('private port', () => {
     const urls = getServiceUrls(
-      create.app({ name: 'app', domains: [{ id: '', name: 'app.koyeb.app', type: 'autoassigned' }] }),
+      create.app({ name: 'app', domains: [{ id: '', name: 'app.snipkit.app', type: 'AUTOASSIGNED' }] }),
       create.service({ name: 'svc', type: 'web' }),
       create.computeDeployment({
         definition: create.deploymentDefinition({
-          ports: [{ portNumber: 8000, protocol: 'tcp', public: false }],
+          ports: [{ portNumber: 8000, protocol: 'tcp' }],
         }),
       }),
     );
@@ -59,10 +59,10 @@ describe('getServiceUrls', () => {
       create.app(),
       create.service({ type: 'database' }),
       create.databaseDeployment({
-        host: 'test.koyeb.app',
+        host: 'test.snipkit.app',
       }),
     );
 
-    expect(urls).toEqual<ServiceUrl[]>([{ portNumber: 5432, internalUrl: 'test.koyeb.app' }]);
+    expect(urls).toEqual<ServiceUrl[]>([{ portNumber: 5432, internalUrl: 'test.snipkit.app' }]);
   });
 });

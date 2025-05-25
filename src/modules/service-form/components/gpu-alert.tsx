@@ -1,6 +1,6 @@
 import { useFormContext } from 'react-hook-form';
 
-import { Alert } from '@koyeb/design-system';
+import { Alert } from '@snipkit/design-system';
 import { useInstances } from 'src/api/hooks/catalog';
 import { useOrganization } from 'src/api/hooks/session';
 import { routes } from 'src/application/routes';
@@ -10,7 +10,7 @@ import { hasProperty } from 'src/utils/object';
 
 import { ServiceForm } from '../service-form.types';
 
-const T = createTranslate('serviceForm');
+const T = createTranslate('modules.serviceForm');
 
 export function GpuAlert() {
   const organization = useOrganization();
@@ -21,7 +21,7 @@ export function GpuAlert() {
     const instance = instances.find(hasProperty('category', 'gpu'));
 
     setValue('meta.expandedSection', 'instance');
-    setValue('instance', instance?.identifier ?? null);
+    setValue('instance', instance?.id ?? null);
   };
 
   if (!useFeatureFlag('gpu')) {

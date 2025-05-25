@@ -1,6 +1,7 @@
 import clsx from 'clsx';
+import { useFormContext } from 'react-hook-form';
 
-import { IconButton, useBreakpoint } from '@koyeb/design-system';
+import { IconButton, useBreakpoint } from '@snipkit/design-system';
 import { ControlledInput } from 'src/components/controlled';
 import { IconTrash } from 'src/components/icons';
 import { useFeatureFlag } from 'src/hooks/feature-flag';
@@ -11,7 +12,7 @@ import { ServiceForm } from '../../service-form.types';
 import { EnvironmentVariableValueField } from './environment-variable-value-field';
 import { RegionsScope } from './regions-scope';
 
-const T = createTranslate('serviceForm.environmentVariables');
+const T = createTranslate('modules.serviceForm.environmentVariables');
 
 type EnvironmentVariableFieldsProps = {
   index: number;
@@ -24,6 +25,8 @@ export function EnvironmentVariableFields({
   onRemove,
   onCreateSecret,
 }: EnvironmentVariableFieldsProps) {
+  const { trigger } = useFormContext<ServiceForm>();
+
   const isMobile = !useBreakpoint('md');
   const showLabel = isMobile || index === 0;
 
@@ -43,6 +46,7 @@ export function EnvironmentVariableFields({
         name={`environmentVariables.${index}.name`}
         type="text"
         label={showLabel && <T id="nameLabel" />}
+        onChangeEffect={() => void trigger(`environmentVariables.${index}.value`)}
         className="w-full"
       />
 

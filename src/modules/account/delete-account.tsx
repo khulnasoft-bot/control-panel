@@ -1,7 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { useOrganizationQuery, useUserUnsafe } from 'src/api/hooks/session';
 import { useApiMutationFn } from 'src/api/use-api';
 import { notify } from 'src/application/notify';
@@ -9,13 +8,15 @@ import { useResetIdentifyUser } from 'src/application/posthog';
 import { routes } from 'src/application/routes';
 import { useToken } from 'src/application/token';
 import { ConfirmationDialog } from 'src/components/confirmation-dialog';
+import { Dialog } from 'src/components/dialog';
 import { useNavigate } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
 
-const T = createTranslate('account.deleteAccount');
+const T = createTranslate('modules.account.deleteAccount');
 
 export function DeleteAccount() {
   const t = T.useTranslate();
+  const openDialog = Dialog.useOpen();
 
   const user = useUserUnsafe();
   const { data: organization } = useOrganizationQuery();
@@ -24,8 +25,6 @@ export function DeleteAccount() {
   const { clearToken } = useToken();
   const resetIdentify = useResetIdentifyUser();
   const navigate = useNavigate();
-
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   const { mutateAsync: deleteAccount } = useMutation({
     ...useApiMutationFn('deleteUser', {
@@ -51,7 +50,7 @@ export function DeleteAccount() {
           </div>
         </div>
 
-        <Button color="red" disabled={!canDelete} onClick={() => setDialogOpen(true)}>
+        <Button color="red" disabled={!canDelete} onClick={() => openDialog('ConfirmDeleteAccount')}>
           <T id="cta" />
         </Button>
       </div>
@@ -65,8 +64,7 @@ export function DeleteAccount() {
       )}
 
       <ConfirmationDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
+        id="ConfirmDeleteAccount"
         title={<T id="confirmationDialog.title" />}
         description={<T id="confirmationDialog.description" />}
         confirmationText={user?.name ?? ''}

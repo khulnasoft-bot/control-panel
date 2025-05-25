@@ -1,8 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
-import { ButtonMenuItem, Collapse, Floating, Menu, MenuItem, useBreakpoint } from '@koyeb/design-system';
+import { ButtonMenuItem, Collapse, Floating, Menu, MenuItem, useBreakpoint } from '@snipkit/design-system';
 import { useUserUnsafe } from 'src/api/hooks/session';
 import { useApiMutationFn } from 'src/api/use-api';
 import { useResetIdentifyUser } from 'src/application/posthog';
@@ -34,10 +34,6 @@ export function UserMenu({ collapsed }: { collapsed: boolean }) {
   const isMobile = !useBreakpoint('sm');
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    setOpen(false);
-  }, [collapsed]);
-
   const { mutate: logout } = useMutation({
     ...useApiMutationFn('logout', {}),
     onSuccess() {
@@ -51,21 +47,24 @@ export function UserMenu({ collapsed }: { collapsed: boolean }) {
     <Floating
       open={open}
       setOpen={setOpen}
-      placement={isMobile ? 'bottom' : 'left'}
-      renderReference={(ref, props) => (
-        <button
-          ref={ref}
-          type="button"
-          className="row mx-3 items-center gap-2 p-2 text-start text-dim hover:text-default"
-          onClick={() => setOpen(true)}
-          {...props}
-        >
+      hover
+      placement={isMobile ? 'top-end' : 'left-end'}
+      offset={8}
+      renderReference={(props) => (
+        <div className="row items-center gap-2 py-2 pl-3 pr-2 transition-colors hover:bg-muted/50" {...props}>
           <UserAvatar user={user} />
+
           {!collapsed && <span className="flex-1 truncate font-medium">{user?.name}</span>}
-        </button>
+
+          {!collapsed && (
+            <span>
+              <IconChevronRight className="size-4 text-dim" />
+            </span>
+          )}
+        </div>
       )}
-      renderFloating={(ref, props) => (
-        <Menu ref={ref} {...props}>
+      renderFloating={(props) => (
+        <Menu {...props}>
           <MenuItem
             element={Link}
             href={routes.userSettings.index()}
@@ -78,12 +77,7 @@ export function UserMenu({ collapsed }: { collapsed: boolean }) {
 
           <ThemeMenuItem />
 
-          <ButtonMenuItem
-            onClick={() => {
-              setOpen(false);
-              logout();
-            }}
-          >
+          <ButtonMenuItem onClick={() => logout()}>
             <IconLogOut className="icon" />
             <T id="logout" />
           </ButtonMenuItem>

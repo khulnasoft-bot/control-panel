@@ -1,59 +1,55 @@
 import clsx from 'clsx';
-import uniq from 'lodash-es/uniq';
 import { useMemo, useState } from 'react';
-import { UseFormReturn, useForm } from 'react-hook-form';
+import { useForm, UseFormReturn } from 'react-hook-form';
+import { FormattedDate } from 'react-intl';
 
-import { HelpTooltip, TabButton, TabButtons, Tooltip } from '@koyeb/design-system';
+import { HelpTooltip, TabButton, TabButtons, Tooltip } from '@snipkit/design-system';
 import type { Api } from 'src/api/api-types';
-import { useInstance } from 'src/api/hooks/catalog';
-import { Instance, InstanceStatus } from 'src/api/model';
-import { CopyIconButton } from 'src/components/copy-icon-button';
+import { useInstance, useRegions } from 'src/api/hooks/catalog';
+import { useDeploymentScalingQuery } from 'src/api/hooks/service';
+import type { CatalogRegion, ComputeDeployment, Instance, InstanceStatus, Replica } from 'src/api/model';
 import { parseBytes } from 'src/application/memory';
 import { ControlledSelect } from 'src/components/controlled';
+import { CopyIconButton } from 'src/components/copy-icon-button';
+import { Dialog } from 'src/components/dialog';
+import { Loading } from 'src/components/loading';
 import { Metadata } from 'src/components/metadata';
+import { QueryGuard } from 'src/components/query-error';
 import { RegionFlag } from 'src/components/region-flag';
 import { RegionName } from 'src/components/region-name';
 import { InstanceStatusBadge } from 'src/components/status-badges';
-import { createTranslate } from 'src/intl/translate';
+import { createTranslate, TranslateStatus } from 'src/intl/translate';
 import { CpuGraph } from 'src/modules/metrics/graphs/cpu-graph';
 import { MemoryGraph } from 'src/modules/metrics/graphs/memory-graph';
 import { useMetricsQueries } from 'src/modules/metrics/use-metrics';
-import { inArray } from 'src/utils/arrays';
 import { identity } from 'src/utils/generic';
-import { hasProperty } from 'src/utils/object';
+import { getId } from 'src/utils/object';
 
-const T = createTranslate('deploymentLogs.replicas');
+import { ReplicaHistoryDialog } from './replica-history-dialog';
+
+const T = createTranslate('modules.deployment.deploymentLogs.replicas');
 
 type Filters = {
-  region: string;
-  status: InstanceStatus | 'all';
+  region: string | null;
+  status: InstanceStatus | null;
 };
 
-export function Replicas({ instances }: { instances: Instance[] }) {
-  const replicas = useReplicas(instances);
-
-  const regions = uniq(instances.map((instance) => instance.region));
-  const statuses = uniq(instances.map((instance) => instance.status));
+export function Replicas({ deployment }: { deployment: ComputeDeployment }) {
+  const regions = useRegions(deployment.definition.regions);
 
   const filters = useForm<Filters>({
     defaultValues: {
-      region: 'all',
-      status: 'all',
+      region: null,
+      status: null,
     },
   });
 
-  const regionFilter = filters.watch('region');
-  const filteredRegions = regionFilter === 'all' ? regions : [regionFilter];
-
-  const statusFilter = filters.watch('status');
-  const filteredStatuses = statusFilter === 'all' ? statuses : [statusFilter];
-
-  const filteredReplicas = replicas.filter(
-    ([instance]) => inArray(instance.region, filteredRegions) && inArray(instance.status, filteredStatuses),
-  );
+  const query = useDeploymentScalingQuery(deployment.id, {
+    region: filters.watch('region') ?? undefined,
+  });
 
   return (
-    <div className="rounded-md border">
+    <div className="m-4 mt-0 rounded-md border">
       <div className="col md:row gap-4 px-3 py-4 md:items-center">
         <div className="row me-auto items-center gap-2 font-medium">
           <T id="title" />
@@ -62,156 +58,180 @@ export function Replicas({ instances }: { instances: Instance[] }) {
           </HelpTooltip>
         </div>
 
+        <StatusFilter filters={filters} />
         <RegionFilter filters={filters} regions={regions} />
-        <StatusFilter filters={filters} statuses={statuses} />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 bg-muted/50 p-4 sm:grid-cols-2 md:grid-cols-3">
-        {filteredReplicas.map((instances) => (
-          <Replica key={instances[0].id} instances={instances} />
-        ))}
-      </div>
+      <QueryGuard query={query}>
+        {(replicas) => <ReplicaList deployment={deployment} filters={filters} replicas={replicas} />}
+      </QueryGuard>
     </div>
-  );
-}
-
-type RegionFilterProps = {
-  filters: UseFormReturn<Filters>;
-  regions: string[];
-};
-
-function RegionFilter({ filters, regions }: RegionFilterProps) {
-  return (
-    <ControlledSelect
-      control={filters.control}
-      name="region"
-      items={['all' as const, ...regions]}
-      getKey={identity}
-      itemToString={identity}
-      itemToValue={identity}
-      renderItem={(region) => {
-        if (region === 'all') {
-          return <T id="filters.allRegions" />;
-        }
-
-        return (
-          <div className="row items-center gap-2">
-            <RegionFlag identifier={region} className="size-4 rounded-full shadow-badge" />
-            <RegionName identifier={region} />
-          </div>
-        );
-      }}
-      className="min-w-52"
-    />
   );
 }
 
 type StatusFilterProps = {
   filters: UseFormReturn<Filters>;
-  statuses: InstanceStatus[];
 };
 
-function StatusFilter({ filters, statuses }: StatusFilterProps) {
+function StatusFilter({ filters }: StatusFilterProps) {
+  const t = T.useTranslate();
+
+  const statuses: InstanceStatus[] = [
+    'ALLOCATING',
+    'STARTING',
+    'HEALTHY',
+    'UNHEALTHY',
+    'STOPPING',
+    'STOPPED',
+    'ERROR',
+    'SLEEPING',
+  ];
+
   return (
     <ControlledSelect
       control={filters.control}
       name="status"
-      items={['all' as const, ...statuses]}
+      items={statuses}
       getKey={identity}
       itemToString={identity}
       itemToValue={identity}
-      renderItem={(status) => {
-        if (status === 'all') {
-          return <T id="filters.allStatuses" />;
-        }
-
-        return <div className="capitalize">{status}</div>;
-      }}
+      placeholder={t('filters.allStatuses')}
+      renderItem={(status) => <TranslateStatus status={status} />}
+      onItemClick={(status) => status === filters.watch('status') && filters.setValue('status', null)}
       className="min-w-52"
     />
   );
 }
 
-function useReplicas(instances: Instance[]) {
-  return useMemo(() => {
-    // Map<region, Map<replicaIndex, Instance[]>>
-    const map = new Map<string, Map<number, Instance[]>>();
+type RegionFilterProps = {
+  filters: UseFormReturn<Filters>;
+  regions: CatalogRegion[];
+};
 
-    for (const instance of instances) {
-      if (!map.has(instance.region)) {
-        map.set(instance.region, new Map());
-      }
-
-      const regionMap = map.get(instance.region)!;
-
-      if (!regionMap.has(instance.replicaIndex)) {
-        regionMap.set(instance.replicaIndex, []);
-      }
-
-      regionMap.get(instance.replicaIndex)!.push(instance);
-    }
-
-    const result: Array<[Instance, ...Instance[]]> = [];
-
-    for (const regionsMap of map.values()) {
-      for (const instances of regionsMap.values()) {
-        result.push(instances as [Instance, ...Instance[]]);
-      }
-    }
-
-    return result.sort(([a], [b]) => {
-      if (a.region !== b.region) {
-        return a.region.localeCompare(b.region);
-      }
-
-      return a.replicaIndex - b.replicaIndex;
-    });
-  }, [instances]);
-}
-
-function Replica({ instances }: { instances: [Instance, ...Instance[]] }) {
-  const instance = instances.find(hasProperty('status', 'healthy')) ?? instances[0];
+function RegionFilter({ filters, regions }: RegionFilterProps) {
+  const t = T.useTranslate();
 
   return (
-    <div className="col min-w-0 gap-3 rounded-md border bg-neutral p-3">
-      <div className="row items-center gap-2">
-        <div className="font-medium">
-          <T id="replicaIndex" values={{ index: instance.replicaIndex }} />
+    <ControlledSelect
+      control={filters.control}
+      name="region"
+      items={regions}
+      getKey={getId}
+      itemToString={(region) => region.name}
+      itemToValue={getId}
+      placeholder={t('filters.allRegions')}
+      renderItem={(item) => {
+        return (
+          <div className="row items-center gap-2">
+            <RegionFlag regionId={item.id} className="size-4" />
+            <RegionName regionId={item.id} />
+          </div>
+        );
+      }}
+      onItemClick={(region) => region.id === filters.watch('region') && filters.setValue('region', null)}
+      className="min-w-52"
+    />
+  );
+}
+
+type ReplicaListProps = {
+  deployment: ComputeDeployment;
+  filters: UseFormReturn<Filters>;
+  replicas: Replica[];
+};
+
+function ReplicaList({ deployment, filters, replicas }: ReplicaListProps) {
+  const filteredReplicas = replicas.filter(
+    (replica) => filters.watch('status') === null || replica.status === filters.watch('status'),
+  );
+
+  if (replicas.length === 0) {
+    return <Loading className="bg-muted/50" />;
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-3 bg-muted/50 p-4 sm:grid-cols-2 md:grid-cols-3">
+      {filteredReplicas.map((replica) => (
+        <Replica key={`${replica.region}-${replica.index}`} deployment={deployment} replica={replica} />
+      ))}
+
+      {filteredReplicas.length === 0 && <T id="noInstances" />}
+    </div>
+  );
+}
+
+function Replica({ deployment, replica }: { deployment: ComputeDeployment; replica: Replica }) {
+  const t = T.useTranslate();
+  const openDialog = Dialog.useOpen();
+
+  const message = useMemo(() => {
+    if (replica.messages) {
+      return replica.messages.join(' ');
+    }
+
+    return t('noInstances');
+  }, [replica, t]);
+
+  return (
+    <>
+      <ReplicaHistoryDialog deployment={deployment} region={replica.region} replicaIndex={replica.index} />
+
+      <div className="col min-w-0 gap-3 rounded-md border bg-neutral p-3">
+        <div className="row items-center gap-2">
+          <div className="font-medium">
+            <T id="replicaIndex" values={{ index: replica.index }} />
+          </div>
+
+          <RegionFlag regionId={replica.region} className="size-4" />
+
+          {replica.status && <InstanceStatusBadge status={replica.status} className="ms-auto" />}
         </div>
 
-        <RegionFlag identifier={instance.region} className="size-4 rounded-full shadow-badge" />
+        <Tooltip allowHover content={message}>
+          {(props) => (
+            <div {...props} className="max-w-full self-start truncate text-dim">
+              {message}
+            </div>
+          )}
+        </Tooltip>
 
-        <InstanceStatusBadge status={instance.status} className="ms-auto" />
-      </div>
+        <div className="border-t" />
 
-      <Tooltip allowHover content={instance.messages.join(' ')}>
-        {(props) => (
-          <div {...props} className="max-w-full self-start truncate text-dim">
-            {instance.messages.join(' ')}
-          </div>
-        )}
-      </Tooltip>
+        <div className="row flex-wrap gap-2">
+          {replica.instances.map((instance) => (
+            <Tooltip
+              key={instance.id}
+              allowHover
+              color="neutral"
+              placement="top"
+              arrow={false}
+              content={<InstanceDetails instance={instance} />}
+              className="max-w-none dark:border"
+            >
+              {(props) => (
+                <div {...props} className={clsx('size-5 rounded', instanceStatusClasses[instance.status])} />
+              )}
+            </Tooltip>
+          ))}
 
-      <div className="border-t" />
+          {replica.instances.length === 0 && <div className="size-5" />}
 
-      <div className="row flex-wrap gap-2">
-        {instances.slice(0, 10).map((instance) => (
-          <Tooltip
-            key={instance.id}
-            allowHover
-            color="neutral"
-            placement="top"
-            arrow={false}
-            content={<InstanceDetails instance={instance} />}
-            className="max-w-none dark:border"
+          <button
+            type="button"
+            onClick={() =>
+              openDialog('ReplicaHistory', {
+                deploymentId: deployment.id,
+                regionId: replica.region,
+                replicaIndex: replica.index,
+              })
+            }
+            className="text-link ms-auto text-xs"
           >
-            {(props) => (
-              <div {...props} className={clsx('size-5 rounded', instanceStatusClasses[instance.status])} />
-            )}
-          </Tooltip>
-        ))}
+            <T id="viewDetails" />
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -221,14 +241,14 @@ const blue = clsx('bg-blue');
 const neutral = clsx('bg-gray/50');
 
 const instanceStatusClasses: Record<InstanceStatus, string> = {
-  allocating: blue,
-  starting: blue,
-  healthy: green,
-  unhealthy: red,
-  stopping: neutral,
-  stopped: neutral,
-  error: red,
-  sleeping: neutral,
+  ALLOCATING: blue,
+  STARTING: blue,
+  HEALTHY: green,
+  UNHEALTHY: red,
+  STOPPING: neutral,
+  STOPPED: neutral,
+  ERROR: red,
+  SLEEPING: neutral,
 };
 
 const metrics: Api.MetricName[] = ['CPU_TOTAL_PERCENT', 'MEM_RSS'] as const;
@@ -257,18 +277,23 @@ function InstanceDetails({ instance }: { instance: Instance }) {
 
       <div className="border-t" />
 
-      <div className="row gap-12">
+      <div className="row gap-8">
         <Metadata
           label={<T id="regionLabel" />}
           value={
             <div className="row gap-2">
-              <RegionFlag identifier={instance.region} className="size-4 rounded-full shadow-badge" />
-              <RegionName identifier={instance.region} />
+              <RegionFlag regionId={instance.region} className="size-4" />
+              <RegionName regionId={instance.region} />
             </div>
           }
         />
 
         <Metadata label={<T id="instanceTypeLabel" />} value={instanceType?.displayName} />
+
+        <Metadata
+          label={<T id="creationDateLabel" />}
+          value={<FormattedDate value={instance.createdAt} dateStyle="short" timeStyle="short" />}
+        />
       </div>
 
       <TabButtons className="my-2 self-start">
@@ -293,7 +318,7 @@ function InstanceDetails({ instance }: { instance: Instance }) {
           loading={metricsQuery.isPending}
           error={metricsQuery.error.MEM_RSS}
           data={metricsQuery.data.MEM_RSS}
-          max={instanceType ? parseBytes(instanceType.ram) : null}
+          max={instanceType ? parseBytes(instanceType.memory) : null}
         />
       )}
     </div>

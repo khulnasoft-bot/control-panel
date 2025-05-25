@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 
 export function ErrorTestPage() {
   const [renderError, setRenderError] = useState(false);

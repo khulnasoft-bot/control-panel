@@ -2,13 +2,14 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { useState } from 'react';
 
-import { Button, ButtonMenuItem, Spinner, Table, Tooltip } from '@koyeb/design-system';
+import { Button, ButtonMenuItem, Spinner, Table, Tooltip } from '@snipkit/design-system';
 import { useDeployment, useService } from 'src/api/hooks/service';
 import { isDatabaseDeployment } from 'src/api/mappers/deployment';
 import { DatabaseRole, Service } from 'src/api/model';
 import { useApiQueryFn } from 'src/api/use-api';
 import { notify } from 'src/application/notify';
 import { ActionsMenu } from 'src/components/actions-menu';
+import { Dialog } from 'src/components/dialog';
 import { IconEye, IconEyeOff } from 'src/components/icons';
 import { NoResource } from 'src/components/no-resource';
 import { Title } from 'src/components/title';
@@ -24,13 +25,18 @@ import { DeleteDatabaseRoleDialog } from './delete-database-role-dialog';
 const T = createTranslate('pages.database.roles');
 
 export function DatabaseRolesPage() {
-  const service = useService(useRouteParam('databaseServiceId'));
+  const databaseServiceId = useRouteParam('databaseServiceId');
+  const service = useService(databaseServiceId);
   const deployment = useDeployment(service?.latestDeploymentId);
 
-  assert(service !== undefined);
+  const openDialog = Dialog.useOpen();
+
+  if (!service || !deployment) {
+    return null;
+  }
+
   assert(isDatabaseDeployment(deployment));
 
-  const [createRole, setCreateRole] = useState(false);
   const roles = deployment.roles ?? [];
 
   return (
@@ -39,7 +45,7 @@ export function DatabaseRolesPage() {
         title={<T id="title" />}
         end={
           roles.length > 0 && (
-            <Button onClick={() => setCreateRole(true)}>
+            <Button onClick={() => openDialog('CreateDatabaseRole')}>
               <T id="createRole" />
             </Button>
           )
@@ -51,7 +57,7 @@ export function DatabaseRolesPage() {
           title={<T id="noRole.title" />}
           description={<T id="noRole.description" />}
           cta={
-            <Button onClick={() => setCreateRole(true)}>
+            <Button onClick={() => openDialog('CreateDatabaseRole')}>
               <T id="noRole.cta" />
             </Button>
           }
@@ -80,7 +86,7 @@ export function DatabaseRolesPage() {
         />
       )}
 
-      <CreateDatabaseRoleDialog open={createRole} onClose={() => setCreateRole(false)} service={service} />
+      <CreateDatabaseRoleDialog service={service} />
     </>
   );
 }
@@ -144,24 +150,21 @@ type DatabaseRoleActionsProps = {
 };
 
 function DatabaseRoleActions({ service, role }: DatabaseRoleActionsProps) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const openDialog = Dialog.useOpen();
 
   return (
     <>
       <ActionsMenu>
         {(withClose) => (
-          <ButtonMenuItem onClick={withClose(() => setDeleteDialogOpen(true))}>
+          <ButtonMenuItem
+            onClick={withClose(() => openDialog('ConfirmDeleteDatabaseRole', { resourceId: role.name }))}
+          >
             <T id="actions.delete" />
           </ButtonMenuItem>
         )}
       </ActionsMenu>
 
-      <DeleteDatabaseRoleDialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        service={service}
-        role={role}
-      />
+      <DeleteDatabaseRoleDialog service={service} role={role} />
     </>
   );
 }

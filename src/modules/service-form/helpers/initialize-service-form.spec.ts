@@ -1,8 +1,15 @@
 import { QueryClient } from '@tanstack/react-query';
-import { MockedFunction, MockedObject, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MockedFunction, MockedObject, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api } from 'src/api/api';
-import { CatalogRegion, CatalogInstance, Organization, OrganizationSummary, GithubApp } from 'src/api/model';
+import {
+  CatalogDatacenter,
+  CatalogInstance,
+  CatalogRegion,
+  GithubApp,
+  Organization,
+  OrganizationSummary,
+} from 'src/api/model';
 import { fetchGithubRepository } from 'src/components/public-github-repository-input/github-api';
 import { create } from 'src/utils/factories';
 
@@ -13,7 +20,6 @@ import { defaultServiceForm, initializeServiceForm } from './initialize-service-
 const mockFetchGithubRepository = fetchGithubRepository as MockedFunction<typeof fetchGithubRepository>;
 const mockApi = api as MockedObject<typeof api>;
 
-// todo: dependency inversion
 vi.mock('src/components/public-github-repository-input/github-api', () => ({
   fetchGithubRepository: vi.fn(),
 }));
@@ -37,6 +43,7 @@ describe('initializeServiceForm', () => {
   async function initialize(
     options: Partial<{
       params: URLSearchParams;
+      datacenters: CatalogDatacenter[];
       regions: CatalogRegion[];
       instances: CatalogInstance[];
       organization: Organization;
@@ -47,6 +54,7 @@ describe('initializeServiceForm', () => {
   ) {
     return initializeServiceForm(
       options.params ?? new URLSearchParams(),
+      options.datacenters ?? [],
       options.regions ?? [],
       options.instances ?? [],
       options.organization ?? create.organization(),
@@ -63,11 +71,58 @@ describe('initializeServiceForm', () => {
     serviceForm.appName = 'generated';
   });
 
-  it('initializes a default service form', async () => {
+  test('service form initialization', async () => {
     expect(await initialize()).toEqual(serviceForm);
   });
 
-  it('handles organization repository not found', async () => {
+  test('from a hobby organization', async () => {
+    const organization = create.organization({ plan: 'hobby' });
+
+    expect(await initialize({ organization })).toEqual({
+      ...serviceForm,
+      instance: 'free',
+      scaling: {
+        ...serviceForm.scaling,
+        min: 0,
+      },
+    });
+  });
+
+  test('with the free instance', async () => {
+    const params = new URLSearchParams({
+      instance_type: 'free',
+    });
+
+    const instances = [create.instance({ id: 'free' })];
+
+    expect(await initialize({ params, instances })).toEqual({
+      ...serviceForm,
+      instance: 'free',
+      scaling: {
+        ...serviceForm.scaling,
+        min: 0,
+      },
+    });
+  });
+
+  test('with a GPU instance', async () => {
+    const params = new URLSearchParams({
+      instance_type: 'gpu',
+    });
+
+    const instances = [create.instance({ id: 'gpu', category: 'gpu' })];
+
+    expect(await initialize({ params, instances })).toEqual({
+      ...serviceForm,
+      instance: 'gpu',
+      scaling: {
+        ...serviceForm.scaling,
+        min: 0,
+      },
+    });
+  });
+
+  test('organization repository not found', async () => {
     const params = new URLSearchParams({
       type: 'git',
       repository: 'org/repo',
@@ -80,7 +135,7 @@ describe('initializeServiceForm', () => {
     expect(await initialize({ params, githubApp })).toEqual(serviceForm);
   });
 
-  it('handles public repository not found', async () => {
+  test('public repository not found', async () => {
     const params = new URLSearchParams({
       type: 'git',
       repository: 'org/repo',

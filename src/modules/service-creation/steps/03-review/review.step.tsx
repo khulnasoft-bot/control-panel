@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { DeployToKoyebButton } from 'src/components/deploy-to-koyeb-button';
+import { DeployToSnipkitButton } from 'src/components/deploy-to-snipkit-button';
 import { ServiceEstimatedCost } from 'src/components/service-estimated-cost';
 import { ServiceCost } from 'src/modules/service-form/helpers/estimated-cost';
 import { ServiceForm } from 'src/modules/service-form/service-form';
@@ -23,7 +23,7 @@ export function ReviewStep({ onNext }: { onNext: (serviceId: string) => void }) 
       <div className="col max-w-sm shrink-0 gap-8 xl:basis-80">
         <Tips />
         <ServiceEstimatedCost cost={cost} />
-        <DeployToKoyebButton deployUrl={deployUrl} />
+        <DeployToSnipkitButton deployUrl={deployUrl} />
       </div>
     </div>
   );

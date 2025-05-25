@@ -15,10 +15,13 @@ export function ImportProjectStep({ onNext }: ImportProjectStepProps) {
   const navigate = useNavigate();
 
   useMount(() => {
-    navigate((url) => {
-      url.searchParams.delete('repository');
-      url.searchParams.delete('image');
-    });
+    navigate(
+      (url) => {
+        url.searchParams.delete('repository');
+        url.searchParams.delete('image');
+      },
+      { replace: true },
+    );
   });
 
   return (
@@ -39,7 +42,7 @@ export function ImportProjectStep({ onNext }: ImportProjectStepProps) {
 
             if (secretName) {
               // eslint-disable-next-line
-              (window as any).__KOYEB_REGISTRY_SECRET_HACK = secretName;
+              (window as any).__SNIPKIT_REGISTRY_SECRET_HACK = secretName;
             }
 
             onNext();

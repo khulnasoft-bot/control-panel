@@ -4,7 +4,6 @@ import { ServiceTypeIcon } from 'src/components/service-type-icon';
 import { createTranslate, Translate } from 'src/intl/translate';
 
 import {
-  AutoDeployMetadata,
   BranchMetadata,
   BuilderMetadata,
   CommitMetadata,
@@ -13,7 +12,7 @@ import {
 } from '../metadata/build-metadata';
 import { DockerImageMetadata } from '../metadata/docker-metadata';
 import {
-  EnvironmentVariablesMetadata,
+  EnvironmentMetadata,
   InstanceTypeMetadata,
   RegionsMetadata,
   ScalingMetadata,
@@ -24,7 +23,7 @@ import { DeploymentDefinitionDialog } from './deployment-definition-dialog';
 import { ExternalUrl } from './external-url';
 import { InternalUrl } from './internal-url';
 
-const T = createTranslate('deploymentInfo');
+const T = createTranslate('modules.deployment.deploymentInfo');
 
 type DeploymentInfoProps = {
   app: App;
@@ -73,7 +72,6 @@ export function DeploymentInfo({ app, service, deployment }: DeploymentInfoProps
           {(source.type === 'git' || source.type === 'archive') && (
             <>
               <BuilderMetadata builder={builder} />
-              {source.type === 'git' && <AutoDeployMetadata autoDeploy={source.autoDeploy} />}
               <PrivilegedMetadata privileged={privileged} />
             </>
           )}
@@ -85,7 +83,7 @@ export function DeploymentInfo({ app, service, deployment }: DeploymentInfoProps
           <InstanceTypeMetadata instanceType={definition.instanceType} />
           <ScalingMetadata scaling={definition.scaling} />
           <RegionsMetadata regions={definition.regions} />
-          <EnvironmentVariablesMetadata definition={definition} />
+          <EnvironmentMetadata definition={definition} />
           <VolumesMetadata definition={definition} />
         </div>
       </div>

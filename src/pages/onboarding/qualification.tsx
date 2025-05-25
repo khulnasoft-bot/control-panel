@@ -2,28 +2,27 @@ import { useMutation } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { FormProvider, useController, useForm, useFormContext, useWatch } from 'react-hook-form';
 
-import { Button } from '@koyeb/design-system';
+import { Button, Stepper } from '@snipkit/design-system';
 import { api } from 'src/api/api';
 import { useOrganization, useUser } from 'src/api/hooks/session';
 import { useInvalidateApiQuery } from 'src/api/use-api';
 import { useTrackEvent } from 'src/application/posthog';
 import { useToken } from 'src/application/token';
 import { ControlledInput, ControlledSelect } from 'src/components/controlled';
+import { Dialog } from 'src/components/dialog';
 import { IconArrowRight } from 'src/components/icons';
 import { handleSubmit } from 'src/hooks/form';
 import { createTranslate, Translate } from 'src/intl/translate';
 import { identity } from 'src/utils/generic';
 
-import { OnboardingStepper } from './stepper';
-
-const T = createTranslate('onboarding.qualification');
+const T = createTranslate('pages.onboarding.qualification');
 
 export function Qualification() {
   const user = useUser();
 
   return (
     <section className="col w-full max-w-xl gap-6">
-      <OnboardingStepper step={3} />
+      <Stepper totalSteps={3} activeStep={3} />
 
       <div>
         <h1 className="typo-heading mb-1">
@@ -56,6 +55,7 @@ function QualificationForm() {
   const { token } = useToken();
   const invalidate = useInvalidateApiQuery();
   const track = useTrackEvent();
+  const openDialog = Dialog.useOpen();
 
   const form = useForm<QualificationFormType>({
     defaultValues: {
@@ -101,6 +101,10 @@ function QualificationForm() {
       await invalidate('getCurrentUser');
       await invalidate('getCurrentOrganization');
       track('Form Submitted', { category: 'User Qualification', action: 'Clicked', ...values });
+
+      if (organization.trial) {
+        openDialog('TrialWelcome');
+      }
     },
   });
 

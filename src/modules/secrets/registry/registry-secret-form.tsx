@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FieldValues, FormState, Path, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { api, ApiEndpointParams } from 'src/api/api';
 import { RegistrySecret, type RegistryType } from 'src/api/model';
 import { useInvalidateApiQuery } from 'src/api/use-api';
@@ -18,19 +18,11 @@ import { identity } from 'src/utils/generic';
 
 import { RegistryType as RegistryTypeComponent } from './registry-type';
 
-const T = createTranslate('secrets.registrySecretForm');
+const T = createTranslate('modules.secrets.registrySecretForm');
 
 const schema = z.object({
   name: z.string().min(2),
-  type: z.union([
-    z.literal('docker-hub'),
-    z.literal('digital-ocean'),
-    z.literal('github'),
-    z.literal('gitlab'),
-    z.literal('azure'),
-    z.literal('gcp'),
-    z.literal('private'),
-  ]),
+  type: z.string(),
   username: z.string(),
   password: z.string(),
   registryName: z.string(),
@@ -67,14 +59,7 @@ export function RegistrySecretForm({ secret, renderFooter, onSubmitted }: Regist
       registryUrl: '',
       keyFile: '',
     },
-    resolver: useZodResolver(schema, {
-      name: t('nameLabel'),
-      username: t('usernameLabel'),
-      password: t('passwordLabel'),
-      type: t('typeLabel'),
-      registryName: t('registryNameLabel'),
-      registryUrl: t('registryUrlLabel'),
-    }),
+    resolver: useZodResolver(schema),
   });
 
   useUpdateEffect(() => {

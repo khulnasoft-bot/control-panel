@@ -1,4 +1,4 @@
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { NoResource } from 'src/components/no-resource';
 import { createTranslate } from 'src/intl/translate';
 

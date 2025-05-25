@@ -1,11 +1,11 @@
-import { Tooltip } from '@koyeb/design-system';
+import { Tooltip } from '@snipkit/design-system';
 import { CopyIconButton } from 'src/components/copy-icon-button';
 import { IconInfo } from 'src/components/icons';
 import { createTranslate } from 'src/intl/translate';
 
 import { DocumentationLink } from './documentation-link';
 
-const T = createTranslate('cliInfo');
+const T = createTranslate('components.cliInfo');
 
 type CliInfoButtonProps = {
   button: React.ReactNode;

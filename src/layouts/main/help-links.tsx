@@ -1,6 +1,7 @@
+import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 
-import { Floating, Menu, MenuItem, useBreakpoint } from '@koyeb/design-system';
+import { Floating, Menu, MenuItem, useBreakpoint } from '@snipkit/design-system';
 import {
   IconBookMarked,
   IconBookOpen,
@@ -9,7 +10,6 @@ import {
   IconMessageMoreCircle,
   IconNewspaper,
   IconSignal,
-  IconUsers,
 } from 'src/components/icons';
 import { ExternalLink } from 'src/components/link';
 import { createTranslate } from 'src/intl/translate';
@@ -29,56 +29,55 @@ export function HelpLinks({ collapsed }: { collapsed: boolean }) {
     <Floating
       open={open}
       setOpen={setOpen}
-      placement={isMobile ? 'bottom' : 'left'}
-      renderReference={(ref, props) => (
-        <button
-          ref={ref}
-          type="button"
-          className="row mx-3 items-center gap-2 p-2 text-left text-dim hover:text-default"
-          onClick={() => setOpen(true)}
+      hover
+      placement={isMobile ? 'top-end' : 'right-end'}
+      strategy="fixed"
+      offset={8}
+      renderReference={(props) => (
+        <div
+          className={clsx(
+            'row mx-4 items-center gap-1',
+            'rounded-md border py-1 pl-3 pr-2',
+            'transition-colors hover:bg-muted/50',
+            'text-xs font-medium text-dim',
+          )}
           {...props}
         >
-          <div>
-            <IconUsers className="size-6" />
+          {!collapsed && <T id="label" />}
+
+          <div className="ms-auto">
+            <IconChevronRight className="size-4 text-dim" />
           </div>
-          {!collapsed && (
-            <>
-              <span className="flex-1 font-medium">
-                <T id="label" />
-              </span>
-              <IconChevronRight className="size-6" />
-            </>
-          )}
-        </button>
+        </div>
       )}
-      renderFloating={(ref, props) => (
-        <Menu ref={ref} className="z-30 min-w-52" {...props}>
-          <LinkMenuItem href="https://koyeb.com/docs" onClick={onClose}>
+      renderFloating={(props) => (
+        <Menu className="min-w-52" {...props}>
+          <LinkMenuItem href="https://snipkit.com/docs" onClick={onClose}>
             <IconBookMarked className="icon" />
             <T id="documentation" />
           </LinkMenuItem>
 
-          <LinkMenuItem href="https://community.koyeb.com" onClick={onClose}>
+          <LinkMenuItem href="https://community.snipkit.com" onClick={onClose}>
             <IconMessageMoreCircle className="icon" />
             <T id="community" />
           </LinkMenuItem>
 
-          <LinkMenuItem href="https://feedback.koyeb.com" onClick={onClose}>
+          <LinkMenuItem href="https://feedback.snipkit.com" onClick={onClose}>
             <IconLightbulb className="icon" />
             <T id="feedback" />
           </LinkMenuItem>
 
-          <LinkMenuItem href="https://status.koyeb.com" onClick={onClose}>
+          <LinkMenuItem href="https://status.snipkit.com" onClick={onClose}>
             <IconSignal className="icon" />
             <T id="status" />
           </LinkMenuItem>
 
-          <LinkMenuItem href="https://www.koyeb.com/changelog" onClick={onClose}>
+          <LinkMenuItem href="https://www.snipkit.com/changelog" onClick={onClose}>
             <IconNewspaper className="icon" />
             <T id="changelog" />
           </LinkMenuItem>
 
-          <LinkMenuItem href="https://www.koyeb.com/blog" onClick={onClose}>
+          <LinkMenuItem href="https://www.snipkit.com/blog" onClick={onClose}>
             <IconBookOpen className="icon" />
             <T id="blog" />
           </LinkMenuItem>

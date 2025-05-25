@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const ci = process.env.CI === 'true';
-const baseURL = process.env.E2E_BASE_URL ?? 'https://staging.koyeb.com';
+const baseURL = process.env.E2E_BASE_URL ?? 'https://staging.snipkit.com';
 
 export default defineConfig({
   testDir: './tests',

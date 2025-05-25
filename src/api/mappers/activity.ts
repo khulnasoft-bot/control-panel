@@ -1,38 +1,33 @@
 import { z } from 'zod';
 
 import { createValidationGuard } from 'src/application/create-validation-guard';
+import { requiredDeep, snakeToCamelDeep } from 'src/utils/object';
 
-import { ApiEndpointResult } from '../api';
+import { Api } from '../api-types';
 import { Activity } from '../model';
 
-export function mapActivities({ activities }: ApiEndpointResult<'listActivities'>): Activity[] {
-  return activities!.map((activity) => ({
-    id: activity.id!,
-    date: activity.created_at!,
-    verb: activity.verb!,
-    tokenId: isCredentialActivity(activity)
-      ? activity.metadata.auth_token_ref.replace(/^credential:/, '')
-      : undefined,
-    actor: {
-      name: activity.actor!.name!,
-      type: activity.actor!.type!,
-      metadata: activity.actor!.metadata!,
-    },
-    object: {
-      id: activity.object!.id!,
-      name: activity.object!.name!,
-      type: activity.object!.type!,
-      deleted: activity.object!.deleted!,
-      metadata: activity.object!.metadata!,
-    },
-    metadata: activity.metadata!,
-  }));
+export function mapActivity(activity: Api.Activity): Activity {
+  const result = snakeToCamelDeep(requiredDeep(activity));
+
+  if (isDatabaseDeploymentActivity(result)) {
+    // dirty fix, we'll add object.metadata.service_type = "database" to the API result
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    result.object.metadata.serviceType = 'database';
+  }
+
+  return result;
 }
 
-const isCredentialActivity = createValidationGuard(
+const isDatabaseDeploymentActivity = createValidationGuard(
   z.object({
-    metadata: z.object({
-      auth_token_ref: z.string().startsWith('credential:'),
+    object: z.object({
+      type: z.literal('deployment'),
+      metadata: z.object({
+        definition: z.object({
+          database: z.object({}),
+        }),
+      }),
     }),
   }),
 );

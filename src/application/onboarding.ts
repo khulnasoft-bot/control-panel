@@ -1,8 +1,6 @@
-import { useUserQuery, useOrganizationQuery } from 'src/api/hooks/session';
-import { Organization, OnboardingStep, User } from 'src/api/model';
+import { useOrganizationQuery, useUserQuery } from 'src/api/hooks/session';
+import { OnboardingStep, Organization, User } from 'src/api/model';
 import { useFeatureFlag } from 'src/hooks/feature-flag';
-
-import { UnexpectedError } from './errors';
 
 export function useOnboardingStep() {
   const userQuery = useUserQuery();
@@ -29,11 +27,11 @@ function getOnboardingStep(
     return 'qualification';
   }
 
-  if (organization.statusMessage === 'plan_upgrade_required') {
+  if (organization.statusMessage === 'PLAN_UPGRADE_REQUIRED') {
     return 'paymentMethod';
   }
 
-  if (organization.statusMessage === 'pending_verification') {
+  if (organization.statusMessage === 'PENDING_VERIFICATION') {
     return 'automaticReview';
   }
 
@@ -41,18 +39,11 @@ function getOnboardingStep(
     return 'ai';
   }
 
-  if (organization.status === 'warning') {
+  if (organization.status === 'WARNING') {
     // transient state after creating another organization
-    if (organization.statusMessage === 'reviewing_account') {
+    if (organization.statusMessage === 'REVIEWING_ACCOUNT') {
       return 'automaticReview';
     }
-
-    reportError(
-      new UnexpectedError('Unhandled organization status', {
-        status: organization.status,
-        statusMessage: organization.statusMessage,
-      }),
-    );
   }
 
   return null;

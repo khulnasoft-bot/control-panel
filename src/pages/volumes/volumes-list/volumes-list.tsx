@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { useState } from 'react';
 
-import { Button, ButtonMenuItem, InfoTooltip, Table, useBreakpoint } from '@koyeb/design-system';
+import { Button, ButtonMenuItem, InfoTooltip, Table, useBreakpoint } from '@snipkit/design-system';
 import { useService } from 'src/api/hooks/service';
 import { mapSnapshot } from 'src/api/mappers/volume';
 import { Volume } from 'src/api/model';
@@ -10,13 +9,13 @@ import { useApiQueryFn } from 'src/api/use-api';
 import { formatBytes } from 'src/application/memory';
 import { routes } from 'src/application/routes';
 import { ActionsMenu } from 'src/components/actions-menu';
+import { Dialog } from 'src/components/dialog';
 import { LinkButton } from 'src/components/link';
 import { NoResource } from 'src/components/no-resource';
 import { RegionFlag } from 'src/components/region-flag';
 import { RegionName } from 'src/components/region-name';
 import { ServiceTypeIcon } from 'src/components/service-type-icon';
 import { VolumeStatusBadge } from 'src/components/status-badges';
-import { useFeatureFlag } from 'src/hooks/feature-flag';
 import { FormattedDistanceToNow } from 'src/intl/formatted';
 import { createTranslate, Translate } from 'src/intl/translate';
 
@@ -60,8 +59,8 @@ export function VolumesList({ volumes, onCreate }: { volumes: Volume[]; onCreate
           header: <T id="region" />,
           render: (volume) => (
             <div className="row items-center gap-2">
-              <RegionFlag identifier={volume.region} className="size-4 rounded-full shadow-badge" />
-              <RegionName identifier={volume.region} />
+              <RegionFlag regionId={volume.region} className="size-4" />
+              <RegionName regionId={volume.region} />
             </div>
           ),
         },
@@ -127,48 +126,35 @@ function AttachedService({ serviceId }: { serviceId?: string }) {
 }
 
 function Actions({ volume }: { volume: Volume }) {
-  const [openDialog, setOpenDialog] = useState<'edit' | 'createSnapshot' | 'delete'>();
-  const snapshots = useFeatureFlag('snapshots');
+  const openDialog = Dialog.useOpen();
 
   return (
     <>
       <ActionsMenu>
         {(withClose) => (
           <>
-            <ButtonMenuItem onClick={withClose(() => setOpenDialog('edit'))}>
+            <ButtonMenuItem onClick={withClose(() => openDialog('EditVolume', { volumeId: volume.id }))}>
               <T id="actions.edit" />
             </ButtonMenuItem>
 
-            {snapshots && (
-              <ButtonMenuItem onClick={withClose(() => setOpenDialog('createSnapshot'))}>
-                <T id="actions.createSnapshot" />
-              </ButtonMenuItem>
-            )}
+            <ButtonMenuItem
+              onClick={withClose(() => openDialog('CreateSnapshotFromVolume', { volumeId: volume.id }))}
+            >
+              <T id="actions.createSnapshot" />
+            </ButtonMenuItem>
 
-            <ButtonMenuItem onClick={withClose(() => setOpenDialog('delete'))}>
+            <ButtonMenuItem
+              onClick={withClose(() => openDialog('ConfirmDeleteVolume', { resourceId: volume.id }))}
+            >
               <T id="actions.delete" />
             </ButtonMenuItem>
           </>
         )}
       </ActionsMenu>
 
-      <EditVolumeDialog
-        open={openDialog === 'edit'}
-        onClose={() => setOpenDialog(undefined)}
-        volume={volume}
-      />
-
-      <CreateSnapshotDialog
-        open={openDialog === 'createSnapshot'}
-        onClose={() => setOpenDialog(undefined)}
-        volume={volume}
-      />
-
-      <DeleteVolumeDialog
-        open={openDialog === 'delete'}
-        onClose={() => setOpenDialog(undefined)}
-        volume={volume}
-      />
+      <EditVolumeDialog volume={volume} />
+      <CreateSnapshotDialog volume={volume} />
+      <DeleteVolumeDialog volume={volume} />
     </>
   );
 }

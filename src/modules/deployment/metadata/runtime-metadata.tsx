@@ -1,4 +1,4 @@
-import { Badge, Tooltip } from '@koyeb/design-system';
+import { Badge, Tooltip } from '@snipkit/design-system';
 import { useInstance, useRegions } from 'src/api/hooks/catalog';
 import { useVolumes } from 'src/api/hooks/volume';
 import { DeploymentDefinition, EnvironmentVariable, type Scaling } from 'src/api/model';
@@ -8,7 +8,7 @@ import { RegionsList } from 'src/components/regions-list';
 import { createTranslate, Translate } from 'src/intl/translate';
 import { hasProperty } from 'src/utils/object';
 
-const T = createTranslate('deploymentInfo');
+const T = createTranslate('modules.deployment.deploymentInfo');
 
 export function InstanceTypeMetadata({ instanceType }: { instanceType: string | null }) {
   const instance = useInstance(instanceType);
@@ -36,19 +36,19 @@ export function RegionsMetadata({ regions }: { regions: string[] }) {
     return null;
   }
 
-  const catalogRegion = catalogRegions.find(hasProperty('identifier', firstRegion));
+  const catalogRegion = catalogRegions.find(hasProperty('id', firstRegion));
 
   return (
     <Metadata
       label={<T id="regionsLabel" />}
       value={
         <div className="row items-center gap-2">
-          <RegionFlag identifier={firstRegion} className="size-4 rounded-full shadow-badge" />
+          <RegionFlag regionId={firstRegion} className="size-4" />
 
-          {catalogRegion?.displayName}
+          {catalogRegion?.name}
 
           {otherRegions.length > 0 && (
-            <Tooltip content={<RegionsList identifiers={otherRegions} />}>
+            <Tooltip content={<RegionsList regionIds={otherRegions} />}>
               {(props) => (
                 <Badge size={1} {...props}>
                   <Translate id="common.plusCount" values={{ count: otherRegions.length }} />
@@ -62,8 +62,8 @@ export function RegionsMetadata({ regions }: { regions: string[] }) {
   );
 }
 
-export function EnvironmentVariablesMetadata({ definition }: { definition: DeploymentDefinition }) {
-  const { environmentVariables } = definition;
+export function EnvironmentMetadata({ definition }: { definition: DeploymentDefinition }) {
+  const { environmentVariables, files } = definition;
 
   const content = () => {
     if (environmentVariables.length === 0) {
@@ -83,12 +83,15 @@ export function EnvironmentVariablesMetadata({ definition }: { definition: Deplo
 
   return (
     <Metadata
-      label={<T id="environmentVariablesLabel" />}
+      label={<T id="environmentLabel" />}
       value={
         <Tooltip allowHover content={content()} className="max-w-md">
           {(props) => (
             <span {...props}>
-              <T id="environmentVariablesValue" values={{ count: environmentVariables.length }} />
+              <T
+                id="environmentValue"
+                values={{ variables: environmentVariables.length, files: files.length }}
+              />
             </span>
           )}
         </Tooltip>

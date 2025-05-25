@@ -1,18 +1,24 @@
-import { Button } from '@koyeb/design-system';
-import { useInstancesQuery, useRegionsQuery } from 'src/api/hooks/catalog';
-import { useOrganizationQuotasQuery, useOrganizationSummaryQuery } from 'src/api/hooks/session';
+import { Button } from '@snipkit/design-system';
+import { useInstances, useInstancesQuery, useRegions, useRegionsQuery } from 'src/api/hooks/catalog';
+import {
+  useOrganization,
+  useOrganizationQuotasQuery,
+  useOrganizationSummaryQuery,
+} from 'src/api/hooks/session';
 import { ServiceType } from 'src/api/model';
 import { useInstanceAvailabilities } from 'src/application/instance-region-availability';
-import { InstanceSelector } from 'src/components/instance-selector';
 import { Loading } from 'src/components/loading';
 import { QueryError } from 'src/components/query-error';
 import { useMount } from 'src/hooks/lifecycle';
-import { useNavigate, useSearchParam } from 'src/hooks/router';
+import { useNavigate, useSearchParam, useSearchParams } from 'src/hooks/router';
 import { Translate } from 'src/intl/translate';
+import { useGetInstanceBadges } from 'src/modules/instance-selector/instance-badges';
+import { InstanceCategoryTabs } from 'src/modules/instance-selector/instance-category-tabs';
+import { InstanceSelector } from 'src/modules/instance-selector/instance-selector';
+import { useInstanceSelector } from 'src/modules/instance-selector/instance-selector-state';
+import { hasProperty } from 'src/utils/object';
 
 import { InstanceRegionAlerts } from './instance-region-alerts';
-import { useInstanceRegionState } from './instance-region-state';
-import { RegionsSelector } from './regions-selector';
 
 type InstanceRegionStepProps = {
   onNext: () => void;
@@ -45,58 +51,78 @@ export function InstanceRegionStep(props: InstanceRegionStepProps) {
 }
 
 function InstanceRegionStep_({ onNext }: InstanceRegionStepProps) {
-  const [serviceType] = useSearchParam('service_type') as [ServiceType, unknown];
-  const [state, actions] = useInstanceRegionState();
+  const searchParams = useSearchParams();
   const navigate = useNavigate();
 
+  const organization = useOrganization();
+
+  const instances = useInstances();
+  const regions = useRegions();
+
+  const [serviceType] = useSearchParam('service_type') as [ServiceType, unknown];
   const availabilities = useInstanceAvailabilities({ serviceType });
 
+  const instanceParam = searchParams.get('instance_type');
+  const selectedInstance = instances.find(hasProperty('id', instanceParam)) ?? null;
+
+  const regionsParam = searchParams.getAll('regions');
+  const selectedRegions = regions.filter((region) => regionsParam.includes(region.id));
+
+  const setInstanceParam = (instance: string) => {
+    navigate((url) => url.searchParams.set('instance_type', instance), { replace: true });
+  };
+
+  const setRegionsParam = (regions: string[]) => {
+    navigate(
+      (url) => {
+        url.searchParams.delete('regions');
+        regions.forEach((region) => url.searchParams.append('regions', region));
+      },
+      { replace: true },
+    );
+  };
+
+  const selector = useInstanceSelector({
+    instances,
+    regions,
+    availabilities,
+    selectedInstance,
+    setSelectedInstance: (instance) => {
+      if (instance !== null) {
+        setInstanceParam(instance.id);
+      }
+    },
+    selectedRegions,
+    setSelectedRegions: (regions) => {
+      setRegionsParam(regions.map((region) => region.id));
+    },
+  });
+
+  const getBadges = useGetInstanceBadges();
+
   useMount(() => {
-    navigate((url) => {
-      url.searchParams.delete('instance_type');
-      url.searchParams.delete('regions');
-    });
+    if (!selectedInstance) {
+      selector.onInstanceCategorySelected(organization.plan === 'hobby' ? 'eco' : 'standard');
+    }
   });
 
   return (
-    <>
-      <InstanceRegionAlerts
-        selectedInstance={state.selectedInstance}
-        selectedRegions={state.selectedRegions}
+    <div className="col max-w-3xl gap-4">
+      <InstanceRegionAlerts selectedInstance={selectedInstance} selectedRegions={selectedRegions} />
+
+      <InstanceCategoryTabs
+        category={selector.instanceCategory}
+        setCategory={selector.onInstanceCategorySelected}
       />
 
-      <div className="col lg:row items-center gap-8 lg:gap-4">
-        <InstanceSelector
-          instances={state.instances}
-          selectedInstance={state.selectedInstance}
-          checkAvailability={(instance) => availabilities[instance] ?? [false, 'instanceNotFound']}
-          onInstanceSelected={actions.instanceSelected}
-          // eslint-disable-next-line tailwindcss/no-arbitrary-value
-          className="w-full max-w-[30rem]"
-        />
-
-        <RegionsSelector
-          regions={state.regions}
-          selectedInstance={state.selectedInstance}
-          selectedRegions={state.selectedRegions}
-          onRegionSelected={actions.regionSelected}
-        />
+      {/* eslint-disable-next-line tailwindcss/no-arbitrary-value */}
+      <div className="col scrollbar-green scrollbar-thin max-h-[32rem] gap-3 overflow-auto rounded-md border p-2">
+        <InstanceSelector {...selector} getBadges={getBadges} />
       </div>
 
-      <Button
-        onClick={() => {
-          navigate((url) => {
-            url.searchParams.set('instance_type', state.selectedInstance?.identifier ?? 'nano');
-            state.selectedRegions.forEach((region) => url.searchParams.append('regions', region.identifier));
-          });
-
-          onNext();
-        }}
-        disabled={state.selectedRegions.length === 0}
-        className="self-start"
-      >
+      <Button onClick={onNext} disabled={selectedRegions.length === 0} className="self-start">
         <Translate id="common.next" />
       </Button>
-    </>
+    </div>
   );
 }

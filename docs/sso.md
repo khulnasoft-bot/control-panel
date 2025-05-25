@@ -1,9 +1,9 @@
 # Single sign-on
 
-Koyeb users can sign in to some third party websites using SSO. Currently, this is possible for:
+Snipkit users can sign in to some third party websites using SSO. Currently, this is possible for:
 
-- Canny (feedback.koyeb.com)
-- Discourse (community.koyeb.com)
+- Canny (feedback.snipkit.com)
+- Discourse (community.snipkit.com)
 
 When users want to log in, they click a button that redirected them to the control panel, where they can
 authenticate (if needed). Once they're logged in, the control panel redirects back to where they came from,
@@ -38,7 +38,7 @@ the third party website, and the user will be authenticated there.
 - API endpoint: `POST /v1/sso/discourse`
 - API endpoint body: `payload=sso` and `sig=sig`
 - API endpoint response: `sso` and `sig` (same names, that's pretty confusing)
-- Redirect URL: `https://community.koyeb.com/session/sso_login`
+- Redirect URL: `https://community.snipkit.com/session/sso_login`
 - Redirect query parameters: `sso` and `sig` (from the API)
 
 > Note: don't use URLSearchParams to redirect to discourse, as `sso` is already url encoded

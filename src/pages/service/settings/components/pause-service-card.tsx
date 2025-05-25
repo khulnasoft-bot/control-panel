@@ -1,12 +1,12 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { Service } from 'src/api/model';
 import { useApiMutationFn } from 'src/api/use-api';
 import { notify } from 'src/application/notify';
 import { routes } from 'src/application/routes';
 import { ConfirmationDialog } from 'src/components/confirmation-dialog';
+import { Dialog } from 'src/components/dialog';
 import { useNavigate } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
 
@@ -19,14 +19,15 @@ type PauseServiceCardProps = {
 export function PauseServiceCard({ service }: PauseServiceCardProps) {
   const navigate = useNavigate();
   const t = T.useTranslate();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const openDialog = Dialog.useOpen();
+  const closeDialog = Dialog.useClose();
 
   const { mutateAsync: pause } = useMutation({
     ...useApiMutationFn('pauseService', {
       path: { id: service.id },
     }),
     onSuccess: () => {
-      setDialogOpen(false);
+      closeDialog();
       navigate(routes.service.overview(service.id));
       notify.info(t('pausing'));
     },
@@ -37,7 +38,7 @@ export function PauseServiceCard({ service }: PauseServiceCardProps) {
       path: { id: service.id },
     }),
     onSuccess: () => {
-      setDialogOpen(false);
+      closeDialog();
       navigate(routes.service.overview(service.id));
       notify.info(t('resuming'));
     },
@@ -59,7 +60,7 @@ export function PauseServiceCard({ service }: PauseServiceCardProps) {
         <Button
           color="gray"
           onClick={() => resume()}
-          disabled={service.status !== 'paused'}
+          disabled={service.status !== 'PAUSED'}
           loading={isResuming}
         >
           <T id="resume" />
@@ -67,16 +68,16 @@ export function PauseServiceCard({ service }: PauseServiceCardProps) {
 
         <Button
           color="orange"
-          onClick={() => setDialogOpen(true)}
-          disabled={service.status === 'pausing' || service.status === 'paused'}
+          onClick={() => openDialog('ConfirmPauseService', { resourceId: service.id })}
+          disabled={service.status === 'PAUSING' || service.status === 'PAUSED'}
         >
           <T id="pause" />
         </Button>
       </div>
 
       <ConfirmationDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
+        id="ConfirmPauseService"
+        resourceId={service.id}
         title={<T id="confirmationDialog.title" />}
         description={<T id="confirmationDialog.description" />}
         confirmationText={service.name}

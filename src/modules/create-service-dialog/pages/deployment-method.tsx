@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { useGithubApp } from 'src/api/hooks/git';
 import { useApiMutationFn } from 'src/api/use-api';
 import { routes } from 'src/application/routes';
@@ -12,7 +12,7 @@ import { createTranslate } from 'src/intl/translate';
 
 import { useCreateServiceDialog } from '../use-create-service-dialog';
 
-const T = createTranslate('createServiceDialog');
+const T = createTranslate('modules.createServiceDialog');
 
 export function Github() {
   const githubApp = useGithubApp();

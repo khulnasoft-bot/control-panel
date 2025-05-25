@@ -48,11 +48,11 @@ function defaultDatabaseServiceForm(): DatabaseServiceForm {
       allowFreeInstanceIfAlreadyUsed: false,
     },
     engine: {
-      version: 16,
+      version: 17,
     },
     region: 'fra',
     instance: 'small',
-    defaultRole: 'koyeb-adm',
+    defaultRole: 'snipkit-adm',
     serviceName: 'database',
   };
 }
@@ -94,16 +94,16 @@ function useExpandFirstSectionInError(form: UseFormReturn<DatabaseServiceForm>) 
 }
 
 function useWatchEstimatedCost(form: UseFormReturn<DatabaseServiceForm>, onChange: (cost: number) => void) {
-  const instanceIdentifier = useWatch<DatabaseServiceForm, 'instance'>({
+  const catalogInstanceId = useWatch<DatabaseServiceForm, 'instance'>({
     control: form.control,
     name: 'instance',
   });
 
   useEffect(() => {
-    const instance = databaseInstances.find(hasProperty('identifier', instanceIdentifier));
+    const instance = databaseInstances.find(hasProperty('id', catalogInstanceId));
 
     if (instance) {
-      onChange(instance.pricePerMonth);
+      onChange(instance.priceMonthly * 100);
     }
-  }, [instanceIdentifier, onChange]);
+  }, [catalogInstanceId, onChange]);
 }

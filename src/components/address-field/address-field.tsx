@@ -6,7 +6,7 @@ import {
 } from '@mapbox/search-js-core';
 import { useEffect, useMemo, useState } from 'react';
 
-import { Autocomplete } from '@koyeb/design-system';
+import { Autocomplete } from '@snipkit/design-system';
 import { Address } from 'src/api/model';
 import { getConfig } from 'src/application/config';
 import { createTranslate } from 'src/intl/translate';
@@ -14,7 +14,7 @@ import { isDefined } from 'src/utils/generic';
 
 import { FallbackAddressFields } from './fallback-address-fields';
 
-const T = createTranslate('addressAutocomplete');
+const T = createTranslate('components.addressAutocomplete');
 
 type AddressFieldOwnProps = {
   value?: Address;

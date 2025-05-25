@@ -7,7 +7,7 @@ import { identity } from 'src/utils/generic';
 import { DatabaseServiceFormSection } from '../components/database-service-form-section';
 import { DatabaseServiceForm } from '../database-service-form.types';
 
-const T = createTranslate('databaseForm.engine');
+const T = createTranslate('modules.databaseForm.engine');
 
 export function DatabaseEngineSection() {
   const version = useWatch<DatabaseServiceForm, 'engine.version'>({ name: 'engine.version' });
@@ -30,7 +30,7 @@ export function DatabaseEngineSection() {
       <ControlledSelect<DatabaseServiceForm, 'engine.version'>
         name="engine.version"
         label={<T id="engineLabel" />}
-        items={[14, 15, 16]}
+        items={[14, 15, 16, 17]}
         getKey={identity}
         itemToValue={identity}
         itemToString={String}

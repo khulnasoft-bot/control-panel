@@ -1,12 +1,11 @@
-import { useState } from 'react';
-
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { useVolumesQuery } from 'src/api/hooks/volume';
+import { Dialog } from 'src/components/dialog';
 import { DocumentTitle } from 'src/components/document-title';
 import { Loading } from 'src/components/loading';
 import { QueryError } from 'src/components/query-error';
 import { Title } from 'src/components/title';
-import { useHistoryState } from 'src/hooks/router';
+import { useOnRouteStateCreate } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
 
 import { CreateVolumeDialog } from '../create-volume-dialog';
@@ -16,9 +15,12 @@ import { VolumesList } from './volumes-list';
 const T = createTranslate('pages.volumes');
 
 export function VolumesListPage() {
-  const historyState = useHistoryState<{ create: boolean }>();
-  const [createDialogOpen, setCreateDialogOpen] = useState(Boolean(historyState.create));
+  const openDialog = Dialog.useOpen();
   const t = T.useTranslate();
+
+  useOnRouteStateCreate(() => {
+    openDialog('CreateVolume');
+  });
 
   const volumesQuery = useVolumesQuery();
 
@@ -40,15 +42,15 @@ export function VolumesListPage() {
         title={<T id="header.title" />}
         end={
           volumes.length > 0 && (
-            <Button onClick={() => setCreateDialogOpen(true)}>
+            <Button onClick={() => openDialog('CreateVolume')}>
               <T id="header.createVolume" />
             </Button>
           )
         }
       />
 
-      <VolumesList volumes={volumes} onCreate={() => setCreateDialogOpen(true)} />
-      <CreateVolumeDialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} />
+      <VolumesList volumes={volumes} onCreate={() => openDialog('CreateVolume')} />
+      <CreateVolumeDialog />
     </div>
   );
 }

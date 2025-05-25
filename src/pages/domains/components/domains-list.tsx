@@ -1,18 +1,22 @@
 import clsx from 'clsx';
-import { useState } from 'react';
 
-import { Alert, ButtonMenuItem, Spinner, Table, useBreakpoint } from '@koyeb/design-system';
-import { useDomainsQuery } from 'src/api/hooks/domain';
+import {
+  Alert,
+  ButtonMenuItem,
+  Spinner,
+  Table,
+  TableColumnSelection,
+  useBreakpoint,
+} from '@snipkit/design-system';
 import { useApps } from 'src/api/hooks/service';
 import { Domain, type DomainStatus } from 'src/api/model';
 import { stopPropagation } from 'src/application/dom-events';
 import { SvgComponent } from 'src/application/types';
 import { ActionsMenu } from 'src/components/actions-menu';
+import { Dialog } from 'src/components/dialog';
 import { IconChevronDown, IconCircleAlert, IconCircleCheck } from 'src/components/icons';
-import { Loading } from 'src/components/loading';
-import { QueryError } from 'src/components/query-error';
 import { FormattedDistanceToNow } from 'src/intl/formatted';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { createTranslate, Translate, TranslateStatus } from 'src/intl/translate';
 import { hasProperty } from 'src/utils/object';
 
 import { ChangeAppForm } from './change-app-form';
@@ -23,22 +27,15 @@ import { NoDomains } from './no-domains';
 const T = createTranslate('pages.domains.domainsList');
 
 type DomainsListProps = {
+  domains: Domain[];
   expanded: string | undefined;
   toggleExpanded: (domain: Domain) => void;
   onCreate: () => void;
+  selection: TableColumnSelection<Domain>;
 };
 
-export function DomainsList({ expanded, toggleExpanded, onCreate }: DomainsListProps) {
+export function DomainsList({ domains, expanded, toggleExpanded, onCreate, selection }: DomainsListProps) {
   const isMobile = !useBreakpoint('sm');
-  const { data: domains, isPending, isError, error } = useDomainsQuery('custom');
-
-  if (isPending) {
-    return <Loading />;
-  }
-
-  if (isError) {
-    return <QueryError error={error} />;
-  }
 
   if (domains.length === 0) {
     return <NoDomains onCreate={onCreate} />;
@@ -86,6 +83,7 @@ export function DomainsList({ expanded, toggleExpanded, onCreate }: DomainsListP
           <ChangeAppForm domain={domain} />
         </div>
       )}
+      selection={selection}
       classes={{
         tr: (domain) => clsx(expanded === domain?.id && 'bg-gradient-to-b from-inverted/5 to-inverted/0'),
       }}
@@ -101,17 +99,17 @@ function DomainStatus({ status }: { status: DomainStatus }) {
       <span>
         <Icon className={clsx('size-4', className)} />
       </span>
-      <span className="capitalize">{status}</span>
+      <TranslateStatus status={status} />
     </div>
   );
 }
 
 const domainStatusIconMap: Record<DomainStatus, { Icon: SvgComponent; className?: string }> = {
-  pending: { Icon: Spinner },
-  active: { Icon: IconCircleCheck, className: 'text-green' },
-  error: { Icon: IconCircleAlert, className: 'text-red' },
-  deleting: { Icon: Spinner },
-  deleted: { Icon: IconCircleCheck },
+  PENDING: { Icon: Spinner },
+  ACTIVE: { Icon: IconCircleCheck, className: 'text-green' },
+  ERROR: { Icon: IconCircleAlert, className: 'text-red' },
+  DELETING: { Icon: Spinner },
+  DELETED: { Icon: IconCircleCheck },
 };
 
 function AppName({ appId }: { appId: string | null }) {
@@ -125,32 +123,28 @@ function AppName({ appId }: { appId: string | null }) {
 }
 
 function DomainActions({ domain }: { domain: Domain }) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const openDialog = Dialog.useOpen();
 
   return (
     <div onClick={stopPropagation}>
       <ActionsMenu>
         {(withClose) => (
           <ButtonMenuItem
-            disabled={domain.status === 'deleting'}
-            onClick={withClose(() => setDeleteDialogOpen(true))}
+            disabled={domain.status === 'DELETING'}
+            onClick={withClose(() => openDialog('ConfirmDeleteDomain', { resourceId: domain.id }))}
           >
             <T id="actions.delete" />
           </ButtonMenuItem>
         )}
       </ActionsMenu>
 
-      <DeleteDomainDialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        domain={domain}
-      />
+      <DeleteDomainDialog domain={domain} />
     </div>
   );
 }
 
 function DomainError({ domain }: { domain: Domain }) {
-  if (domain.status !== 'error') {
+  if (domain.status !== 'ERROR') {
     return null;
   }
 

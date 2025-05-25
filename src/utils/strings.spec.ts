@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { createArray } from './arrays';
-import { capitalize, isSlug, slugify } from './strings';
+import { capitalize, isSlug, slugify, snakeToCamelCase } from './strings';
 
 describe('slugify', () => {
   test('empty string', () => {
@@ -36,16 +35,12 @@ describe('slugify', () => {
     expect(slugify('hello the !? world')).toEqual('hello-the-world');
   });
 
-  test('string of more than 63 characters', () => {
-    const string = createArray(6, '1234567890').join('');
-
-    expect(slugify(`${string}12345`)).toEqual(`${string}123`);
+  test('string of more than max characters', () => {
+    expect(slugify('12345', 4)).toEqual('1234');
   });
 
-  test('string of more than 63 characters and leading dash', () => {
-    const string = createArray(6, '1234567890').join('');
-
-    expect(slugify(`${string}12-4`)).toEqual(`${string}12`);
+  test('string of more than max characters and leading dash', () => {
+    expect(slugify('123.5', 4)).toEqual('123');
   });
 });
 
@@ -65,6 +60,10 @@ describe('capitalize', () => {
   test('capitalized string', () => {
     expect(capitalize('Hello')).toBe('Hello');
   });
+
+  test('multiple words', () => {
+    expect(capitalize('hello world')).toBe('Hello world');
+  });
 });
 
 describe('isSlug', () => {
@@ -78,5 +77,23 @@ describe('isSlug', () => {
 
   test('string not matching slug format', () => {
     expect(isSlug('hello world 01')).toBe(false);
+  });
+
+  describe('snakeToCamelCase', () => {
+    test('empty string', () => {
+      expect(snakeToCamelCase('')).toEqual('');
+    });
+
+    test('single word', () => {
+      expect(snakeToCamelCase('string')).toEqual('string');
+    });
+
+    test('two words', () => {
+      expect(snakeToCamelCase('my_string')).toEqual('myString');
+    });
+
+    test('many words', () => {
+      expect(snakeToCamelCase('ab_cd_e_fg')).toEqual('abCdEFg');
+    });
   });
 });

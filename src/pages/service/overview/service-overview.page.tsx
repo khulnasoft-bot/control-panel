@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 
-import { Alert, IconButton, Tooltip, useBreakpoint } from '@koyeb/design-system';
+import { Alert, IconButton, Tooltip, useBreakpoint } from '@snipkit/design-system';
 import { routes } from 'src/application/routes';
 import { IconChevronLeft, IconChevronsLeft } from 'src/components/icons';
 import { LinkButton } from 'src/components/link';
@@ -78,8 +78,8 @@ function SelectedDeployment({ className, ...props }: ServiceOverview & { classNa
       <DeploymentFailedInfo deployment={selectedDeployment} layout="row" />
       <DeploymentInfo app={app} service={service} deployment={selectedDeployment} />
 
-      {selectedDeployment.status === 'stashed' && <DeploymentStashed />}
-      {selectedDeployment.status !== 'stashed' && (
+      {selectedDeployment.status === 'STASHED' && <DeploymentStashed />}
+      {selectedDeployment.status !== 'STASHED' && (
         <DeploymentLogs app={app} service={service} instances={instances} deployment={selectedDeployment} />
       )}
     </section>

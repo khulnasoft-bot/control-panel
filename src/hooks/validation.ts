@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import React from 'react';
 import { z } from 'zod';
 
 import { createValidationGuard } from 'src/application/create-validation-guard';
@@ -15,61 +16,55 @@ export function useZodResolver<Schema extends z.Schema>(
   });
 }
 
+type CustomMessage = string | React.ReactNode | React.ReactNode[];
+
 function useZodErrorMap(
-  labels: Record<string, string> = {},
-  custom?: (refinement: string | undefined, error: z.ZodCustomIssue) => string | void,
+  getCustomMessage?: (error: z.ZodIssueOptionalMessage) => CustomMessage | void,
 ): z.ZodErrorMap {
-  const translate = T.useTranslate();
+  const t = T.useTranslate();
 
-  const t = (...params: Parameters<typeof translate>): string => {
-    // @ts-expect-error using React.Element instead of string works
-    return translate(...params);
-  };
+  // @ts-expect-error using ReactElement instead of string works
+  return (error, ctx): { message: CustomMessage | undefined } => {
+    return {
+      message: getMessage(error) ?? ctx.defaultError,
+    };
 
-  return (error, ctx) => {
-    const path = error.path.join('.');
-    const label = labels[path] ?? t('fallbackLabel', {});
+    function getMessage(error: z.ZodIssueOptionalMessage) {
+      const custom = getCustomMessage?.(error);
 
-    return { message: getMessage(error) ?? ctx.defaultError };
+      if (custom) {
+        return custom;
+      }
 
-    function getMessage(error: z.ZodIssueOptionalMessage): string | void {
       switch (error.code) {
         case z.ZodIssueCode.invalid_type:
-          if (error.received === 'undefined') {
-            return t('required', { label });
+          if (error.received === 'undefined' || error.received === 'nan') {
+            return t('required');
           }
+
+          if (error.expected === 'integer') {
+            return t('integer');
+          }
+
           break;
 
         case z.ZodIssueCode.too_small:
-          return t(error.type === 'string' ? 'minLength' : 'min', { label, min: error.minimum as number });
+          return t(error.type === 'string' ? 'minLength' : 'min', { min: error.minimum });
 
         case z.ZodIssueCode.too_big:
-          return t(error.type === 'string' ? 'maxLength' : 'max', { label, max: error.maximum as number });
+          return t(error.type === 'string' ? 'maxLength' : 'max', { max: error.maximum });
 
         case z.ZodIssueCode.invalid_string:
           if (error.validation === 'email') {
-            return t('email', { label });
+            return t('email');
           }
 
           if (isStartsWith(error.validation)) {
-            return t('startsWith', { label, startsWith: error.validation.startsWith });
+            return t('startsWith', { startsWith: error.validation.startsWith });
           }
 
           break;
-
-        case z.ZodIssueCode.custom:
-          return getCustomMessage(error);
       }
-    }
-
-    function getCustomMessage(error: z.ZodCustomIssue): string | void {
-      const { refinement } = (error.params ?? {}) as { refinement?: string };
-
-      if (refinement === 'isSlug') {
-        return t('slug', { label });
-      }
-
-      return custom?.(refinement, error);
     }
   };
 }

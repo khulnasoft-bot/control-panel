@@ -1,6 +1,6 @@
 import { useController } from 'react-hook-form';
 
-import { Checkbox, MultiSelect } from '@koyeb/design-system';
+import { Checkbox, MultiSelect } from '@snipkit/design-system';
 import { useRegions } from 'src/api/hooks/catalog';
 import { CatalogRegion } from 'src/api/model';
 import { RegionFlag } from 'src/components/region-flag';
@@ -29,13 +29,11 @@ export function RegionsScope({ index, label, className }: RegionsScopeProps) {
       disabled={field.disabled}
       label={label}
       items={regions}
-      selectedItems={regions.filter((region) => field.value.includes(region.identifier))}
-      onItemsSelected={(region) => field.onChange([...field.value, region.identifier])}
-      onItemsUnselected={(region) =>
-        field.onChange(field.value.filter((value) => value !== region.identifier))
-      }
-      getKey={(region) => region.identifier}
-      itemToString={(region) => region.displayName}
+      selectedItems={regions.filter((region) => field.value.includes(region.id))}
+      onItemsSelected={(region) => field.onChange([...field.value, region.id])}
+      onItemsUnselected={(region) => field.onChange(field.value.filter((value) => value !== region.id))}
+      getKey={(region) => region.id}
+      itemToString={(region) => region.name}
       renderItem={(region, selected) => (
         <div className="row items-center gap-2">
           <Checkbox checked={selected} readOnly className="pointer-events-none" />
@@ -65,10 +63,10 @@ function SelectedRegions({ regions }: { regions: CatalogRegion[] }) {
     <div className="row items-center">
       {regions.map((region, index) => (
         <RegionFlag
-          key={region.identifier}
-          identifier={region.identifier}
+          key={region.id}
+          regionId={region.id}
           style={{ marginLeft: `${-index / 2}rem` }}
-          className="size-5 rounded-full shadow-badge"
+          className="size-5"
         />
       ))}
       <span className="ml-2">{regions.length} regions</span>
@@ -79,8 +77,8 @@ function SelectedRegions({ regions }: { regions: CatalogRegion[] }) {
 function RegionItem({ region }: { region?: CatalogRegion }) {
   return (
     <>
-      <RegionFlag identifier={region?.identifier} className="size-5 rounded-full shadow-badge" />
-      <RegionName identifier={region?.identifier} />
+      <RegionFlag regionId={region?.id} className="size-5" />
+      <RegionName regionId={region?.id} />
     </>
   );
 }

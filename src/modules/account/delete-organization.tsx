@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { api } from 'src/api/api';
 import { useOrganization, useUser } from 'src/api/hooks/session';
 import { useApiQueryFn } from 'src/api/use-api';
@@ -12,7 +12,7 @@ import { SectionHeader } from 'src/components/section-header';
 import { useNavigate } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
 
-const T = createTranslate('account.deleteOrganization');
+const T = createTranslate('modules.account.deleteOrganization');
 
 export function DeleteOrganization() {
   const { token, setToken } = useToken();
@@ -71,7 +71,7 @@ export function DeleteOrganization() {
     },
   });
 
-  const isDeactivated = organization.status === 'deactivated';
+  const isDeactivated = organization.status === 'DEACTIVATED';
   const hasUnpaidInvoices = unpaidInvoicesQuery.data;
   const canDeleteOrganization = isDeactivated && !hasUnpaidInvoices;
 

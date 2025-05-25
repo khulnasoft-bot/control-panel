@@ -12,7 +12,7 @@ import { TimeoutUi } from 'src/components/timeout-ui';
 import { createTranslate } from 'src/intl/translate';
 import { DeploymentFailedInfo } from 'src/modules/deployment/deployment-failed-info/deployment-failed-info';
 
-const T = createTranslate('serviceCreation.initialDeployment.deploymentStatusDetails');
+const T = createTranslate('modules.serviceCreation.initialDeployment.deploymentStatusDetails');
 
 type DeploymentStatusDetailsProps = {
   app: App;
@@ -49,7 +49,7 @@ export function DeploymentStatusDetails({ app, service, deployment }: Deployment
     );
   }
 
-  if (deployment.status === 'pending' || deployment.status === 'scheduled') {
+  if (deployment.status === 'PENDING' || deployment.status === 'SCHEDULED') {
     return (
       <TimeoutUi
         timeout={30 * 1000}
@@ -74,7 +74,7 @@ export function DeploymentStatusDetails({ app, service, deployment }: Deployment
     );
   }
 
-  if (deployment.status === 'healthy') {
+  if (deployment.status === 'HEALTHY') {
     const [url] = getServiceUrls(app, service, deployment).filter((url) => url.externalUrl !== undefined);
 
     return (

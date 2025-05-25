@@ -1,16 +1,11 @@
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 
-import { Spinner } from '@koyeb/design-system';
+import { Spinner } from '@snipkit/design-system';
 
 const debounce = 300;
 
-type LoadingProps = {
-  className?: string;
-  children?: React.ReactNode;
-};
-
-export function Loading({ className, children }: LoadingProps) {
+export function Loading({ className, children, ...props }: React.ComponentProps<'div'>) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -28,7 +23,7 @@ export function Loading({ className, children }: LoadingProps) {
   }
 
   return (
-    <div className={clsx('row min-h-32 items-center justify-center', className)}>
+    <div className={clsx('row min-h-32 items-center justify-center', className)} {...props}>
       {show ? <Spinner className="size-6" /> : null}
     </div>
   );

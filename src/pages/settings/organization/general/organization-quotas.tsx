@@ -1,7 +1,7 @@
 import { Fragment, useMemo } from 'react';
 import { FormattedList } from 'react-intl';
 
-import { Alert, Button } from '@koyeb/design-system';
+import { Alert, Button } from '@snipkit/design-system';
 import { useInstances, useRegions } from 'src/api/hooks/catalog';
 import { useOrganization, useOrganizationQuotas } from 'src/api/hooks/session';
 import { CatalogInstance } from 'src/api/model';
@@ -43,9 +43,9 @@ export function OrganizationQuotas() {
         />
 
         <QuotasSection
-          resourceLabel={<T id="koyebInstanceType" />}
+          resourceLabel={<T id="snipkitInstanceType" />}
           quotaLabel={<T id="quota" />}
-          quotas={instanceTypeQuota.koyeb}
+          quotas={instanceTypeQuota.snipkit}
         />
 
         <QuotasSection
@@ -153,7 +153,7 @@ function useGeneralQuotaItems(): QuotaItem[] {
       {
         key: 'regions',
         label: <T id="regions" />,
-        value: <FormattedList value={allowedRegions.map((region) => region.displayName)} style="narrow" />,
+        value: <FormattedList value={allowedRegions.map((region) => region.name)} style="narrow" />,
       },
       {
         key: 'maximumMemory',
@@ -172,12 +172,10 @@ function useAllowedRegions() {
     return availableRegions;
   }
 
-  return quotas.regions
-    .map((region) => availableRegions.find(hasProperty('identifier', region)))
-    .filter(isDefined);
+  return quotas.regions.map((region) => availableRegions.find(hasProperty('id', region))).filter(isDefined);
 }
 
-function useInstanceTypeQuotaItems(): Record<'koyeb' | 'aws' | 'gpu', QuotaItem[]> {
+function useInstanceTypeQuotaItems(): Record<'snipkit' | 'aws' | 'gpu', QuotaItem[]> {
   const organization = useOrganization();
   const quotas = useOrganizationQuotas();
   const instances = useInstances();
@@ -185,14 +183,14 @@ function useInstanceTypeQuotaItems(): Record<'koyeb' | 'aws' | 'gpu', QuotaItem[
   const unset = organization.plan === 'hobby' ? <T id="zero" /> : <T id="infinity" />;
 
   const getQuota = (instance: CatalogInstance): QuotaItem => ({
-    key: instance.identifier,
+    key: instance.id,
     label: instance.displayName,
-    value: quotas?.maxInstancesByType[instance.identifier] ?? unset,
+    value: quotas?.maxInstancesByType[instance.id] ?? unset,
   });
 
   return {
-    koyeb: instances
-      .filter((instance) => instance.regionCategory === 'koyeb' && instance.category !== 'gpu')
+    snipkit: instances
+      .filter((instance) => instance.regionCategory === 'snipkit' && instance.category !== 'gpu')
       .map(getQuota),
     aws: instances.filter((instance) => instance.regionCategory === 'aws').map(getQuota),
     gpu: instances.filter((instance) => instance.category === 'gpu').map(getQuota),
@@ -203,19 +201,19 @@ function useVolumesQuotaItems(): QuotaItem[] {
   const quotas = useOrganizationQuotas();
   const regions = useAllowedRegions();
 
-  const quota = (regionIdentifier: string) => {
-    return quotas?.volumesByRegion[regionIdentifier] ?? quotas?.volumesByRegion['*'];
+  const quota = (regionId: string) => {
+    return quotas?.volumesByRegion[regionId] ?? quotas?.volumesByRegion['*'];
   };
 
   return regions.map((region) => ({
-    key: region.identifier,
-    label: region.displayName,
+    key: region.id,
+    label: region.name,
     value: (
       <T
         id="volumeQuota"
         values={{
-          maxVolumeSize: formatBytes(quota(region.identifier)?.maxVolumeSize ?? 0, { decimal: true }),
-          maxTotalSize: formatBytes(quota(region.identifier)?.maxTotalSize ?? 0, { decimal: true }),
+          maxVolumeSize: formatBytes(quota(region.id)?.maxVolumeSize ?? 0, { decimal: true }),
+          maxTotalSize: formatBytes(quota(region.id)?.maxTotalSize ?? 0, { decimal: true }),
         }}
       />
     ),

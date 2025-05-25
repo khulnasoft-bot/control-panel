@@ -42,7 +42,7 @@ export async function authenticate(page: Page) {
   await page.goto('/');
 }
 
-export async function deleteKoyebResources(page: Page) {
+export async function deleteSnipkitResources(page: Page) {
   await page.evaluate(async () => {
     const token = localStorage.getItem('access-token') ?? undefined;
 

@@ -2,11 +2,13 @@ import { QueryClient } from '@tanstack/react-query';
 import merge from 'lodash-es/merge';
 
 import { api } from 'src/api/api';
-import { mapRepositoriesList } from 'src/api/mappers/git';
-import { CatalogInstance, CatalogRegion, GithubApp, Organization } from 'src/api/model';
+import { mapRepository } from 'src/api/mappers/git';
+import { CatalogDatacenter, CatalogInstance, CatalogRegion, GithubApp, Organization } from 'src/api/model';
+import { getDefaultRegion } from 'src/application/default-region';
 import { notify } from 'src/application/notify';
 import { getToken } from 'src/application/token';
 import { fetchGithubRepository } from 'src/components/public-github-repository-input/github-api';
+import { hasProperty } from 'src/utils/object';
 
 import { generateServiceName } from '../sections/00-service-name/use-generate-service-name';
 import { HealthCheck, ServiceForm } from '../service-form.types';
@@ -17,6 +19,7 @@ import { parseDeployParams } from './parse-deploy-params';
 
 export async function initializeServiceForm(
   params: URLSearchParams,
+  datacenters: CatalogDatacenter[],
   regions: CatalogRegion[],
   instances: CatalogInstance[],
   organization: Organization,
@@ -82,12 +85,30 @@ export async function initializeServiceForm(
       values.instance = 'free';
     }
 
+    if (values.instance === 'free') {
+      values.scaling.min = 0;
+    }
+
     // todo: remove
     // eslint-disable-next-line
-    const registrySecret: string | undefined = (window as any).__KOYEB_REGISTRY_SECRET_HACK;
+    const registrySecret: string | undefined = (window as any).__SNIPKIT_REGISTRY_SECRET_HACK;
 
     if (registrySecret) {
       values.source.docker.registrySecret = registrySecret;
+    }
+
+    const instance = instances.find(hasProperty('id', values.instance));
+
+    if (values.serviceType === 'web' && instance?.category === 'gpu') {
+      values.scaling.min = 0;
+    }
+
+    if (!params.has('regions')) {
+      const defaultRegion = getDefaultRegion(queryClient, datacenters, regions, instance);
+
+      if (defaultRegion !== undefined) {
+        values.regions = [defaultRegion.id];
+      }
     }
   }
 
@@ -98,7 +119,7 @@ export async function initializeServiceForm(
       if (repositoryName) {
         const repository = await api
           .listRepositories({ token, query: { name: repositoryName, name_search_op: 'equality' } })
-          .then(mapRepositoriesList)
+          .then(({ repositories }) => repositories!.map(mapRepository))
           .then(([repository]) => repository);
 
         if (repository) {

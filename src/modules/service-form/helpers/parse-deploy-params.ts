@@ -161,7 +161,7 @@ class ServiceFormBuilder {
   }
 
   private isValidInstance(instanceType: string): boolean {
-    return this.instancesCatalog.some(hasProperty('identifier', instanceType));
+    return this.instancesCatalog.some(hasProperty('id', instanceType));
   }
 
   set instanceType(instanceType: string | null) {
@@ -170,10 +170,8 @@ class ServiceFormBuilder {
     }
   }
 
-  private isValidRegion(identifier: string): boolean {
-    return this.regionsCatalog.some(
-      (region) => region.identifier === identifier && region.status === 'available',
-    );
+  private isValidRegion(regionId: string): boolean {
+    return this.regionsCatalog.some((region) => region.id === regionId && region.status === 'available');
   }
 
   set regions(regions: string[]) {
@@ -593,11 +591,21 @@ class ServiceFormBuilder {
     }
 
     if (this.type === 'git') {
-      this.set('builder', { dockerfileOptions: { args } });
+      if (!this.values.builder?.dockerfileOptions?.command) {
+        this.set('builder', { dockerfileOptions: { command: args[0] } });
+        this.set('builder', { dockerfileOptions: { args: args.slice(1) } });
+      } else {
+        this.set('builder', { dockerfileOptions: { args } });
+      }
     }
 
     if (this.type === 'docker') {
-      this.set('dockerDeployment', { args });
+      if (!this.values.dockerDeployment?.command) {
+        this.set('dockerDeployment', { command: args[0] });
+        this.set('dockerDeployment', { args: args.slice(1) });
+      } else {
+        this.set('dockerDeployment', { args });
+      }
     }
   }
 

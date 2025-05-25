@@ -1,14 +1,15 @@
 import { useForm } from 'react-hook-form';
 
-import { Button, ButtonColor, Dialog } from '@koyeb/design-system';
+import { Button, ButtonColor } from '@snipkit/design-system';
 import { handleSubmit } from 'src/hooks/form';
 import { Translate } from 'src/intl/translate';
 
 import { ControlledInput } from './controlled';
+import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from './dialog';
 
 type ConfirmationDialogProps = {
-  open: boolean;
-  onClose: () => void;
+  id: string;
+  resourceId?: string;
   title: React.ReactNode;
   description: React.ReactNode;
   destructiveAction?: boolean;
@@ -17,11 +18,12 @@ type ConfirmationDialogProps = {
   submitText: React.ReactNode;
   submitColor?: ButtonColor;
   onConfirm: () => Promise<unknown>;
+  onAutofill?: () => void;
 };
 
 export function ConfirmationDialog({
-  open,
-  onClose,
+  id,
+  resourceId,
   title,
   description,
   destructiveAction,
@@ -30,6 +32,7 @@ export function ConfirmationDialog({
   submitText,
   submitColor = 'red',
   onConfirm,
+  onAutofill,
 }: ConfirmationDialogProps) {
   const form = useForm({
     defaultValues: {
@@ -39,22 +42,24 @@ export function ConfirmationDialog({
 
   return (
     <Dialog
-      isOpen={open}
-      onClose={onClose}
+      id={id}
+      context={resourceId ? { resourceId } : undefined}
       onClosed={form.reset}
-      title={title}
-      description={description}
-      width="lg"
+      className="col w-full max-w-xl gap-4"
     >
+      <DialogHeader title={title} />
+
+      <p className="text-dim">{description}</p>
+
       {destructiveAction && (
-        <p className="mb-4 font-medium text-red">
+        <p className="font-medium text-red">
           {destructiveAction && (destructiveActionMessage ?? <Translate id="common.destructiveAction" />)}
         </p>
       )}
 
       <form className="col gap-4" onSubmit={handleSubmit(form, onConfirm)}>
         <ControlledInput
-          ref={(ref) => ref && setTimeout(() => ref.focus(), 0)}
+          ref={(ref) => void (ref && setTimeout(() => ref.focus(), 0))}
           control={form.control}
           name="confirmationText"
           label={
@@ -69,14 +74,15 @@ export function ConfirmationDialog({
           onDoubleClick={(event) => {
             if (event.ctrlKey || event.metaKey) {
               form.setValue('confirmationText', confirmationText);
+              onAutofill?.();
             }
           }}
         />
 
-        <footer className="row mt-2 justify-end gap-2">
-          <Button variant="ghost" color="gray" onClick={onClose}>
+        <DialogFooter>
+          <CloseDialogButton>
             <Translate id="common.cancel" />
-          </Button>
+          </CloseDialogButton>
 
           <Button
             type="submit"
@@ -86,7 +92,7 @@ export function ConfirmationDialog({
           >
             {submitText}
           </Button>
-        </footer>
+        </DialogFooter>
       </form>
     </Dialog>
   );

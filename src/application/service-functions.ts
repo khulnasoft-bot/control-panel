@@ -1,7 +1,19 @@
+import { isBefore } from 'date-fns';
+
 import { api } from 'src/api/api';
 import type { Api } from 'src/api/api-types';
-import { isComputeDeployment, isDatabaseDeployment } from 'src/api/mappers/deployment';
-import { App, AppDomain, Deployment, DeploymentStatus, Port, Service } from 'src/api/model';
+import { databaseQuotas, isComputeDeployment, isDatabaseDeployment } from 'src/api/mappers/deployment';
+import {
+  App,
+  AppDomain,
+  DatabaseDeployment,
+  Deployment,
+  DeploymentStatus,
+  Instance,
+  InstanceStatus,
+  Port,
+  Service,
+} from 'src/api/model';
 import { routes } from 'src/application/routes';
 import { inArray } from 'src/utils/arrays';
 
@@ -56,19 +68,17 @@ function internalUrl(service: Service, app: App, instanceType: string, port: Por
 }
 
 function externalUrl(domain: AppDomain, port: Port) {
-  if (!port.public) {
-    return;
+  if (port.path !== undefined) {
+    return domain.name + port.path;
   }
-
-  return domain.name + port.path;
 }
 
-const upcomingDeploymentStatuses: DeploymentStatus[] = [
-  'pending',
-  'provisioning',
-  'scheduled',
-  'allocating',
-  'starting',
+export const upcomingDeploymentStatuses: DeploymentStatus[] = [
+  'PENDING',
+  'PROVISIONING',
+  'SCHEDULED',
+  'ALLOCATING',
+  'STARTING',
 ];
 
 export function isUpcomingDeployment({ status }: Deployment) {
@@ -77,6 +87,23 @@ export function isUpcomingDeployment({ status }: Deployment) {
 
 export function hasBuild(deployment?: Deployment) {
   return isComputeDeployment(deployment) && inArray(deployment.definition.source.type, ['git', 'archive']);
+}
+
+export function isDeploymentRunning({ status }: Deployment) {
+  return inArray<DeploymentStatus>(status, [
+    'CANCELING',
+    'ALLOCATING',
+    'STARTING',
+    'HEALTHY',
+    'DEGRADED',
+    'UNHEALTHY',
+    'STOPPING',
+    'ERRORING',
+  ]);
+}
+
+export function isInstanceRunning({ status }: Instance) {
+  return inArray<InstanceStatus>(status, ['ALLOCATING', 'STARTING', 'HEALTHY', 'UNHEALTHY', 'STOPPING']);
 }
 
 export async function updateDatabaseService(
@@ -97,6 +124,41 @@ export async function updateDatabaseService(
     query: {},
     body: { definition },
   });
+}
+
+export function getDatabaseServiceReachedQuota(
+  hasDatabaseActiveTime: boolean,
+  service: Service,
+  deployment: DatabaseDeployment,
+) {
+  const { instance, neonPostgres } = deployment;
+
+  if (instance !== 'free') {
+    return undefined;
+  }
+
+  if (Number(neonPostgres.dataTransferBytes) >= databaseQuotas.maxDataTransfer) {
+    return 'data-transfer';
+  }
+
+  if (Number(neonPostgres.writtenDataBytes) >= databaseQuotas.maxWrittenData) {
+    return 'written-data';
+  }
+
+  if (isBefore(service.createdAt, '2025-05-09T16:00:00Z') && hasDatabaseActiveTime) {
+    if (Number(neonPostgres.activeTimeSeconds) >= databaseQuotas.maxActiveTime) {
+      return 'active-time';
+    }
+  } else {
+    if (Number(neonPostgres.computeTimeSeconds) >= databaseQuotas.maxComputeTime) {
+      return 'compute-time';
+    }
+  }
+
+  // we don't know how to check this quota (yet)
+  if (false as boolean) {
+    return 'storage-size';
+  }
 }
 
 export const allApiDeploymentStatuses: Array<Api.DeploymentStatus> = [

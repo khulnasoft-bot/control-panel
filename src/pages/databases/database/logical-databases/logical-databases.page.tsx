@@ -1,14 +1,14 @@
 import clsx from 'clsx';
-import { useState } from 'react';
 
-import { Button, ButtonMenuItem, Table } from '@koyeb/design-system';
+import { Button, ButtonMenuItem, Table } from '@snipkit/design-system';
 import { useDeployment, useService } from 'src/api/hooks/service';
 import { isDatabaseDeployment } from 'src/api/mappers/deployment';
 import { DatabaseDeployment, LogicalDatabase, Service } from 'src/api/model';
 import { ActionsMenu } from 'src/components/actions-menu';
+import { Dialog } from 'src/components/dialog';
 import { NoResource } from 'src/components/no-resource';
 import { Title } from 'src/components/title';
-import { useHistoryState, useRouteParam } from 'src/hooks/router';
+import { useOnRouteStateCreate, useRouteParam } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
 import { assert } from 'src/utils/assert';
 import { getName } from 'src/utils/object';
@@ -19,16 +19,23 @@ import { DeleteLogicalDatabaseDialog } from './delete-logical-database-dialog';
 const T = createTranslate('pages.database.logicalDatabases');
 
 export function LogicalDatabasesPage() {
-  const service = useService(useRouteParam('databaseServiceId'));
+  const databaseServiceId = useRouteParam('databaseServiceId');
+  const service = useService(databaseServiceId);
   const deployment = useDeployment(service?.latestDeploymentId);
 
-  assert(service !== undefined);
+  const openDialog = Dialog.useOpen();
+
+  useOnRouteStateCreate(() => {
+    openDialog('CreateLogicalDatabase');
+  });
+
+  if (!service || !deployment) {
+    return null;
+  }
+
   assert(isDatabaseDeployment(deployment));
 
   const databases = deployment.databases ?? [];
-
-  const historyState = useHistoryState<{ create: boolean }>();
-  const [createDatabase, setCreateDatabase] = useState(Boolean(historyState.create));
 
   return (
     <>
@@ -36,7 +43,7 @@ export function LogicalDatabasesPage() {
         title={<T id="title" />}
         end={
           databases.length > 0 && (
-            <Button onClick={() => setCreateDatabase(true)}>
+            <Button onClick={() => openDialog('CreateLogicalDatabase')}>
               <T id="createDatabase" />
             </Button>
           )
@@ -48,7 +55,7 @@ export function LogicalDatabasesPage() {
           title={<T id="noDatabase.title" />}
           description={<T id="noDatabase.description" />}
           cta={
-            <Button onClick={() => setCreateDatabase(true)}>
+            <Button onClick={() => openDialog('CreateLogicalDatabase')}>
               <T id="noDatabase.cta" />
             </Button>
           }
@@ -78,12 +85,7 @@ export function LogicalDatabasesPage() {
         />
       )}
 
-      <CreateLogicalDatabaseDialog
-        open={createDatabase}
-        onClose={() => setCreateDatabase(false)}
-        service={service}
-        deployment={deployment}
-      />
+      <CreateLogicalDatabaseDialog service={service} deployment={deployment} />
     </>
   );
 }
@@ -95,25 +97,23 @@ type DatabaseActionsProps = {
 };
 
 function DatabaseActions({ service, deployment, database }: DatabaseActionsProps) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const openDialog = Dialog.useOpen();
 
   return (
     <>
       <ActionsMenu>
         {(withClose) => (
-          <ButtonMenuItem onClick={withClose(() => setDeleteDialogOpen(true))}>
+          <ButtonMenuItem
+            onClick={withClose(() =>
+              openDialog('ConfirmDeleteLogicalDatabase', { resourceId: database.name }),
+            )}
+          >
             <T id="actions.delete" />
           </ButtonMenuItem>
         )}
       </ActionsMenu>
 
-      <DeleteLogicalDatabaseDialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        service={service}
-        deployment={deployment}
-        database={database}
-      />
+      <DeleteLogicalDatabaseDialog service={service} deployment={deployment} database={database} />
     </>
   );
 }

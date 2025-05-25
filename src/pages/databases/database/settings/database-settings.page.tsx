@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { api } from 'src/api/api';
 import { useDeployment, useService } from 'src/api/hooks/service';
 import { isDatabaseDeployment } from 'src/api/mappers/deployment';
@@ -11,6 +11,7 @@ import { notify } from 'src/application/notify';
 import { routes } from 'src/application/routes';
 import { useToken } from 'src/application/token';
 import { ConfirmationDialog } from 'src/components/confirmation-dialog';
+import { Dialog } from 'src/components/dialog';
 import { SectionHeader } from 'src/components/section-header';
 import { useNavigate, useRouteParam } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
@@ -21,11 +22,16 @@ import { assert } from 'src/utils/assert';
 const T = createTranslate('pages.database.settings');
 
 export function DatabaseSettingsPage() {
-  const service = useService(useRouteParam('databaseServiceId'));
+  const databaseServiceId = useRouteParam('databaseServiceId');
+  const service = useService(databaseServiceId);
   const deployment = useDeployment(service?.latestDeploymentId);
+
   const [cost, setCost] = useState<number>();
 
-  assert(service !== undefined);
+  if (!service || !deployment) {
+    return null;
+  }
+
   assert(isDatabaseDeployment(deployment));
 
   return (
@@ -44,12 +50,12 @@ export function DatabaseSettingsPage() {
 }
 
 function DeleteDatabaseService({ service }: { service: Service }) {
+  const t = T.useTranslate();
+  const navigate = useNavigate();
+  const openDialog = Dialog.useOpen();
+
   const invalidate = useInvalidateApiQuery();
   const { token } = useToken();
-  const navigate = useNavigate();
-  const t = T.useTranslate();
-
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   const mutation = useMutation({
     async mutationFn() {
@@ -87,14 +93,18 @@ function DeleteDatabaseService({ service }: { service: Service }) {
           className="flex-1"
         />
 
-        <Button color="red" loading={mutation.isPending} onClick={() => setDialogOpen(true)}>
+        <Button
+          color="red"
+          loading={mutation.isPending}
+          onClick={() => openDialog('ConfirmDeleteDatabaseService', { resourceId: service.id })}
+        >
           <T id="delete.delete" />
         </Button>
       </div>
 
       <ConfirmationDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
+        id="ConfirmDeleteDatabaseService"
+        resourceId={service.id}
         title={<T id="delete.confirmationDialog.title" />}
         description={<T id="delete.confirmationDialog.description" />}
         destructiveAction

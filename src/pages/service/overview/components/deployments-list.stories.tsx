@@ -2,22 +2,14 @@ import { action } from '@storybook/addon-actions';
 import { Meta, StoryFn } from '@storybook/react';
 import { useState } from 'react';
 
-import { ApiMock } from 'src/api/mock/mock-api';
 import { createDate } from 'src/utils/date';
 import { create } from 'src/utils/factories';
 
 import { DeploymentsList } from './deployments-list';
 
 export default {
-  title: 'Modules/ServiceOverview/DeploymentsList',
-  parameters: { mockApi },
+  title: 'Components/DeploymentsList',
 } satisfies Meta;
-
-function mockApi() {
-  const api = new ApiMock();
-
-  api.mockEndpoint('cancelDeployment', () => ({}));
-}
 
 const service = create.service({
   activeDeploymentId: 'activeDeploymentId',
@@ -25,7 +17,7 @@ const service = create.service({
 
 const active = create.computeDeployment({
   id: 'activeDeploymentId',
-  status: 'healthy',
+  status: 'HEALTHY',
   name: '0194e575',
   date: createDate('2024-06-01'),
   trigger: {
@@ -46,12 +38,12 @@ const active = create.computeDeployment({
 
 const upcoming = [
   create.computeDeployment({
-    status: 'provisioning',
+    status: 'PROVISIONING',
     name: '7dd1e079',
     date: createDate('2024-02-01'),
   }),
   create.computeDeployment({
-    status: 'pending',
+    status: 'PENDING',
     name: '0252761c',
     date: createDate('2024-01-01'),
     trigger: { type: 'resume' },
@@ -60,13 +52,13 @@ const upcoming = [
 
 const past = [
   create.computeDeployment({
-    status: 'error',
+    status: 'ERROR',
     name: '923fe52f',
     date: createDate('2024-01-01'),
     trigger: { type: 'redeploy' },
   }),
   create.computeDeployment({
-    status: 'stopped',
+    status: 'STOPPED',
     name: 'ac9fb79f',
     date: createDate('2024-01-01'),
     trigger: { type: 'initial' },

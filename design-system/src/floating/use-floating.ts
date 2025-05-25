@@ -21,7 +21,7 @@ import {
   useTransitionStyles,
 } from '@floating-ui/react';
 
-export type UseFloatingProps = {
+type UseFloatingProps = {
   open?: boolean;
   setOpen?: (open: boolean) => void;
   referenceElement?: HTMLElement | null;
@@ -44,8 +44,8 @@ type UseFloatingReturn = {
   isMounted: boolean;
   setReference: (ref: ReferenceType | null) => void;
   setFloating: (ref: HTMLElement | null) => void;
-  getReferenceProps: () => Record<string, unknown>;
-  getFloatingProps: () => Record<string, unknown>;
+  getReferenceProps: (props?: Record<string, unknown>) => Record<string, unknown>;
+  getFloatingProps: (props?: Record<string, unknown>) => Record<string, unknown>;
 };
 
 export function useFloating({

@@ -1,23 +1,23 @@
-[Website](https://www.koyeb.com) | [Repository](https://github.com/koyeb/control-panel)
+[Website](https://www.snipkit.com) | [Repository](https://github.com/snipkit/control-panel)
 
-[![Code quality](https://github.com/koyeb/control-panel/actions/workflows/code_quality.yml/badge.svg)](https://github.com/koyeb/control-panel/actions/workflows/code_quality.yml)
+[![Code quality](https://github.com/snipkit/control-panel/actions/workflows/code_quality.yml/badge.svg)](https://github.com/snipkit/control-panel/actions/workflows/code_quality.yml)
 
 # Overview
 
-This project contains the source code of the Koyeb control panel, accessible at [https://app.koyeb.com](https://app.koyeb.com).
+This project contains the source code of the Snipkit control panel, accessible at [https://app.snipkit.com](https://app.snipkit.com).
 
 ## Introduction
 
 The control panel is a [React](https://reactjs.org) project powered by [TypeScript](https://typescriptlang.org), [Vite](https://vitejs.dev) and [tailwindcss](https://tailwindcss.com).
 
-If this documentation is unclear or outdated, feel free to [open a pull request](https://github.com/koyeb/control-panel/pulls) on the GitHub repository.
+If this documentation is unclear or outdated, feel free to [open a pull request](https://github.com/snipkit/control-panel/pulls) on the GitHub repository.
 
 ## Run the project locally
 
 To bootstrap a development environment, you need:
 
 - [Node.js](https://nodejs.org), a JavaScript runtime
-- [pNpm](https://pnpm.io), a package manager for Node.js
+- [pnpm](https://pnpm.io), a package manager for Node.js
 
 To easily install and use specific versions of Node.js, we recommend using [Node Version Manager](https://github.com/nvm-sh/nvm).
 
@@ -91,7 +91,7 @@ Some workflows are run through [GitHub Actions](https://github.com/features/acti
 - Build docker image (production and staging branches only): build and push a docker image that will be deployed automatically
 - Code quality: check linter, formatter, types and tests
 - E2E tests (manual trigger): run the end-to-end tests
-- Preview env (PR only): creates a deployment on Koyeb with the code of the pull request
+- Preview env (PR only): creates a deployment on Snipkit with the code of the pull request
 - Publish design system (manual trigger): publish the design system in a github npm package
 
 ## Submitting pull requests

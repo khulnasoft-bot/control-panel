@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button, Spinner } from '@koyeb/design-system';
+import { Button, Spinner } from '@snipkit/design-system';
 import { useGithubApp, useGithubAppQuery, useRepositoriesQuery } from 'src/api/hooks/git';
 import { useOrganization } from 'src/api/hooks/session';
 import { useApiMutationFn } from 'src/api/use-api';
@@ -22,7 +22,7 @@ import { FormattedDistanceToNow } from 'src/intl/formatted';
 import { createTranslate } from 'src/intl/translate';
 import { createArray } from 'src/utils/arrays';
 
-const T = createTranslate('serviceCreation.importProject.github');
+const T = createTranslate('modules.serviceCreation.importProject.github');
 
 type RepositorySelectorProps = {
   onImport: (repositoryName: string) => void;
@@ -151,7 +151,7 @@ function OrganizationRepositorySelector({ onImport }: RepositorySelectorProps) {
             <span className="text-xs text-dim">{bullet}</span>
 
             <span className="text-xs text-dim">
-              <FormattedDistanceToNow value={repository.lastPush} />
+              <FormattedDistanceToNow value={repository.lastPushDate} />
             </span>
           </ActionsListButton>
         ))}
@@ -265,23 +265,21 @@ function ResynchronizeButton() {
 }
 
 const schema = z.object({
-  url: z.string().refine((url) => url.match(/.+\/.+/), {
-    params: { refinement: 'githubRepositoryNameFormat' },
-  }),
+  url: z.string().refine((url) => url.match(/.+\/.+/)),
   repositoryName: z.string().min(1),
 });
 
 function PublicRepositorySelector({ onImport }: RepositorySelectorProps) {
   const t = T.useTranslate();
 
-  const form = useForm({
+  const form = useForm<z.infer<typeof schema>>({
     defaultValues: {
       url: '',
       repositoryName: '',
     },
     mode: 'onChange',
-    resolver: useZodResolver(schema, {}, (refinement) => {
-      if (refinement === 'githubRepositoryNameFormat') {
+    resolver: useZodResolver(schema, (error) => {
+      if (error.code === 'custom' && error.path[0] === 'url') {
         return t('publicRepository.invalidGithubRepositoryUrl');
       }
     }),

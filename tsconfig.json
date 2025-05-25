@@ -21,7 +21,7 @@
     "noUncheckedIndexedAccess": true,
 
     "paths": {
-      "@koyeb/design-system": ["./design-system/src"],
+      "@snipkit/design-system": ["./design-system/src"],
       "src/*": ["./src/*"]
     }
   },

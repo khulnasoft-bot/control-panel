@@ -5,29 +5,22 @@ RUN apt-get install -y ca-certificates
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+RUN npm install -g corepack@latest && corepack enable
 
 WORKDIR /app
 
 ARG GITHUB_TOKEN
 ENV GITHUB_TOKEN $GITHUB_TOKEN
 
-COPY ./pnpm-lock.yaml /app
-RUN pnpm fetch
-
-COPY ./design-system/pnpm-lock.yaml /app/design-system/pnpm-lock.yaml
-RUN cd design-system && pnpm fetch
-
 COPY . .
-RUN pnpm install --offline --frozen-lockfile
-RUN cd design-system && pnpm install --prefer-offline --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 ARG ENVIRONMENT
 ENV VITE_ENVIRONMENT $ENVIRONMENT
 
-ARG KOYEB_GIT_SHA
+ARG SNIPKIT_GIT_SHA
 ARG APP_VERSION
-ENV VITE_APP_VERSION ${KOYEB_GIT_SHA:-${APP_VERSION}}
+ENV VITE_APP_VERSION ${SNIPKIT_GIT_SHA:-${APP_VERSION}}
 
 ARG API_URL
 ENV VITE_API_URL $API_URL

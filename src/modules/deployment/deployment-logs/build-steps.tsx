@@ -6,7 +6,7 @@ import { createTranslate, Translate } from 'src/intl/translate';
 
 import { buildStatusMap } from './deployment-status-icons';
 
-const T = createTranslate('deploymentLogs.build');
+const T = createTranslate('modules.deployment.deploymentLogs.build');
 
 type BuildStepsProps = {
   deployment: ComputeDeployment;
@@ -20,7 +20,7 @@ export function BuildSteps({ deployment }: BuildStepsProps) {
   }
 
   return (
-    <div className="col gap-4 lg:gap-2">
+    <div className="col gap-4 p-4 lg:gap-2">
       {steps.map((step) => (
         <BuildStep key={step.name} step={step} />
       ))}
@@ -58,7 +58,7 @@ function BuildStep({ step }: { step: DeploymentBuildStep }) {
   );
 }
 
-export function Elapsed({ start, finish }: { start: string; finish?: string | null }) {
+function Elapsed({ start, finish }: { start: string; finish?: string | null }) {
   const now = useNow();
   const end = finish ? new Date(finish) : now;
 

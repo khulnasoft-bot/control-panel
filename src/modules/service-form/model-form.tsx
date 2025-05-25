@@ -1,55 +1,58 @@
-import { useMutation } from '@tanstack/react-query';
-import clsx from 'clsx';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { useForm, UseFormReturn } from 'react-hook-form';
+import { useController, useForm, UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Alert, Badge, Button } from '@koyeb/design-system';
+import { Alert, Button } from '@snipkit/design-system';
 import {
+  useDatacenters,
   useInstance,
   useInstances,
   useInstancesQuery,
   useModel,
   useModels,
   useModelsQuery,
-  useRegion,
   useRegions,
   useRegionsQuery,
 } from 'src/api/hooks/catalog';
 import { useGithubAppQuery } from 'src/api/hooks/git';
-import { AiModel, CatalogInstance, CatalogRegion } from 'src/api/model';
+import { AiModel, CatalogInstance } from 'src/api/model';
+import { getDefaultRegion } from 'src/application/default-region';
 import { useInstanceAvailabilities } from 'src/application/instance-region-availability';
 import { formatBytes } from 'src/application/memory';
 import { notify } from 'src/application/notify';
 import { routes } from 'src/application/routes';
 import { ControlledSelect } from 'src/components/controlled';
-import { InstanceSelectorList } from 'src/components/instance-selector';
 import { LinkButton } from 'src/components/link';
 import { Loading } from 'src/components/loading';
 import { Metadata } from 'src/components/metadata';
-import { RegionFlag } from 'src/components/region-flag';
-import { RegionName } from 'src/components/region-name';
 import { FormValues, handleSubmit } from 'src/hooks/form';
+import { useDeepCompareMemo } from 'src/hooks/lifecycle';
 import { useNavigate } from 'src/hooks/router';
 import { useZodResolver } from 'src/hooks/validation';
 import { createTranslate, Translate } from 'src/intl/translate';
-import { defined } from 'src/utils/assert';
+import { InstanceSelector } from 'src/modules/instance-selector/instance-selector';
+import { inArray } from 'src/utils/arrays';
+import { assert, defined } from 'src/utils/assert';
 import { getName, hasProperty } from 'src/utils/object';
 import { slugify } from 'src/utils/strings';
 
-import { RestrictedGpuDialog } from './components/restricted-gpu-dialog';
-import { ServiceFormPaymentDialog } from './components/service-form-payment-dialog';
+import { useGetInstanceBadges } from '../instance-selector/instance-badges';
+import { useInstanceSelector } from '../instance-selector/instance-selector-state';
+
+import { QuotaIncreaseRequestDialog } from './components/quota-increase-request-dialog';
+import { ServiceFormUpgradeDialog } from './components/service-form-upgrade-dialog';
 import { computeEstimatedCost, ServiceCost } from './helpers/estimated-cost';
 import { defaultServiceForm } from './helpers/initialize-service-form';
 import { usePreSubmitServiceForm } from './helpers/pre-submit-service-form';
 import { submitServiceForm } from './helpers/submit-service-form';
 
-const T = createTranslate('modelForm');
+const T = createTranslate('modules.serviceForm.modelForm');
 
 const schema = z.object({
   modelSlug: z.string(),
   instance: z.string(),
-  region: z.string(),
+  regions: z.string().array(),
 });
 
 type ModelFormType = z.infer<typeof schema>;
@@ -77,29 +80,31 @@ function ModelForm_({ model: initialModel, onCostChanged }: ModelFormProps) {
   const instances = useInstances();
   const models = useModels();
   const navigate = useNavigate();
-  const t = T.useTranslate();
 
   const form = useForm<ModelFormType>({
-    defaultValues: getInitialValues(instances, initialModel ?? defined(models[0])),
-    resolver: useZodResolver(schema, {
-      modelSlug: t('model.label'),
-    }),
+    defaultValues: useInitialValues(initialModel ?? defined(models[0])),
+    resolver: useZodResolver(schema),
   });
 
   const mutation = useMutation({
-    async mutationFn({ modelSlug, instance, region }: FormValues<typeof form>) {
+    async mutationFn({ modelSlug, instance, regions }: FormValues<typeof form>) {
       const model = defined(models.find(hasProperty('slug', modelSlug)));
       const serviceForm = defaultServiceForm();
 
-      serviceForm.appName = slugify(model.name.slice(0, 23));
-      serviceForm.serviceName = slugify(model.name);
-      serviceForm.environmentVariables = [];
+      serviceForm.appName = slugify(model.name, 64);
+      serviceForm.serviceName = slugify(model.name, 63);
+      serviceForm.environmentVariables = model.env ?? [];
 
       serviceForm.instance = instance;
-      serviceForm.regions = [region];
+      serviceForm.regions = regions;
+
+      serviceForm.scaling.min = 0;
 
       serviceForm.source.type = 'docker';
       serviceForm.source.docker.image = model.dockerImage;
+
+      assert(serviceForm.ports[0] !== undefined);
+      serviceForm.ports[0].healthCheck.gracePeriod = 300;
 
       return submitServiceForm(serviceForm);
     },
@@ -112,8 +117,7 @@ function ModelForm_({ model: initialModel, onCostChanged }: ModelFormProps) {
   const model = useModel(form.watch('modelSlug'));
   const formRef = useRef<HTMLFormElement>(null);
 
-  const [[requiredPlan, setRequiredPlan], [restrictedGpuDialogOpen, setRestrictedGpuDialogOpen], preSubmit] =
-    usePreSubmitServiceForm();
+  const [requiredPlan, preSubmit] = usePreSubmitServiceForm();
 
   useOnCostEstimationChanged(form, onCostChanged);
 
@@ -122,7 +126,7 @@ function ModelForm_({ model: initialModel, onCostChanged }: ModelFormProps) {
       <form
         ref={formRef}
         onSubmit={handleSubmit(form, (values) => {
-          const instance = instances.find(hasProperty('identifier', values.instance));
+          const instance = instances.find(hasProperty('id', values.instance));
 
           if (instance && preSubmit(instance)) {
             return mutation.mutateAsync(values);
@@ -133,7 +137,6 @@ function ModelForm_({ model: initialModel, onCostChanged }: ModelFormProps) {
         <OverviewSection model={model} form={form} />
         {initialModel === undefined && <ModelSection form={form} />}
         <InstanceSection model={model} form={form} />
-        <RegionSection form={form} />
 
         <div className="row justify-end gap-2">
           <LinkButton color="gray" href={routes.home()}>
@@ -146,34 +149,29 @@ function ModelForm_({ model: initialModel, onCostChanged }: ModelFormProps) {
         </div>
       </form>
 
-      <RestrictedGpuDialog
-        open={restrictedGpuDialogOpen}
-        onClose={() => setRestrictedGpuDialogOpen(false)}
-        instanceIdentifier={form.watch('instance')}
-      />
-
-      <ServiceFormPaymentDialog
-        requiredPlan={requiredPlan}
-        onClose={() => setRequiredPlan(undefined)}
-        submitForm={() => formRef.current?.requestSubmit()}
-      />
+      <QuotaIncreaseRequestDialog catalogInstanceId={form.watch('instance')} />
+      <ServiceFormUpgradeDialog plan={requiredPlan} submitForm={() => formRef.current?.requestSubmit()} />
     </>
   );
 }
 
 function useOnCostEstimationChanged(form: ModelForm, onChanged: (cost?: ServiceCost) => void) {
   const instance = useInstance(form.watch('instance'));
-  const region = useRegion(form.watch('region'));
+  const regions = useDeepCompareMemo(useRegions(form.watch('regions')));
 
   useEffect(() => {
-    const cost = computeEstimatedCost(instance, region ? [region.identifier] : [], {
-      min: 1,
-      max: 1,
-      targets: null as never,
-    });
+    const cost = computeEstimatedCost(
+      instance,
+      regions.map((region) => region.id),
+      {
+        min: 0,
+        max: 1,
+        targets: null as never,
+      },
+    );
 
     onChanged(cost);
-  }, [instance, region, onChanged]);
+  }, [instance, regions, onChanged]);
 }
 
 function instanceBestFit(model?: AiModel) {
@@ -190,13 +188,20 @@ function instanceBestFit(model?: AiModel) {
   };
 }
 
-function getInitialValues(instances: CatalogInstance[], model: AiModel): Partial<ModelFormType> {
+function useInitialValues(model: AiModel): Partial<ModelFormType> {
+  const queryClient = useQueryClient();
+  const instances = useInstances();
+  const datacenters = useDatacenters();
+  const regions = useRegions();
+
   const instance = instances.find(instanceBestFit(model));
+  const continentalRegions = regions.filter(hasProperty('scope', 'continental'));
+  const defaultRegion = getDefaultRegion(queryClient, datacenters, continentalRegions, instance);
 
   return {
     modelSlug: model?.slug,
-    instance: instance?.identifier,
-    region: instance?.regions?.[0] ?? 'fra',
+    instance: instance?.id,
+    regions: [defaultRegion?.id ?? 'fra'],
   };
 }
 
@@ -216,7 +221,7 @@ function Section({ title, children }: SectionProps) {
 
 function OverviewSection({ model, form }: { model?: AiModel; form: ModelForm }) {
   const instance = useInstance(form.watch('instance'));
-  const region = useRegion(form.watch('region'));
+  const regions = useRegions(form.watch('regions'));
 
   return (
     <Section title={<T id="overview.title" />}>
@@ -231,8 +236,8 @@ function OverviewSection({ model, form }: { model?: AiModel; form: ModelForm }) 
 
         <div className="row flex-wrap gap-x-12 gap-y-4 p-3">
           <Metadata label={<T id="overview.instanceTypeLabel" />} value={instance?.displayName} />
-          <Metadata label={<T id="overview.scalingLabel" />} value={1} />
-          <Metadata label={<T id="overview.regionLabel" />} value={region?.displayName} />
+          <Metadata label={<T id="overview.scalingLabel" />} value={<T id="overview.scalingValue" />} />
+          <Metadata label={<T id="overview.regionLabel" />} value={regions[0]?.name} />
         </div>
       </div>
     </Section>
@@ -257,8 +262,8 @@ function ModelSection({ form }: { form: ModelForm }) {
           const instance = instances.find(instanceBestFit(model));
 
           if (instance) {
-            form.setValue('instance', instance.identifier);
-            form.setValue('region', instance.regions?.[0] ?? 'fra');
+            form.setValue('instance', instance.id);
+            form.setValue('regions', [instance.regions?.[0] ?? 'fra']);
           }
         }}
       />
@@ -267,29 +272,40 @@ function ModelSection({ form }: { form: ModelForm }) {
 }
 
 function InstanceSection({ model, form }: { model?: AiModel; form: ModelForm }) {
-  const instance = useInstance(form.watch('instance'));
+  const availabilities = useInstanceAvailabilities();
   const instances = useInstances();
+  const regions = useRegions();
+
   const bestFit = instances.find(instanceBestFit(model));
 
-  const availabilities = useInstanceAvailabilities();
+  const instanceCtrl = useController({ control: form.control, name: 'instance' });
+  const regionsCtrl = useController({ control: form.control, name: 'regions' });
+
+  const selectedInstance = instances.find(hasProperty('id', instanceCtrl.field.value));
+  const selectedRegions = regions.filter((region) => inArray(region.id, regionsCtrl.field.value));
+
+  const selector = useInstanceSelector({
+    instances,
+    regions,
+    availabilities,
+    selectedInstance: selectedInstance ?? null,
+    selectedRegions,
+    setSelectedInstance: (instance) => instanceCtrl.field.onChange(instance?.id ?? null),
+    setSelectedRegions: (regions) => regionsCtrl.field.onChange(regions.map((region) => region.id)),
+  });
+
+  const getBadges = useGetInstanceBadges({
+    bestFit,
+    insufficientVRam: (instance) => Boolean(instance.vram && model && instance.vram < model.minVRam),
+  });
 
   return (
     <Section title={<T id="instance.title" />}>
-      <InstanceSelectorList
-        instances={instances
-          .filter(hasProperty('regionCategory', 'koyeb'))
-          .filter(hasProperty('category', 'gpu'))}
-        selectedInstance={instances.find(hasProperty('identifier', form.watch('instance'))) ?? null}
-        onInstanceSelected={(instance) => {
-          form.setValue('instance', instance.identifier);
-          form.setValue('region', instance.regions?.[0] ?? 'fra');
-        }}
-        checkAvailability={(instance) => availabilities[instance] ?? [false, 'instanceNotFound']}
-        bestFit={bestFit}
-        minimumVRam={model?.minVRam}
-      />
+      <div className="col scrollbar-green scrollbar-thin max-h-96 gap-3 overflow-auto rounded-md border p-2">
+        <InstanceSelector {...selector} getBadges={getBadges} />
+      </div>
 
-      <MinimumVRamAlerts model={model} instance={instance} bestFit={bestFit} />
+      <MinimumVRamAlerts model={model} instance={selectedInstance} bestFit={bestFit} />
     </Section>
   );
 }
@@ -329,51 +345,4 @@ function MinimumVRamAlerts({ model, instance, bestFit }: MinimumVRamAlertsProps)
   }
 
   return null;
-}
-
-function RegionSection({ form }: { form: ModelForm }) {
-  const availableRegions = useRegions().filter(hasProperty('status', 'available'));
-  const instance = useInstance(form.watch('instance'));
-
-  const canSelect = (region: CatalogRegion) => {
-    if (instance?.regions == undefined) {
-      return true;
-    }
-
-    return instance.regions.includes(region.identifier);
-  };
-
-  return (
-    <Section title={<T id="region.title" />}>
-      <ControlledSelect
-        control={form.control}
-        name="region"
-        items={availableRegions}
-        getKey={(region) => region.identifier}
-        itemToString={(region) => region.displayName}
-        itemToValue={(region) => region.identifier}
-        canSelectItem={canSelect}
-        renderItem={(region) => <SelectRegionItem region={region} disabled={!canSelect(region)} />}
-      />
-    </Section>
-  );
-}
-
-function SelectRegionItem({ region, disabled }: { region: CatalogRegion; disabled: boolean }) {
-  return (
-    <div className="row items-center gap-2">
-      <RegionFlag
-        identifier={region.identifier}
-        className={clsx('size-6 rounded-full shadow-badge', { 'opacity-50': disabled })}
-      />
-
-      <RegionName identifier={region.identifier} className={clsx({ 'opacity-50': disabled })} />
-
-      {disabled && (
-        <Badge size={1} color="orange">
-          <T id="region.notAvailable" />
-        </Badge>
-      )}
-    </div>
-  );
 }

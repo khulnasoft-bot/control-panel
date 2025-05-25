@@ -1,4 +1,4 @@
-import { Badge, Tooltip } from '@koyeb/design-system';
+import { Badge, Tooltip } from '@snipkit/design-system';
 import { useRegion } from 'src/api/hooks/catalog';
 import { RegionFlag } from 'src/components/region-flag';
 import { RegionsList } from 'src/components/regions-list';
@@ -18,12 +18,12 @@ export function DeploymentRegions({ regions }: DeploymentRegionsProps) {
 
   return (
     <div className="row items-center gap-2">
-      <RegionFlag identifier={firstRegion} className="size-4 rounded-full shadow-badge" />
+      <RegionFlag regionId={firstRegion} className="size-4" />
 
-      {region?.displayName}
+      {region?.name}
 
       {regions.length >= 2 && (
-        <Tooltip content={<RegionsList identifiers={regions} />}>
+        <Tooltip content={<RegionsList regionIds={regions} />}>
           {(props) => (
             <Badge {...props} size={1}>
               <Translate id="common.plusCount" values={{ count: regions.length - 1 }} />

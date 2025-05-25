@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { mapApiCredential } from 'src/api/mappers/api-credential';
 import { ApiCredentialType } from 'src/api/model';
 import { useApiQueryFn } from 'src/api/use-api';
@@ -17,7 +17,7 @@ export function BaseApiCredentialsPage({ type }: { type: ApiCredentialType }) {
 
   const query = useQuery({
     ...useApiQueryFn('listApiCredentials', { query: { limit: '100', type: upperCase(type) } }),
-    select: mapApiCredential,
+    select: ({ credentials }) => credentials!.map(mapApiCredential),
   });
 
   const credentials = query.data;

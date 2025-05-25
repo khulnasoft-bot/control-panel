@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { Controller } from 'react-hook-form';
 
-import { TabButton, TabButtons } from '@koyeb/design-system';
+import { TabButton, TabButtons } from '@snipkit/design-system';
 import { useGithubApp } from 'src/api/hooks/git';
 import { ControlledSelect } from 'src/components/controlled';
 import { createTranslate } from 'src/intl/translate';
@@ -13,7 +13,7 @@ import { useWatchServiceForm } from '../../../use-service-form';
 import { OrganizationRepository } from './organization-repository';
 import { PublicRepository } from './public-repository';
 
-const T = createTranslate('serviceForm.source.git');
+const T = createTranslate('modules.serviceForm.source.git');
 
 export function GitSource() {
   const githubApp = useGithubApp();

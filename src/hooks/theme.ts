@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 
-import { usePrefersDarkMode } from '@koyeb/design-system';
+import { usePrefersDarkMode } from '@snipkit/design-system';
 import { isEnumValue } from 'src/utils/enums';
 
 import { useLocalStorage } from './storage';
@@ -22,7 +22,7 @@ type ThemeModeStrict = Exclude<ThemeMode, ThemeMode.system>;
 export function useThemeMode() {
   const systemTheme = useSystemThemeMode();
 
-  const [storedTheme, setStoredTheme] = useLocalStorage('koyeb.theme', {
+  const [storedTheme, setStoredTheme] = useLocalStorage('snipkit.theme', {
     parse: parseThemeMode,
     stringify: String,
   });

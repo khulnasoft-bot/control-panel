@@ -1,13 +1,13 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { useOrganization } from 'src/api/hooks/session';
 import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
 import { notify } from 'src/application/notify';
 import { SectionHeader } from 'src/components/section-header';
 import { createTranslate } from 'src/intl/translate';
 
-const T = createTranslate('account.reactivateOrganization');
+const T = createTranslate('modules.account.reactivateOrganization');
 
 export function ReactivateOrganization() {
   const organization = useOrganization();

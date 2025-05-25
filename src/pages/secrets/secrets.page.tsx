@@ -1,7 +1,6 @@
 import clsx from 'clsx';
-import { useEffect, useState } from 'react';
 
-import { Button } from '@koyeb/design-system';
+import { Button } from '@snipkit/design-system';
 import { useSecretsQuery } from 'src/api/hooks/secret';
 import { Secret } from 'src/api/model';
 import { Dialog } from 'src/components/dialog';
@@ -10,7 +9,7 @@ import { IconListPlus, IconPlus } from 'src/components/icons';
 import { QueryGuard } from 'src/components/query-error';
 import { Title } from 'src/components/title';
 import { useSet } from 'src/hooks/collection';
-import { useHistoryState } from 'src/hooks/router';
+import { useOnRouteStateCreate } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
 import { CreateSecretDialog } from 'src/modules/secrets/simple/create-secret-dialog';
 
@@ -21,15 +20,11 @@ import { SecretsList } from './components/secrets-list';
 const T = createTranslate('pages.secrets');
 
 export function SecretsPage() {
-  const historyState = useHistoryState<{ create: boolean }>();
   const openDialog = Dialog.useOpen();
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  useEffect(() => {
-    if (historyState.create) {
-      openDialog('CreateSecret');
-    }
-  }, [historyState, openDialog]);
+  useOnRouteStateCreate(() => {
+    openDialog('CreateSecret');
+  });
 
   const query = useSecretsQuery('simple');
   const secrets = query.data;
@@ -45,7 +40,7 @@ export function SecretsPage() {
         end={
           <div className="row items-center gap-2">
             {selected.size > 0 && (
-              <Button variant="outline" onClick={() => setDeleteDialogOpen(true)}>
+              <Button variant="outline" onClick={() => openDialog('ConfirmBulkDeleteSecrets')}>
                 <T id="deleteSecrets" values={{ count: selected.size }} />
               </Button>
             )}
@@ -71,24 +66,12 @@ export function SecretsPage() {
           <SecretsList
             secrets={secrets}
             onCreate={() => openDialog('CreateSecret')}
-            selected={selected}
-            toggleSelected={toggle}
-            selectAll={() => set(secrets ?? [])}
-            clearSelection={clear}
+            selection={{ selected, selectAll: () => set(secrets), clear, toggle }}
           />
         )}
       </QueryGuard>
 
-      <BulkDeleteSecretsDialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        secrets={Array.from(selected.values())}
-        onDeleted={() => {
-          clear();
-          setDeleteDialogOpen(false);
-        }}
-      />
-
+      <BulkDeleteSecretsDialog secrets={Array.from(selected.values())} onDeleted={clear} />
       <BulkCreateSecretsDialog />
       <CreateSecretDialog />
     </div>

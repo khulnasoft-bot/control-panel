@@ -24,7 +24,7 @@ import {
 import { createDate } from './date';
 import { createId } from './strings';
 
-export type Factory<T> = (overrides?: Partial<T>) => T;
+type Factory<T> = (overrides?: Partial<T>) => T;
 
 export function createFactory<T>(getDefaults: () => T): Factory<T> {
   return (overrides) => ({ ...getDefaults(), ...overrides });
@@ -33,8 +33,8 @@ export function createFactory<T>(getDefaults: () => T): Factory<T> {
 const organization = createFactory<Organization>(() => ({
   id: createId(),
   name: '',
-  status: 'active',
-  statusMessage: 'valid',
+  status: 'ACTIVE',
+  statusMessage: 'VALID',
   plan: 'no_plan',
   hasSignupQualification: false,
   hasPaymentMethod: false,
@@ -44,6 +44,7 @@ const organization = createFactory<Organization>(() => ({
 const organizationSummary = createFactory<OrganizationSummary>(() => ({
   freeInstanceUsed: false,
   freeDatabaseUsed: false,
+  instancesUsed: {},
 }));
 
 const quotas = createFactory<OrganizationQuotas>(() => ({
@@ -54,11 +55,12 @@ const quotas = createFactory<OrganizationQuotas>(() => ({
   volumesByRegion: {},
   maxMemory: 0,
   maxDomains: 0,
+  logsRetention: 0,
 }));
 
 const activity = createFactory<Activity>(() => ({
   id: createId(),
-  date: createDate(),
+  createdAt: createDate(),
   verb: '',
   actor: {
     name: '',
@@ -78,33 +80,34 @@ const activityObject = createFactory<ActivityObject>(() => ({
 }));
 
 const datacenter = createFactory<CatalogDatacenter>(() => ({
-  identifier: '',
+  id: '',
   domain: '',
-  regionIdentifier: '',
+  regionId: '',
 }));
 
 const region = createFactory<CatalogRegion>(() => ({
-  identifier: '',
-  displayName: '',
+  id: '',
+  name: '',
   status: 'available',
   datacenters: [],
-  hasVolumes: false,
-  category: 'koyeb',
+  volumesEnabled: false,
+  category: 'snipkit',
+  scope: 'metropolitan',
 }));
 
 const instance = createFactory<CatalogInstance>(() => ({
-  identifier: '',
+  id: '',
   displayName: '',
   status: 'available',
   category: 'standard',
-  regionCategory: 'koyeb',
-  cpu: 0,
-  ram: '',
+  regionCategory: 'snipkit',
+  vcpuShares: 0,
+  memory: '',
   disk: '',
-  pricePerMonth: 0,
-  pricePerHour: 0,
+  priceMonthly: 0,
+  priceHourly: 0,
   pricePerSecond: 0,
-  hasVolumes: false,
+  volumesEnabled: false,
 }));
 
 const environmentVariable = createFactory<EnvironmentVariable>(() => ({
@@ -115,7 +118,7 @@ const environmentVariable = createFactory<EnvironmentVariable>(() => ({
 
 const volume = createFactory<Volume>(() => ({
   id: createId(),
-  status: 'attached',
+  status: 'ATTACHED',
   name: '',
   region: '',
   size: 0,
@@ -125,7 +128,7 @@ const volume = createFactory<Volume>(() => ({
 const simpleSecret = createFactory<Secret>(() => ({
   id: createId(),
   name: '',
-  type: 'simple',
+  type: 'SIMPLE',
   createdAt: createDate(),
   updatedAt: createDate(),
 }));
@@ -144,21 +147,21 @@ const repository = createFactory<GitRepository>(() => ({
   url: '',
   isPrivate: false,
   defaultBranch: '',
-  lastPush: '',
+  lastPushDate: '',
   branches: [],
 }));
 
 const app = createFactory<App>(() => ({
   id: createId(),
   name: '',
-  status: 'healthy',
+  status: 'HEALTHY',
   domains: [],
 }));
 
 const appDomain = createFactory<AppDomain>(() => ({
   id: createId(),
   name: '',
-  type: 'autoassigned',
+  type: 'AUTOASSIGNED',
 }));
 
 const service = createFactory<Service>(() => ({
@@ -167,7 +170,7 @@ const service = createFactory<Service>(() => ({
   latestDeploymentId: '',
   type: 'web',
   name: '',
-  status: 'healthy',
+  status: 'HEALTHY',
   createdAt: createDate(),
 }));
 
@@ -177,7 +180,7 @@ const computeDeployment = createFactory<ComputeDeployment>(() => ({
   serviceId: '',
   name: '',
   date: createDate(),
-  status: 'healthy',
+  status: 'HEALTHY',
   messages: [],
   definition: deploymentDefinition(),
   definitionApi: {},
@@ -190,6 +193,7 @@ const deploymentDefinition = createFactory<DeploymentDefinition>(() => ({
   strategy: 'rolling',
   source: { type: 'git', repository: '', branch: '', autoDeploy: false },
   environmentVariables: [],
+  files: [],
   volumes: [],
   instanceType: '',
   regions: [],
@@ -199,12 +203,13 @@ const deploymentDefinition = createFactory<DeploymentDefinition>(() => ({
 
 const deploymentInstance = createFactory<Instance>(() => ({
   id: createId(),
-  status: 'healthy',
+  status: 'HEALTHY',
   name: '',
   region: '',
   type: '',
   replicaIndex: 0,
   createdAt: createDate(),
+  terminatedAt: null,
   messages: [],
 }));
 
@@ -213,11 +218,14 @@ const databaseDeployment = createFactory<DatabaseDeployment>(() => ({
   appId: '',
   serviceId: '',
   name: '',
-  status: 'healthy',
+  status: 'HEALTHY',
+  created_at: '',
   postgresVersion: 16,
   region: '',
   instance: '',
+  neonPostgres: {},
   activeTime: {},
+  computeTime: {},
   disk: {},
 }));
 

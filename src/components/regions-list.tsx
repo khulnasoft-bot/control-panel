@@ -4,18 +4,18 @@ import { hasProperty } from 'src/utils/object';
 
 import { RegionFlag } from './region-flag';
 
-export function RegionsList({ identifiers }: { identifiers: string[] }) {
+export function RegionsList({ regionIds }: { regionIds: string[] }) {
   const regions = useRegions();
 
   return (
     <ul className="col gap-2">
-      {identifiers
-        .map((identifier) => regions.find(hasProperty('identifier', identifier)))
+      {regionIds
+        .map((id) => regions.find(hasProperty('id', id)))
         .filter(isDefined)
         .map((region) => (
-          <li key={region.identifier} className="row items-center gap-2">
-            <RegionFlag identifier={region.identifier} className="size-4 rounded-full shadow-badge" />
-            {region.displayName}
+          <li key={region.id} className="row items-center gap-2">
+            <RegionFlag regionId={region.id} className="size-4" />
+            {region.name}
           </li>
         ))}
     </ul>

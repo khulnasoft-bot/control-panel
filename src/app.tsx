@@ -1,17 +1,24 @@
+import { useMutation } from '@tanstack/react-query';
 // eslint-disable-next-line no-restricted-imports
-import { Redirect, Route, Switch } from 'wouter';
+import { Redirect, Route, Switch, useRoute } from 'wouter';
 
 import { isAccountLockedError } from './api/api-errors';
 import { useOrganizationQuery, useUserQuery } from './api/hooks/session';
+import { useApiMutationFn, useInvalidateApiQuery } from './api/use-api';
 import { useOnboardingStep } from './application/onboarding';
 import { routes } from './application/routes';
-import { useRefreshToken } from './application/token';
-import { AccountLocked } from './components/account-locked';
+import { useRefreshToken, useToken } from './application/token';
 import { LinkButton } from './components/link';
 import { Loading } from './components/loading';
+import { useMount } from './hooks/lifecycle';
+import { useSearchParam } from './hooks/router';
+import { useSeon } from './hooks/seon';
 import { Translate } from './intl/translate';
 import { MainLayout } from './layouts/main/main-layout';
+import { AccountLocked } from './modules/account/account-locked';
 import { ConfirmDeactivateOrganization } from './modules/account/confirm-deactivate-organization';
+import { TrialEnded } from './modules/trial/trial-ended/trial-ended';
+import { useTrial } from './modules/trial/use-trial';
 import { AccountPages } from './pages/account/account.pages';
 import { ActivityPage } from './pages/activity/activity.page';
 import { AuthenticationPages } from './pages/authentication/authentication.pages';
@@ -43,10 +50,14 @@ export function App() {
 
   useRefreshToken();
 
+  if (useOrganizationContextParam()) {
+    return null;
+  }
+
   if (
     isAccountLockedError(userQuery.error) ||
     isAccountLockedError(organizationQuery.error) ||
-    organizationQuery.data?.statusMessage === 'verification_failed'
+    organizationQuery.data?.statusMessage === 'VERIFICATION_FAILED'
   ) {
     return <AccountLocked />;
   }
@@ -63,7 +74,13 @@ export function App() {
 function AuthenticatedRoutes() {
   const userQuery = useUserQuery();
   const organizationQuery = useOrganizationQuery();
+
   const onboardingStep = useOnboardingStep();
+  const trial = useTrial();
+
+  const [confirmDeactivateOrganization, params] = useRoute(
+    '/organization/deactivate/confirm/:confirmationId',
+  );
 
   if (!userQuery.isSuccess || organizationQuery.isPending) {
     return (
@@ -73,18 +90,16 @@ function AuthenticatedRoutes() {
     );
   }
 
+  if (confirmDeactivateOrganization) {
+    return <ConfirmDeactivateOrganization confirmationId={params.confirmationId} />;
+  }
+
+  if (trial?.ended) {
+    return <TrialEnded />;
+  }
+
   if (onboardingStep !== null) {
-    return (
-      <Switch>
-        <Route
-          path="/organization/deactivate/confirm/:confirmationId"
-          component={ConfirmDeactivateOrganization}
-        />
-        <Route>
-          <OnboardingPage step={onboardingStep} />
-        </Route>
-      </Switch>
-    );
+    return <OnboardingPage step={onboardingStep} />;
   }
 
   return (
@@ -128,11 +143,6 @@ function AuthenticatedRoutes() {
         <Route path="/settings/*?" component={OrganizationSettingsPages} />
         <Route path="/user/settings/*?" component={UserSettingsPages} />
 
-        <Route
-          path="/organization/deactivate/confirm/:confirmationId"
-          component={ConfirmDeactivateOrganization}
-        />
-
         <Route path="__error" component={ErrorTestPage} />
 
         <Route>
@@ -159,4 +169,33 @@ function PageNotFound() {
       </LinkButton>
     </div>
   );
+}
+
+function useOrganizationContextParam() {
+  const [organizationIdParam, setOrganizationIdParam] = useSearchParam('organization-id');
+  const { setToken } = useToken();
+  const invalidate = useInvalidateApiQuery();
+  const getSeonFingerprint = useSeon();
+
+  const mutation = useMutation({
+    ...useApiMutationFn('switchOrganization', async (organizationId: string) => ({
+      path: { id: organizationId },
+      header: { 'seon-fp': await getSeonFingerprint() },
+    })),
+    async onSuccess({ token }) {
+      setToken(token!.id!);
+      await invalidate('getCurrentOrganization');
+    },
+    onSettled() {
+      setOrganizationIdParam(null);
+    },
+  });
+
+  useMount(() => {
+    if (organizationIdParam !== null) {
+      mutation.mutate(organizationIdParam);
+    }
+  });
+
+  return organizationIdParam !== null;
 }

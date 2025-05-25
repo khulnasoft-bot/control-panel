@@ -19,8 +19,6 @@ import {
 } from '../service-form.types';
 
 export function serviceFormToDeploymentDefinition(form: ServiceForm): Api.DeploymentDefinition {
-  const hasMountFiles = posthog.featureFlags.isFeatureEnabled('mount-files');
-
   return {
     name: form.serviceName,
     type: form.serviceType === 'web' ? 'WEB' : 'WORKER',
@@ -31,7 +29,7 @@ export function serviceFormToDeploymentDefinition(form: ServiceForm): Api.Deploy
     instance_types: [{ type: form.instance ?? '' }],
     scalings: scalings(form.scaling),
     env: env(form.environmentVariables),
-    files: hasMountFiles ? files(form.files) : undefined,
+    config_files: files(form.files),
     volumes: volumes(form.volumes),
     ...(form.serviceType === 'web' && {
       ports: ports(form.ports),
@@ -146,14 +144,14 @@ function env(variables: Array<EnvironmentVariable>): Array<Api.DeploymentEnv> {
     value: variable.value,
     scopes:
       hasEnvScopes && variable.regions.length > 0
-        ? variable.regions.map((identifier) => `region:${identifier}`)
+        ? variable.regions.map((regionId) => `region:${regionId}`)
         : undefined,
   }));
 }
 
-function files(files: Array<File>): Array<Api.DeploymentFileMount> {
+function files(files: Array<File>): Array<Api.DeploymentConfigFile> {
   return files.map(
-    (file): Api.DeploymentFileMount => ({
+    (file): Api.DeploymentConfigFile => ({
       path: file.mountPath,
       content: file.content,
       permissions: '0777',
@@ -190,11 +188,11 @@ function healthChecks(ports: Array<Port>): Array<Api.DeploymentHealthCheck> {
     const portNumber = Number(port.portNumber);
     const healthCheck = port.healthCheck;
 
-    const tcp = (): Api.TcpHealthCheck => ({
+    const tcp = (): Api.TCPHealthCheck => ({
       port: portNumber,
     });
 
-    const http = (): Api.HttpHealthCheck => ({
+    const http = (): Api.HTTPHealthCheck => ({
       port: portNumber,
       path: healthCheck.path,
       method: healthCheck.method.toUpperCase(),

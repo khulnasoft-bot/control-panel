@@ -10,13 +10,15 @@ import { useMutation } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { Controller, FormState, useForm } from 'react-hook-form';
 
-import { Button, Dialog, Field, FieldLabel } from '@koyeb/design-system';
+import { Button, Field, FieldLabel } from '@snipkit/design-system';
 import { api, ApiEndpointParams } from 'src/api/api';
 import { useOrganization } from 'src/api/hooks/session';
 import { Address, OrganizationPlan } from 'src/api/model';
 import { useInvalidateApiQuery } from 'src/api/use-api';
+import { withStopPropagation } from 'src/application/dom-events';
 import { notify } from 'src/application/notify';
 import { reportError } from 'src/application/report-error';
+import { StripeProvider } from 'src/application/stripe';
 import { getToken, useToken } from 'src/application/token';
 import { AddressField } from 'src/components/address-field/address-field';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
@@ -26,7 +28,9 @@ import { inArray } from 'src/utils/arrays';
 import { assert } from 'src/utils/assert';
 import { wait } from 'src/utils/promises';
 
-const T = createTranslate('paymentDialog');
+import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from './dialog';
+
+const T = createTranslate('components.upgradeDialog');
 
 const waitForPaymentMethodTimeout = 12 * 1000;
 
@@ -135,8 +139,12 @@ export function PaymentForm({ plan, onPlanChanged, renderFooter }: PaymentFormPr
   const theme = useThemeModeOrPreferred();
   const style = theme === ThemeMode.light ? stylesLight : stylesDark;
 
+  if (stripe === null) {
+    return <T id="loadingStripe" />;
+  }
+
   return (
-    <form onSubmit={handleSubmit(form, mutation.mutateAsync)} className="col gap-6">
+    <form onSubmit={withStopPropagation(handleSubmit(form, mutation.mutateAsync))} className="col gap-6">
       <div className="grid grid-cols-2 gap-4">
         <Field className="col-span-2">
           <FieldLabel>
@@ -185,40 +193,54 @@ export function PaymentForm({ plan, onPlanChanged, renderFooter }: PaymentFormPr
         </div>
       </div>
 
-      {renderFooter(form.formState)}
-
-      <p className="text-xs text-dim">
-        <T id="temporaryHoldMessage" />
+      <p className="text-dim">
+        {plan === 'starter' && <T id="temporaryHoldMessage" />}
+        {plan !== 'starter' && <T id="proratedChargeMessage" />}
       </p>
+
+      {renderFooter(form.formState)}
     </form>
   );
 }
 
-type PaymentDialogProps = {
-  open: boolean;
-  onClose: () => void;
+type UpgradeDialogProps = {
+  id?: string;
+  plan?: OrganizationPlan;
+  onPlanChanged?: () => void;
   title: React.ReactNode;
-  description: React.ReactNode;
+  description?: React.ReactNode;
   submit: React.ReactNode;
-} & Omit<PaymentFormProps, 'renderFooter'>;
+};
 
-export function PaymentDialog({ open, onClose, title, description, submit, ...props }: PaymentDialogProps) {
+export function UpgradeDialog({ id, plan, onPlanChanged, title, description, submit }: UpgradeDialogProps) {
+  const closeDialog = Dialog.useClose();
+
   return (
-    <Dialog isOpen={open} onClose={onClose} width="lg" title={title} description={description}>
-      <PaymentForm
-        {...props}
-        renderFooter={(formState) => (
-          <footer className="row justify-end gap-2">
-            <Button variant="outline" color="gray" size={3} onClick={onClose}>
-              <Translate id="common.cancel" />
-            </Button>
+    <Dialog id={id ?? 'Upgrade'} context={{ plan }} className="col w-full max-w-xl gap-4">
+      <DialogHeader title={title} />
 
-            <Button type="submit" size={3} loading={formState.isSubmitting}>
-              {submit}
-            </Button>
-          </footer>
-        )}
-      />
+      {description && <p className="text-dim">{description}</p>}
+
+      <StripeProvider>
+        <PaymentForm
+          plan={plan}
+          onPlanChanged={() => {
+            closeDialog();
+            onPlanChanged?.();
+          }}
+          renderFooter={(formState) => (
+            <DialogFooter>
+              <CloseDialogButton size={3}>
+                <Translate id="common.cancel" />
+              </CloseDialogButton>
+
+              <Button type="submit" size={3} loading={formState.isSubmitting}>
+                {submit}
+              </Button>
+            </DialogFooter>
+          )}
+        />
+      </StripeProvider>
     </Dialog>
   );
 }
