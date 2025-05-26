@@ -151,17 +151,19 @@ export const catalogRegionFixtures = [
   }),
 ];
 
+import { getBaseDomain } from '../../utils/getBaseDomain';
+
 export const catalogDatacenterFixtures = [
   createApiDatacenter({
     id: 'par1',
     region_id: 'par',
-    domain: 'glb-par1.infra.staging.snipkit.com',
+    domain: `glb-par1.infra.${getBaseDomain()}/staging`,
     coordinates: ['2.3522', '48.8566'],
   }),
   createApiDatacenter({
     id: 'fra1',
     region_id: 'fra',
-    domain: 'glb-fra1.infra.staging.snipkit.com',
+    domain: `glb-fra1.infra.${getBaseDomain()}/staging`,
     coordinates: ['8.6821', '50.1109'],
   }),
 ];

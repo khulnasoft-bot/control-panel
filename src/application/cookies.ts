@@ -1,4 +1,5 @@
 import { getConfig } from './config';
+import { getBaseDomain } from '../utils/getBaseDomain';
 
 export function getCookie(name: string): string | null {
   for (const cookie of document.cookie.split(';')) {
@@ -27,12 +28,23 @@ export function setCookie(
 
 function getDomain(): string | undefined {
   const { environment } = getConfig();
+  
+  // For Vercel deployments
+  if (process.env.NEXT_PUBLIC_VERCEL_ENV) {
+    const vercelUrl = process.env.NEXT_PUBLIC_VERCEL_URL;
+    if (vercelUrl) {
+      return vercelUrl.includes('http') ? 
+        new URL(vercelUrl).hostname : 
+        vercelUrl;
+    }
+  }
 
+  // Fallback to environment-based domains
   if (environment === 'production') {
-    return 'app.snipkit.com';
+    return process.env.VITE_APP_DOMAIN ?? `app.${getBaseDomain()}`;
   }
 
   if (environment === 'staging') {
-    return 'staging.snipkit.com';
+    return process.env.VITE_APP_DOMAIN ?? `${getBaseDomain()}/staging`;
   }
 }

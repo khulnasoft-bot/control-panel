@@ -1,0 +1,12 @@
+services:
+  snipkit-console:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # image: snipkit-console:latest
+    container_name: snipkit-console
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - API_URL=${API_URL:-http://localhost:3000}

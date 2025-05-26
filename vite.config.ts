@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { getBaseDomain } from './src/utils/getBaseDomain';
 
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import react from '@vitejs/plugin-react';
@@ -98,7 +99,12 @@ export default defineConfig({
   server: {
     port: 8000,
     proxy: {
-      '/v1': 'https://staging.snipkit.com',
+      '/v1': {
+        target: process.env.VITE_API_BASE_URL || `https://${getBaseDomain()}/staging`,
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/v1/, '')
+      },
     },
   },
   preview: {

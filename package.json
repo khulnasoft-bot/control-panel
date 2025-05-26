@@ -16,8 +16,8 @@
     "e2e": "playwright test",
     "preview": "vite preview",
     "storybook": "storybook dev --ci -p 6006",
-    "build-storybook": "storybook build",
-    "api-codegen": "curl 'https://converter.swagger.io/api/convert?url=https://developer.snipkit.com/public.swagger.json' | openapi-typescript --alphabetize --output ./src/api/api.generated.d.ts"
+    "fi: "storybook build",
+    "api-codegen": "npx sw generate -i $SWAGGER_URL -o ./src/api/api.generated.d.ts --typescript"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.5",
