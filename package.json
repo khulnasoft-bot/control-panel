@@ -18,6 +18,7 @@
     "storybook": "storybook dev --ci -p 6006",
     "build-storybook": "storybook build",
     "dev:design-system": "turbo run dev --filter=design-system --parallel",
+    "build:create-ai": "pnpm run build --filter=create-ai",
     "typecheck": "turbo --continue typecheck",
     "test:prettier": "SORT_IMPORTS=false prettier --cache --check '{apps,packages}/**/*.{js,jsx,ts,tsx,css,md,json}'",
     "format": "SORT_IMPORTS=false prettier --cache --write '{apps,packages}/**/*.{js,jsx,ts,tsx,css,md,mdx,json}'",

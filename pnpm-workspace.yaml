@@ -1,3 +1,4 @@
 packages:
   - packages/tsconfig
   - apps/control-panel
+  - packages/create-ai
