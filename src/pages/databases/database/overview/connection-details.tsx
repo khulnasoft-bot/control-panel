@@ -1,16 +1,16 @@
+import { Code, CodeLang, Tab, Tabs } from '@design-system';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Code, CodeLang, Tab, Tabs } from '@snipkit/design-system';
-import { DatabaseDeployment, DatabaseRole, LogicalDatabase } from 'src/api/model';
-import { useApiQueryFn } from 'src/api/use-api';
-import { createValidationGuard } from 'src/application/create-validation-guard';
-import { ControlledSelect } from 'src/components/controlled';
+import { apiQuery } from 'src/api';
+import { createValidationGuard } from 'src/application/validation';
 import { CopyIconButton } from 'src/components/copy-icon-button';
-import { IconEye, IconEyeOff } from 'src/components/icons';
+import { ControlledSelect } from 'src/components/forms';
+import { IconEye, IconEyeOff } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
+import { DatabaseDeployment, DatabaseRole, LogicalDatabase } from 'src/model';
 import { getName, hasProperty } from 'src/utils/object';
 
 import {
@@ -47,19 +47,19 @@ export function ConnectionDetails({ deployment }: ConnectionDetailsProps) {
 
   return (
     <section className="divide-y rounded-md border">
-      <header className="col md:row justify-between gap-4 px-3 py-4 md:items-center">
+      <header className="col justify-between gap-4 px-3 py-4 md:row md:items-center">
         <div className="font-medium">
           <T id="title" />
         </div>
 
-        <form className="col md:row gap-4">
+        <form className="col gap-4 md:row">
           <ControlledSelect
             control={form.control}
             name="role"
             items={deployment.roles ?? []}
             getKey={getName}
             itemToString={getName}
-            itemToValue={getName}
+            getValue={getName}
             renderItem={getName}
             className="min-w-64"
           />
@@ -70,7 +70,7 @@ export function ConnectionDetails({ deployment }: ConnectionDetailsProps) {
             items={deployment.databases ?? []}
             getKey={getName}
             itemToString={getName}
-            itemToValue={getName}
+            getValue={getName}
             renderItem={getName}
             className="min-w-64"
           />
@@ -147,7 +147,7 @@ function SnippetFile({ deployment, role, database, filename, lang, snippet }: Sn
         lang={lang}
         theme="dark"
         value={snippet(details(passwordVisible))}
-        className="scrollbar-green overflow-x-auto whitespace-pre-wrap rounded-b-md bg-black p-3 dark:bg-muted"
+        className="overflow-x-auto rounded-b-md bg-black p-3 whitespace-pre-wrap scrollbar-green dark:bg-muted"
       />
     </div>
   );
@@ -157,7 +157,7 @@ function useRolePassword(role?: { secretId: string }) {
   const secretId = role?.secretId;
 
   const { isSuccess, data } = useQuery({
-    ...useApiQueryFn('revealSecret', { path: { id: secretId! } }),
+    ...apiQuery('post /v1/secrets/{id}/reveal', { path: { id: secretId! } }),
     enabled: secretId !== undefined,
   });
 

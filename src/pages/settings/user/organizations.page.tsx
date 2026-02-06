@@ -1,30 +1,31 @@
-import { useMutation } from '@tanstack/react-query';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button, Spinner } from '@design-system';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button, Spinner } from '@snipkit/design-system';
-import { api } from 'src/api/api';
-import { useOrganizationUnsafe, useUserOrganizationMemberships } from 'src/api/hooks/session';
-import { OrganizationMember } from 'src/api/model';
-import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
+import {
+  apiMutation,
+  apiQuery,
+  mapOrganizationMember,
+  useOrganization,
+  useSwitchOrganization,
+  useUser,
+} from 'src/api';
 import { notify } from 'src/application/notify';
-import { routes } from 'src/application/routes';
-import { useToken } from 'src/application/token';
-import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from 'src/components/dialog';
+import { CloseDialogButton, Dialog, DialogFooter, DialogHeader, openDialog } from 'src/components/dialog';
 import { OrganizationAvatar } from 'src/components/organization-avatar';
 import { OrganizationNameField } from 'src/components/organization-name-field';
 import { QueryError } from 'src/components/query-error';
 import { Title } from 'src/components/title';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
 import { useNavigate, useOnRouteStateCreate } from 'src/hooks/router';
-import { useZodResolver } from 'src/hooks/validation';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { Translate, createTranslate } from 'src/intl/translate';
+import { OrganizationMember } from 'src/model';
 
 const T = createTranslate('pages.userSettings.organizations');
 
 export function OrganizationsPage() {
-  const openDialog = Dialog.useOpen();
-
   useOnRouteStateCreate(() => {
     openDialog('CreateOrganization');
   });
@@ -39,67 +40,59 @@ export function OrganizationsPage() {
           </Button>
         }
       />
-      <CreateOrganizationDialog />
+
+      <CreateOrganization />
+
       <OrganizationList />
     </>
   );
 }
 
 const schema = z.object({
-  organizationName: z.string().min(1).max(39),
+  organizationName: z.string().min(1).max(64),
 });
 
-function CreateOrganizationDialog() {
+function CreateOrganization() {
   const t = T.useTranslate();
-  const navigate = useNavigate();
-  const { token, setToken } = useToken();
 
-  const form = useForm<z.infer<typeof schema>>({
+  const form = useForm({
     mode: 'onChange',
     defaultValues: {
       organizationName: '',
     },
-    resolver: useZodResolver(schema),
+    resolver: zodResolver(schema),
   });
 
+  const switchOrganization = useSwitchOrganization();
+  const navigate = useNavigate();
+
   const mutation = useMutation({
-    async mutationFn({ organizationName }: FormValues<typeof form>) {
-      const { organization } = await api.createOrganization({
-        token,
-        body: { name: organizationName },
-      });
-
-      const { token: newToken } = await api.switchOrganization({
-        token,
-        path: { id: organization!.id! },
-        header: {},
-      });
-
-      return newToken!.id!;
-    },
+    ...apiMutation('post /v1/organizations', ({ organizationName }: FormValues<typeof form>) => ({
+      body: { name: organizationName },
+    })),
     onError: useFormErrorHandler(form, (error) => ({
       organizationName: error.name,
     })),
-    onSuccess(token, { organizationName }) {
-      form.reset();
-      setToken(token);
-      navigate(routes.home());
-      notify.success(t('createOrganizationDialog.successNotification', { organizationName }));
+    async onSuccess({ organization }, { organizationName }) {
+      await switchOrganization.mutateAsync(organization!.external_id!);
+      await navigate({ to: '/' });
+      notify.success(t('create.success', { organizationName }));
     },
   });
 
   return (
     <Dialog id="CreateOrganization" onClosed={form.reset} className="col w-full max-w-xl gap-4">
-      <DialogHeader title={<T id="createOrganizationDialog.title" />} />
+      <DialogHeader title={<T id="create.title" />} />
 
       <p className="text-dim">
-        <T id="createOrganizationDialog.description" />
+        <T id="create.description" />
       </p>
 
       <form onSubmit={handleSubmit(form, mutation.mutateAsync)} className="col gap-4">
         <OrganizationNameField
           form={form}
-          label={<T id="createOrganizationDialog.organizationNameLabel" />}
+          label={<T id="create.organizationNameLabel" />}
+          tooltipPlacement="bottom-start"
         />
 
         <DialogFooter>
@@ -122,7 +115,18 @@ function CreateOrganizationDialog() {
 }
 
 function OrganizationList() {
-  const query = useUserOrganizationMemberships();
+  const user = useUser();
+
+  const query = useQuery({
+    ...apiQuery('get /v1/organization_members', {
+      query: {
+        user_id: user?.id,
+        organization_statuses: ['ACTIVE', 'WARNING', 'LOCKED', 'DEACTIVATING', 'DEACTIVATED'],
+      },
+    }),
+    enabled: user !== undefined,
+    select: ({ members }) => members!.map(mapOrganizationMember),
+  });
 
   if (query.isPending) {
     return <Spinner className="size-4" />;
@@ -150,25 +154,11 @@ function OrganizationList() {
 }
 
 function OrganizationListItem({ organization }: { organization: OrganizationMember['organization'] }) {
-  const currentOrganization = useOrganizationUnsafe();
-  const { setToken } = useToken();
-  const invalidate = useInvalidateApiQuery();
+  const currentOrganization = useOrganization();
   const navigate = useNavigate();
 
-  const { mutate: switchOrganization } = useMutation({
-    ...useApiMutationFn('switchOrganization', (_: string) => ({
-      path: { id: organization.id },
-      header: {},
-    })),
-    onSuccess(token, redirect) {
-      setToken(token.token!.id!);
-
-      void invalidate('getCurrentOrganization');
-      void invalidate('listOrganizationMembers');
-
-      navigate(redirect);
-    },
-  });
+  const switchOrganization = useSwitchOrganization({ onSuccess: () => navigate({ to: '/' }) });
+  const manageOrganization = useSwitchOrganization({ onSuccess: () => navigate({ to: '/settings' }) });
 
   return (
     <div className="row items-center gap-2">
@@ -181,9 +171,13 @@ function OrganizationListItem({ organization }: { organization: OrganizationMemb
         </div>
       </div>
 
-      <div className="row ml-auto gap-2">
+      <div className="ml-auto row gap-2">
         {organization.id !== currentOrganization?.id && (
-          <Button variant="outline" color="gray" onClick={() => switchOrganization(routes.home())}>
+          <Button
+            variant="outline"
+            color="gray"
+            onClick={() => switchOrganization.mutate(organization.externalId)}
+          >
             <T id="switch" />
           </Button>
         )}
@@ -191,7 +185,7 @@ function OrganizationListItem({ organization }: { organization: OrganizationMemb
         <Button
           variant="outline"
           color="gray"
-          onClick={() => switchOrganization(routes.organizationSettings.index())}
+          onClick={() => manageOrganization.mutate(organization.externalId)}
         >
           <T id="manage" />
         </Button>

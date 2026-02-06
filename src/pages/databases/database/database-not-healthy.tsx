@@ -1,13 +1,12 @@
 import * as intercom from '@intercom/messenger-js-sdk';
+import { Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 
-import { Button } from '@snipkit/design-system';
-import { Service } from 'src/api/model';
-import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
+import { apiMutation, useInvalidateApiQuery } from 'src/api';
 import { notify } from 'src/application/notify';
-import { routes } from 'src/application/routes';
 import { useNavigate } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
+import { Service } from 'src/model';
 
 const T = createTranslate('pages.database.layout.databaseNotHealthy');
 
@@ -17,18 +16,18 @@ export function DatabaseNotHealth({ service }: { service: Service }) {
   const t = T.useTranslate();
 
   const mutation = useMutation({
-    ...useApiMutationFn('deleteService', {
+    ...apiMutation('delete /v1/services/{id}', {
       path: { id: service.id },
     }),
     async onSuccess() {
-      await invalidate('getService', { path: { id: service.id } });
-      navigate(routes.home());
+      await invalidate('get /v1/services/{id}', { path: { id: service.id } });
+      await navigate({ to: '/services' });
       notify.info(t('deleteSuccessNotification'));
     },
   });
 
   return (
-    <div className="col my-6 justify-center gap-2">
+    <div className="my-6 col justify-center gap-2">
       <p className="text-lg font-medium">
         <T id="title" />
       </p>
@@ -37,7 +36,7 @@ export function DatabaseNotHealth({ service }: { service: Service }) {
         <T id="description" />
       </p>
 
-      <div className="row mt-4 gap-4">
+      <div className="mt-4 row gap-4">
         <Button onClick={() => intercom.showNewMessage(prefillMessage(service.id))}>
           <T id="contactUs" />
         </Button>

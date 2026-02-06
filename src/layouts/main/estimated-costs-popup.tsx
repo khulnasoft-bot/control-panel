@@ -1,15 +1,13 @@
 import clsx from 'clsx';
-import { Fragment } from 'react/jsx-runtime';
 import { FormattedNumber } from 'react-intl';
+import { Fragment } from 'react/jsx-runtime';
 
-import { useNextInvoiceQuery } from 'src/api/hooks/billing';
-import { useOrganization } from 'src/api/hooks/session';
-import { Invoice, InvoiceLine, InvoicePlanLine, InvoiceUsageLine } from 'src/api/model';
-import { routes } from 'src/application/routes';
+import { useNextInvoiceQuery, useOrganization } from 'src/api';
 import { LinkButton } from 'src/components/link';
 import { Loading } from 'src/components/loading';
 import { FormattedPrice } from 'src/intl/formatted';
-import { createTranslate, TranslateEnum } from 'src/intl/translate';
+import { TranslateEnum, createTranslate } from 'src/intl/translate';
+import { Invoice, InvoiceLine, InvoicePlanLine, InvoiceUsageLine } from 'src/model';
 
 const T = createTranslate('layouts.main.organizationPlan.estimatedCost');
 
@@ -20,7 +18,7 @@ export function EstimatedCostsPopup({ className, ...props }: React.ComponentProp
   return (
     <div className={clsx('w-56 rounded-md border bg-popover', className)} {...props}>
       <div className="p-3 font-medium">
-        <T id="currentPlan" values={{ plan: <TranslateEnum enum="plans" value={organization.plan} /> }} />
+        <T id="currentPlan" values={{ plan: <TranslateEnum enum="plans" value={organization?.plan} /> }} />
       </div>
 
       <hr />
@@ -79,7 +77,7 @@ function CostsDetails({ costs }: { costs: ReturnType<typeof getCosts> }) {
         </div>
       </div>
 
-      <LinkButton color="gray" size={1} href={routes.organizationSettings.billing()} className="mt-1">
+      <LinkButton color="gray" size={1} to="/settings/billing" className="mt-1">
         <T id="cta" />
       </LinkButton>
     </div>

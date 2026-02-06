@@ -1,26 +1,32 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { Button, Spinner, Table } from '@design-system';
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { useState } from 'react';
 
-import { Button, ButtonMenuItem, Spinner, Table, Tooltip } from '@snipkit/design-system';
-import { useDeployment, useService } from 'src/api/hooks/service';
-import { isDatabaseDeployment } from 'src/api/mappers/deployment';
-import { DatabaseRole, Service } from 'src/api/model';
-import { useApiQueryFn } from 'src/api/use-api';
+import {
+  apiQuery,
+  isDatabaseDeployment,
+  useApi,
+  useDeployment,
+  useInvalidateApiQuery,
+  useService,
+} from 'src/api';
 import { notify } from 'src/application/notify';
-import { ActionsMenu } from 'src/components/actions-menu';
-import { Dialog } from 'src/components/dialog';
-import { IconEye, IconEyeOff } from 'src/components/icons';
+import { updateDatabaseService } from 'src/application/service-functions';
+import { closeDialog, openDialog } from 'src/components/dialog';
+import { ActionsMenu, ButtonMenuItem } from 'src/components/dropdown-menu';
 import { NoResource } from 'src/components/no-resource';
 import { Title } from 'src/components/title';
+import { Tooltip } from 'src/components/tooltip';
 import { useClipboard } from 'src/hooks/clipboard';
 import { useRouteParam } from 'src/hooks/router';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { IconEye, IconEyeOff } from 'src/icons';
+import { Translate, createTranslate } from 'src/intl/translate';
+import { DatabaseRole, Service } from 'src/model';
 import { assert } from 'src/utils/assert';
-import { getName } from 'src/utils/object';
+import { getName, hasProperty } from 'src/utils/object';
 
 import { CreateDatabaseRoleDialog } from './create-database-role-dialog';
-import { DeleteDatabaseRoleDialog } from './delete-database-role-dialog';
 
 const T = createTranslate('pages.database.roles');
 
@@ -28,8 +34,6 @@ export function DatabaseRolesPage() {
   const databaseServiceId = useRouteParam('databaseServiceId');
   const service = useService(databaseServiceId);
   const deployment = useDeployment(service?.latestDeploymentId);
-
-  const openDialog = Dialog.useOpen();
 
   if (!service || !deployment) {
     return null;
@@ -97,9 +101,8 @@ function DatabaseRolePassword({ role }: { role: DatabaseRole }) {
   const [showValue, setShowValue] = useState(false);
 
   const query = useQuery({
-    ...useApiQueryFn('revealSecret', { path: { id: role.secretId } }),
+    ...apiQuery('post /v1/secrets/{id}/reveal', { path: { id: role.secretId } }),
     enabled: showValue,
-    refetchInterval: false,
     placeholderData: keepPreviousData,
     select: (result) => result.value as unknown as { password: string },
   });
@@ -130,13 +133,15 @@ function DatabaseRolePassword({ role }: { role: DatabaseRole }) {
       </Button>
 
       {showValue && query.data !== undefined ? (
-        <Tooltip content={<Translate id="common.clickToCopy" />}>
-          {(props) => (
+        <Tooltip
+          forceDesktop
+          content={<Translate id="common.clickToCopy" />}
+          trigger={(props) => (
             <button {...props} className="max-w-md truncate" onClick={copyValue}>
               {query.data.password}
             </button>
           )}
-        </Tooltip>
+        />
       ) : (
         <div className="text-dim">{masked}</div>
       )}
@@ -144,27 +149,52 @@ function DatabaseRolePassword({ role }: { role: DatabaseRole }) {
   );
 }
 
-type DatabaseRoleActionsProps = {
-  service: Service;
-  role: DatabaseRole;
-};
+function DatabaseRoleActions({ service, role }: { service: Service; role: DatabaseRole }) {
+  const t = T.useTranslate();
 
-function DatabaseRoleActions({ service, role }: DatabaseRoleActionsProps) {
-  const openDialog = Dialog.useOpen();
+  const deleteMutation = useDeleteMutation();
+
+  const onDelete = () => {
+    openDialog('Confirmation', {
+      title: t('delete.title'),
+      description: t('delete.description'),
+      destructiveAction: true,
+      confirmationText: role.name,
+      submitText: t('delete.confirm'),
+      onConfirm: () => deleteMutation.mutateAsync([service, role]),
+    });
+  };
 
   return (
-    <>
-      <ActionsMenu>
-        {(withClose) => (
-          <ButtonMenuItem
-            onClick={withClose(() => openDialog('ConfirmDeleteDatabaseRole', { resourceId: role.name }))}
-          >
-            <T id="actions.delete" />
-          </ButtonMenuItem>
-        )}
-      </ActionsMenu>
-
-      <DeleteDatabaseRoleDialog service={service} role={role} />
-    </>
+    <ActionsMenu>
+      <ButtonMenuItem onClick={onDelete}>
+        <T id="actions.delete" />
+      </ButtonMenuItem>
+    </ActionsMenu>
   );
+}
+
+function useDeleteMutation() {
+  const t = T.useTranslate();
+
+  const api = useApi();
+  const invalidate = useInvalidateApiQuery();
+
+  return useMutation({
+    async mutationFn([service, role]: [service: Service, role: DatabaseRole]) {
+      await updateDatabaseService(api, service.id, (definition) => {
+        const roles = definition.database!.neon_postgres!.roles!;
+        const index = roles.findIndex(hasProperty('name', role.name));
+
+        if (index >= 0) {
+          roles.splice(index, 1);
+        }
+      });
+    },
+    async onSuccess(_, [service, role]) {
+      await invalidate('get /v1/services/{id}', { path: { id: service.id } });
+      notify.info(t('delete.success', { name: role.name }));
+      closeDialog();
+    },
+  });
 }

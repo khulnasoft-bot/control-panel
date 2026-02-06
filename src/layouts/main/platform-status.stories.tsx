@@ -1,29 +1,38 @@
-import { Meta, StoryFn } from '@storybook/react';
-
-import { controls } from 'src/storybook';
+import { Meta, StoryFn } from '@storybook/react-vite';
 
 import { PlatformStatus } from './platform-status';
 
-// cSpell:ignore hasissues allundermaintenance alldegradedperformance allpartialoutage allminoroutage allmajoroutage
+// cSpell:ignore hasissues undermaintenance degradedperformance partialoutage majoroutage
 
 type Args = {
+  name: string;
   status: string;
+  impact: string;
 };
+
+function inlineRadio<Options extends string>(options: Options[]) {
+  return {
+    control: 'inline-radio' as const,
+    options,
+  };
+}
 
 export default {
   title: 'Components/PlatformStatus',
   args: {
+    name: '',
     status: 'UP',
+    impact: 'OPERATIONAL',
   },
   argTypes: {
-    status: controls.inlineRadio([
-      'UP',
-      'HASISSUES',
-      'ALLUNDERMAINTENANCE',
-      'ALLDEGRADEDPERFORMANCE',
-      'ALLPARTIALOUTAGE',
-      'ALLMINOROUTAGE',
-      'ALLMAJOROUTAGE',
+    name: { control: 'text' },
+    status: inlineRadio(['UP', 'HASISSUES', 'UNDERMAINTENANCE']),
+    impact: inlineRadio([
+      'OPERATIONAL',
+      'UNDERMAINTENANCE',
+      'DEGRADEDPERFORMANCE',
+      'PARTIALOUTAGE',
+      'MAJOROUTAGE',
     ]),
   },
   decorators: [
@@ -44,7 +53,7 @@ platformStatus.decorators = [
     window.fetch = () =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ page: { status: args.status } }),
+        json: () => Promise.resolve({ page: { status: args.status }, activeIncidents: [args] }),
       } as Response);
 
     return <Story />;

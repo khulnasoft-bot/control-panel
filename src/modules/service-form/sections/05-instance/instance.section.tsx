@@ -1,10 +1,10 @@
+import { Badge } from '@design-system';
 import { useFormContext } from 'react-hook-form';
 
-import { Badge } from '@snipkit/design-system';
-import { useInstance, useRegions } from 'src/api/hooks/catalog';
+import { useCatalogInstance, useRegionsCatalog } from 'src/api';
 import { RegionFlag } from 'src/components/region-flag';
 import { RegionName } from 'src/components/region-name';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { Translate, TranslateEnum, createTranslate } from 'src/intl/translate';
 
 import { ServiceFormSection } from '../../components/service-form-section';
 import { ServiceForm } from '../../service-form.types';
@@ -17,9 +17,9 @@ export function InstanceSection() {
   return (
     <ServiceFormSection
       section="instance"
-      title={<SectionTitle />}
-      description={<T id="description" />}
-      expandedTitle={<T id="expandedTitle" />}
+      title={<T id="title" />}
+      action={<T id="action" />}
+      summary={<SectionTitle />}
       className="col gap-6 pb-0"
     >
       <InstanceSelector />
@@ -28,8 +28,8 @@ export function InstanceSection() {
 }
 
 function SectionTitle() {
-  const instance = useInstance(useFormContext<ServiceForm>().watch('instance'));
-  const regions = useRegions(useFormContext<ServiceForm>().watch('regions'));
+  const instance = useCatalogInstance(useFormContext<ServiceForm>().watch('instance'));
+  const regions = useRegionsCatalog(useFormContext<ServiceForm>().watch('regions'));
 
   if (!instance) {
     return <T id="noInstanceSelected" />;
@@ -43,7 +43,7 @@ function SectionTitle() {
   );
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-normal">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-normal">
       <span className="font-medium">{instance.displayName}</span>
 
       <span>
@@ -51,7 +51,7 @@ function SectionTitle() {
       </span>
 
       <Badge color="green" size={1}>
-        <T id={`category.${instance.category}`} />
+        <TranslateEnum enum="instanceCategory" value={instance.category} />
       </Badge>
 
       {regions.length === 1 && (

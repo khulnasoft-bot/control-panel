@@ -1,20 +1,20 @@
+import { Spinner } from '@design-system';
 import { useQuery } from '@tanstack/react-query';
 
-import { Spinner } from '@snipkit/design-system';
-import { useApiQueryFn } from 'src/api/use-api';
+import { apiQuery } from 'src/api';
 import { createTranslate } from 'src/intl/translate';
 
 const T = createTranslate('pages.onboarding.automaticReview');
 
 export function AutomaticReview() {
   useQuery({
-    ...useApiQueryFn('getCurrentOrganization'),
-    refetchInterval: 1000,
+    ...apiQuery('get /v1/account/organization', {}),
+    refetchInterval: 1_000,
   });
 
   return (
-    <div className="row justify-center gap-4">
-      <Spinner className="size-6" />
+    <div className="row items-center gap-2">
+      <Spinner className="size-5" />
       <p className="text-base">
         <T id="pending" />
       </p>

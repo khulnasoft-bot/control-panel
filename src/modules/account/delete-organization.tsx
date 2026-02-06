@@ -1,77 +1,44 @@
+import { Button } from '@design-system';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useAuth } from '@workos-inc/authkit-react';
 
-import { Button } from '@snipkit/design-system';
-import { api } from 'src/api/api';
-import { useOrganization, useUser } from 'src/api/hooks/session';
-import { useApiQueryFn } from 'src/api/use-api';
-import { notify } from 'src/application/notify';
-import { routes } from 'src/application/routes';
-import { useToken } from 'src/application/token';
+import { apiMutation, apiQuery, useOrganization, useOrganizationsList, useSwitchOrganization } from 'src/api';
 import { QueryError } from 'src/components/query-error';
 import { SectionHeader } from 'src/components/section-header';
-import { useNavigate } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
+import { Organization } from 'src/model';
 
 const T = createTranslate('modules.account.deleteOrganization');
 
 export function DeleteOrganization() {
-  const { token, setToken } = useToken();
-  const user = useUser();
-  const organization = useOrganization();
+  const { signOut } = useAuth();
 
-  const navigate = useNavigate();
-  const t = T.useTranslate();
+  const organization = useOrganization();
+  const organizations = useOrganizationsList();
+  const switchOrganization = useSwitchOrganization();
 
   const unpaidInvoicesQuery = useQuery({
-    ...useApiQueryFn('hasUnpaidInvoices'),
-    enabled: organization.currentSubscriptionId !== undefined,
+    ...apiQuery('get /v1/billing/has_unpaid_invoices', {}),
+    enabled: organization?.currentSubscriptionId !== undefined,
     select: (result) => result.has_unpaid_invoices!,
   });
 
   const deleteOrganization = useMutation({
-    async mutationFn() {
-      const { members } = await api.listOrganizationMembers({
-        token,
-        query: { user_id: user.id },
-      });
+    ...apiMutation('delete /v1/organizations/{id}', (organization: Organization) => ({
+      path: { id: organization.id },
+    })),
+    async onSuccess() {
+      const otherOrganization = organizations.find((org) => org.id !== organization?.id);
 
-      const [otherOrganizationId] = members!
-        .map((member) => member.organization_id!)
-        .filter((organizationId) => organizationId !== organization.id);
-
-      let result: string | undefined = undefined;
-
-      if (otherOrganizationId) {
-        const { token: newToken } = await api.switchOrganization({
-          token,
-          path: { id: otherOrganizationId },
-          header: {},
-        });
-
-        result = newToken!.id!;
+      if (otherOrganization) {
+        await switchOrganization.mutateAsync(otherOrganization.externalId);
       } else {
-        const { token: newToken } = await api.newSession({
-          token,
-        });
-
-        result = newToken!.id!;
+        signOut();
       }
-
-      await api.deleteOrganization({
-        token,
-        path: { id: organization.id },
-      });
-
-      return result;
-    },
-    onSuccess(token) {
-      notify.info(t('successNotification', { organizationName: organization.name }));
-      setToken(token);
-      navigate(routes.home());
     },
   });
 
-  const isDeactivated = organization.status === 'DEACTIVATED';
+  const isDeactivated = organization?.status === 'DEACTIVATED';
   const hasUnpaidInvoices = unpaidInvoicesQuery.data;
   const canDeleteOrganization = isDeactivated && !hasUnpaidInvoices;
 
@@ -93,7 +60,7 @@ export function DeleteOrganization() {
           color="red"
           loading={deleteOrganization.isPending}
           disabled={!canDeleteOrganization}
-          onClick={() => deleteOrganization.mutate()}
+          onClick={() => deleteOrganization.mutate(organization!)}
         >
           <T id="delete" />
         </Button>

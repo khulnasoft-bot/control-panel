@@ -1,23 +1,36 @@
-import { Meta, StoryFn } from '@storybook/react';
+import { Meta, StoryFn } from '@storybook/react-vite';
 import { useState } from 'react';
 
-import { Address } from 'src/api/model';
+import { Address } from 'src/model';
 
 import { AddressField } from './address-field';
 
+type Args = {
+  error: boolean;
+};
+
 export default {
   title: 'Components/AddressField',
-  decorators: [
-    (Story) => (
-      <div className="max-w-lg">
-        <Story />
-      </div>
-    ),
-  ],
-} satisfies Meta;
+  args: {
+    error: false,
+  },
+} satisfies Meta<Args>;
 
-export const addressField: StoryFn = () => {
-  const [address, setAddress] = useState<Address>();
+export const addressField: StoryFn<Args> = ({ error }) => {
+  const [address, setAddress] = useState<Address>({
+    line1: '',
+    city: '',
+    postalCode: '',
+    country: '',
+  });
 
-  return <AddressField value={address} onChange={setAddress} />;
+  return (
+    <AddressField
+      value={address}
+      onChange={setAddress}
+      errors={error ? { line1: { message: 'Error message' } } : undefined}
+      label="Address"
+      placeholder="Search for an address"
+    />
+  );
 };

@@ -1,22 +1,73 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { getBaseDomain } from './src/utils/getBaseDomain';
 
-import { sentryVitePlugin } from '@sentry/vite-plugin';
-import react from '@vitejs/plugin-react';
 import dotenv from 'dotenv';
-import { Plugin } from 'vite';
+import { defineConfig, type Plugin } from 'vitest/config';
+
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import tanstackRouter from '@tanstack/router-plugin/vite';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
+
 import preload from 'vite-plugin-preload';
 import svgr from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
-import { defineConfig } from 'vitest/config';
 
 dotenv.config();
 
+/* ---------------------------------------------------------
+ * Env & Paths
+ * ------------------------------------------------------- */
+const ROOT = process.cwd();
+const IS_PROD = process.env.VITE_ENVIRONMENT === 'production';
+const APP_VERSION = process.env.VITE_APP_VERSION ?? 'unknown';
+
+const DESIGN_SYSTEM_SRC = path.resolve(
+  ROOT,
+  'apps/design-system',
+);
+
+/* ---------------------------------------------------------
+ * Helpers
+ * ------------------------------------------------------- */
+function robotsTxt(): string {
+  return [
+    'User-agent: *',
+    IS_PROD ? 'Disallow:' : 'Disallow: /',
+    '',
+  ].join('\n');
+}
+
+/* ---------------------------------------------------------
+ * Vite Config
+ * ------------------------------------------------------- */
 export default defineConfig({
+  base: '/',
+
+  resolve: {
+    alias: {
+      '@design-system': DESIGN_SYSTEM_SRC,
+    },
+  },
+
   plugins: [
+    /* Path resolution */
     tsconfigPaths(),
+
+    /* Routing */
+    tanstackRouter({
+      target: 'react',
+      autoCodeSplitting: true,
+      routesDirectory: './src/routes',
+      generatedRouteTree: './src/route-tree.generated.ts',
+      tmpDir: 'node_modules/.tanstack',
+    }),
+
+    /* Core */
     react(),
+    tailwindcss(),
+
+    /* Assets */
     svgr({
       svgrOptions: {
         ref: true,
@@ -38,34 +89,29 @@ export default defineConfig({
       },
     }),
     preload(),
+
+    /* Build outputs */
     outputFile({
       filePath: 'robots.txt',
-      content() {
-        const disallow = () => {
-          if (process.env.VITE_ENVIRONMENT !== 'production') {
-            return 'Disallow: /';
-          }
-
-          return `Disallow:`;
-        };
-
-        return ['User-agent: *', disallow(), ''].join('\n');
-      },
+      content: robotsTxt,
     }),
     outputFile({
       filePath: 'version.txt',
-      content: () => process.env.VITE_APP_VERSION ?? 'unknown',
+      content: () => APP_VERSION,
     }),
+
+    /* Observability (prod only) */
+    process.env.SENTRY_AUTH_TOKEN &&
     sentryVitePlugin({
-      org: 'gosnipkit',
+      org: 'khulnasoft',
       project: 'kdx',
       authToken: process.env.SENTRY_AUTH_TOKEN,
-      release: { name: process.env.VITE_APP_VERSION },
+      release: { name: APP_VERSION },
       silent: true,
       telemetry: false,
     }),
-  ],
-  base: '/',
+  ].filter(Boolean),
+
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -96,45 +142,49 @@ export default defineConfig({
       },
     },
   },
+
   server: {
     port: 8000,
     proxy: {
-      '/v1': {
-        target: process.env.VITE_API_BASE_URL || `https://${getBaseDomain()}/staging`,
-        changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/v1/, '')
-      },
+      '/v1': process.env.PROXY_API_URL!,
     },
   },
+
   preview: {
     port: 3000,
   },
+
   test: {
     watch: false,
     environment: 'happy-dom',
     reporters: 'verbose',
     dir: 'src',
-    setupFiles: ['src/vitest.setup.ts'],
     restoreMocks: true,
   },
 });
 
+/* ---------------------------------------------------------
+ * Custom Plugins
+ * ------------------------------------------------------- */
 type OutputFileOptions = {
   filePath: string;
   content: () => string;
 };
 
 function outputFile({ filePath, content }: OutputFileOptions): Plugin {
-  let dist = '';
+  let outDir = '';
 
   return {
-    name: 'outputFile',
+    name: `output-file:${filePath}`,
     configResolved(config) {
-      dist = path.resolve(config.root, config.build.outDir);
+      outDir = path.resolve(config.root, config.build.outDir);
     },
-    async closeBundle() {
-      await fs.writeFile(path.join(dist, filePath), content());
+    async writeBundle() {
+      await fs.writeFile(
+        path.join(outDir, filePath),
+        content(),
+        'utf-8',
+      );
     },
   };
 }

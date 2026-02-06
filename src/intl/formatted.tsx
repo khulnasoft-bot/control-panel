@@ -1,8 +1,14 @@
+import { Badge, TooltipTitle } from '@design-system';
 import { useMemo } from 'react';
 import { FormattedDate, FormattedNumber, FormattedRelativeTime } from 'react-intl';
 
-import { Tooltip } from '@snipkit/design-system';
+import { Tooltip } from 'src/components/tooltip';
+import { useNow } from 'src/hooks/timers';
+import { inArray } from 'src/utils/arrays';
+import { getUtcOffset } from 'src/utils/date';
 import { identity } from 'src/utils/generic';
+
+import { Translate } from './translate';
 
 type FormattedPriceProps = {
   /** value in cents */
@@ -28,35 +34,80 @@ type FormattedDistanceToNowTimeProps = Omit<React.HTMLAttributes<HTMLSpanElement
   FormattedDistanceToNowTimeOwnProps;
 
 export function FormattedDistanceToNow({
-  value: valueProp,
+  value,
   style,
   children = identity,
   ...props
 }: FormattedDistanceToNowTimeProps) {
-  const [value, unit] = useMemo(() => {
-    return getDistanceToNow(new Date(valueProp));
-  }, [valueProp]);
+  const now = useNow();
+
+  const [relativeTime, unit] = useMemo(() => {
+    return getDistanceToNow(new Date(value), now);
+  }, [value, now]);
+
+  const updateIntervalInSeconds = inArray(unit, ['second', 'minute', 'hour']) ? 1 : undefined;
 
   return (
-    <Tooltip content={<FormattedDate value={valueProp} dateStyle="medium" timeStyle="medium" />}>
-      {(tooltipProps) => (
-        <span {...tooltipProps} {...props}>
+    <Tooltip
+      arrow
+      placement="top"
+      trigger={(triggerProps) => (
+        <span {...triggerProps} {...props}>
           {children(
             <FormattedRelativeTime
-              value={value}
+              value={relativeTime}
               unit={unit}
               style={style}
-              updateIntervalInSeconds={['second', 'minute', 'hour'].includes(unit as string) ? 1 : undefined}
+              updateIntervalInSeconds={updateIntervalInSeconds}
             />,
           )}
         </span>
       )}
-    </Tooltip>
+      className="col min-w-60 gap-3 text-xs"
+      content={
+        <>
+          <TooltipTitle
+            title={
+              <FormattedRelativeTime
+                value={relativeTime}
+                unit={unit}
+                updateIntervalInSeconds={updateIntervalInSeconds}
+              />
+            }
+          />
+
+          <FormattedDateTime date={value} utc />
+          <FormattedDateTime date={value} />
+        </>
+      }
+    />
   );
 }
 
-function getDistanceToNow(date: Date): [number, RelativeTimeFormatSingularUnit] {
-  let value = (date.getTime() - Date.now()) / 1000;
+type FormattedDateTimeProps = {
+  date: string | Date;
+  utc?: boolean;
+};
+
+function FormattedDateTime({ date, utc }: FormattedDateTimeProps) {
+  return (
+    <div className="row items-center gap-4">
+      <div className="row items-center gap-1">
+        <Badge size={1}>
+          <Translate id="common.utc" values={{ offset: utc ? null : getUtcOffset() }} />
+        </Badge>
+        <FormattedDate value={date} timeZone={utc ? 'utc' : undefined} dateStyle="medium" />
+      </div>
+
+      <div className="ml-auto text-dim">
+        <FormattedDate value={date} timeZone={utc ? 'utc' : undefined} timeStyle="medium" />
+      </div>
+    </div>
+  );
+}
+
+function getDistanceToNow(date: Date, now: Date): [number, RelativeTimeFormatSingularUnit] {
+  let value = (date.getTime() - now.getTime()) / 1000;
 
   if (Math.abs(value) < 60) {
     return [Math.round(value), 'second'];

@@ -1,17 +1,17 @@
+import { Button, InputEnd } from '@design-system';
 import isEqual from 'lodash-es/isEqual';
 import { useFormContext } from 'react-hook-form';
 
-import { Button, Input, InputEnd } from '@snipkit/design-system';
 import { onKeyDownPositiveInteger } from 'src/application/restrict-keys';
-import { ControlledInput, ControlledSelect } from 'src/components/controlled';
-import { IconRefresh } from 'src/components/icons';
-import { createTranslate } from 'src/intl/translate';
+import { ControlledInput, ControlledSelect } from 'src/components/forms';
+import { Input } from 'src/components/forms/input';
+import { IconRefreshCcw } from 'src/icons';
+import { TranslateEnum, createTranslate } from 'src/intl/translate';
 import { identity } from 'src/utils/generic';
 
 import { defaultHealthCheck } from '../../helpers/initialize-service-form';
 import { HealthCheck, Port, ServiceForm } from '../../service-form.types';
 
-import { HealthCheckProtocol } from './health-check-protocol';
 import { HttpHealthCheckFields } from './http-health-check-fields';
 
 const T = createTranslate('modules.serviceForm.healthChecks.healthCheck');
@@ -35,8 +35,8 @@ export function HealthCheckFields({ port, index }: HealthCheckFieldsProps) {
         items={['tcp', 'http']}
         getKey={identity}
         itemToString={identity}
-        itemToValue={identity}
-        renderItem={(protocol) => <HealthCheckProtocol protocol={protocol} />}
+        getValue={identity}
+        renderItem={(protocol) => <TranslateEnum enum="portProtocol" value={protocol} />}
         onChangeEffect={() => void trigger(`ports.${index}.healthCheck.path`)}
       />
 
@@ -44,7 +44,7 @@ export function HealthCheckFields({ port, index }: HealthCheckFieldsProps) {
         name={`ports.${index}.healthCheck.gracePeriod`}
         type="number"
         label={<T id="gracePeriodLabel" />}
-        helpTooltip={<T id="gracePeriodTooltip" />}
+        tooltip={<T id="gracePeriodTooltip" />}
         onKeyDown={onKeyDownPositiveInteger}
         min={5}
         max={15 * 60}
@@ -59,7 +59,7 @@ export function HealthCheckFields({ port, index }: HealthCheckFieldsProps) {
         name={`ports.${index}.healthCheck.interval`}
         type="number"
         label={<T id="intervalLabel" />}
-        helpTooltip={<T id="intervalTooltip" />}
+        tooltip={<T id="intervalTooltip" />}
         onKeyDown={onKeyDownPositiveInteger}
         min={3}
         max={5 * 60}
@@ -74,7 +74,7 @@ export function HealthCheckFields({ port, index }: HealthCheckFieldsProps) {
         name={`ports.${index}.healthCheck.restartLimit`}
         type="number"
         label={<T id="restartLimitLabel" />}
-        helpTooltip={<T id="restartLimitTooltip" />}
+        tooltip={<T id="restartLimitTooltip" />}
         min={1}
         max={10}
         onKeyDown={onKeyDownPositiveInteger}
@@ -84,7 +84,7 @@ export function HealthCheckFields({ port, index }: HealthCheckFieldsProps) {
         name={`ports.${index}.healthCheck.timeout`}
         type="number"
         label={<T id="timeoutLabel" />}
-        helpTooltip={<T id="timeoutTooltip" />}
+        tooltip={<T id="timeoutTooltip" />}
         onKeyDown={onKeyDownPositiveInteger}
         min={1}
         max={10 * 60}
@@ -106,7 +106,7 @@ export function HealthCheckFields({ port, index }: HealthCheckFieldsProps) {
             setValue(`ports.${index}.healthCheck`, defaultHealthCheck(), { shouldValidate: true })
           }
         >
-          <IconRefresh className="size-4" />
+          <IconRefreshCcw className="size-4" />
           <T id="defaultValues" />
         </Button>
       </div>

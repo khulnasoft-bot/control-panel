@@ -1,15 +1,12 @@
+import { Alert, Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 
-import { Alert, Button } from '@snipkit/design-system';
-import { useOrganization } from 'src/api/hooks/session';
-import { DatabaseDeployment, Service } from 'src/api/model';
-import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
+import { apiMutation, useInvalidateApiQuery, useOrganization } from 'src/api';
 import { notify } from 'src/application/notify';
-import { routes } from 'src/application/routes';
 import { getDatabaseServiceReachedQuota } from 'src/application/service-functions';
 import { ExternalLink, LinkButton } from 'src/components/link';
-import { useFeatureFlag } from 'src/hooks/feature-flag';
 import { createTranslate } from 'src/intl/translate';
+import { DatabaseDeployment, Service } from 'src/model';
 
 const T = createTranslate('pages.database.layout.alerts');
 
@@ -19,8 +16,7 @@ type DatabaseAlertsProps = {
 };
 
 export function DatabaseAlerts({ service, deployment }: DatabaseAlertsProps) {
-  const hasDatabaseActiveTime = useFeatureFlag('database-active-time');
-  const reachedQuota = getDatabaseServiceReachedQuota(Boolean(hasDatabaseActiveTime), service, deployment);
+  const reachedQuota = getDatabaseServiceReachedQuota(service, deployment);
 
   if (service.status === 'PAUSED') {
     return <DatabasePausedAlert service={service} />;
@@ -38,11 +34,12 @@ function DatabasePausedAlert({ service }: { service: Service }) {
   const t = T.useTranslate();
 
   const mutation = useMutation({
-    ...useApiMutationFn('resumeService', {
+    ...apiMutation('post /v1/services/{id}/resume', {
       path: { id: service.id },
+      query: { skip_build: true },
     }),
     async onSuccess() {
-      await invalidate('getService', { path: { id: service.id } });
+      await invalidate('get /v1/services/{id}', { path: { id: service.id } });
       notify.info(t('databasePaused.resuming'));
     },
   });
@@ -68,14 +65,14 @@ function QuotaReachedAlert({ service, quota }: QuotaReachedAlertProps) {
     <ExternalLink
       openInNewTab
       className="underline"
-      href="https://www.snipkit.com/docs/databases#database-instance-types"
+      href="https://www.khulnasoft.com/docs/databases#database-instance-types"
     >
       {children}
     </ExternalLink>
   );
 
   const message = () => {
-    if (organization.plan === 'hobby') {
+    if (organization?.plan === 'hobby') {
       return <T id={`quotaReached.hobbyPlan.${quota}`} values={{ link }} />;
     }
 
@@ -84,17 +81,14 @@ function QuotaReachedAlert({ service, quota }: QuotaReachedAlertProps) {
 
   return (
     <Alert variant="warning" description={message()}>
-      {organization.plan === 'hobby' ? (
-        <LinkButton
-          href={routes.organizationSettings.plans()}
-          color="orange"
-          className="self-center whitespace-nowrap"
-        >
+      {organization?.plan === 'hobby' ? (
+        <LinkButton to="/settings/plans" color="orange" className="self-center whitespace-nowrap">
           <T id="quotaReached.upgradePlan" />
         </LinkButton>
       ) : (
         <LinkButton
-          href={routes.database.settings(service.id)}
+          to="/database-services/$databaseServiceId/settings"
+          params={{ databaseServiceId: service.id }}
           color="orange"
           className="self-center whitespace-nowrap"
         >

@@ -1,7 +1,8 @@
 import { useCallback, useEffect } from 'react';
-import { usePathname } from 'wouter/use-browser-location';
 
-import { useUserUnsafe } from 'src/api/hooks/session';
+import { useUser } from 'src/api';
+
+import { usePathname } from './router';
 
 type OpenPopupOptions = {
   layout: 'modal';
@@ -20,11 +21,11 @@ declare global {
 
 export const tallyForms = {
   getInTouch: 'nGLjGo',
-  tenstorrentRequest: 'npRak8',
+  requestTenstorrentAccess: 'npRak8',
 };
 
 export function useTallyDialog(formId: string, onSubmitted?: () => void) {
-  const user = useUserUnsafe();
+  const user = useUser();
 
   useEffect(() => {
     if (document.getElementById('tally-embed-script') !== null) {
@@ -54,7 +55,7 @@ export function useTallyDialog(formId: string, onSubmitted?: () => void) {
     const listener = (event: MessageEvent) => {
       const data: unknown = event.data;
 
-      if (typeof data === 'string' && data?.includes?.(eventName)) {
+      if (typeof data === 'string' && data.includes(eventName)) {
         callback?.();
       }
     };

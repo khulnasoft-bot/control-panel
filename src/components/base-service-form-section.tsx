@@ -1,18 +1,18 @@
+import { AccordionSection } from '@design-system';
 import clsx from 'clsx';
 
-import { AccordionSection } from '@snipkit/design-system';
-import { IconChevronDown } from 'src/components/icons';
 import { Shortcut } from 'src/components/shortcut';
+import { IconChevronDown } from 'src/icons';
 
 type ExpandSource = 'click' | 'keydown' | 'shortcut';
 
 type BaseServiceFormSectionProps = {
-  expanded: boolean;
-  expand: (source: ExpandSource) => void;
-  keepMounted?: boolean;
   title: React.ReactNode;
-  expandedTitle: React.ReactNode;
-  description: React.ReactNode;
+  summary: React.ReactNode;
+  action: React.ReactNode;
+  expanded: boolean;
+  onExpand: (source: ExpandSource) => void;
+  keepMounted?: boolean;
   shortcut?: number;
   hasError?: boolean;
   className?: string;
@@ -20,12 +20,12 @@ type BaseServiceFormSectionProps = {
 };
 
 export function BaseServiceFormSection({
-  expanded,
-  expand,
-  keepMounted,
   title,
-  expandedTitle,
-  description,
+  summary,
+  action,
+  expanded,
+  onExpand: expand,
+  keepMounted,
   shortcut,
   hasError,
   className,
@@ -38,8 +38,8 @@ export function BaseServiceFormSection({
         <Header
           expanded={expanded}
           hasError={hasError}
-          title={expanded ? expandedTitle : title}
-          description={description}
+          title={title}
+          description={expanded ? action : summary}
           shortcut={shortcut?.toString()}
           expand={expand}
         />
@@ -66,22 +66,14 @@ function Header({ expanded, hasError, title, description, shortcut, expand }: He
     <header
       className={clsx(
         'row cursor-pointer items-center gap-6 px-5 py-2',
-        expanded && 'bg-gradient-to-b from-inverted/5 to-inverted/0',
-        hasError && 'bg-gradient-to-b from-red/10 to-red/0',
+        expanded && 'bg-linear-to-b from-inverted/5 to-inverted/0',
+        hasError && 'bg-linear-to-b from-red/10 to-red/0',
       )}
       onClick={() => expand('click')}
     >
-      <div>
-        <IconChevronDown
-          tabIndex={0}
-          onKeyDown={(event) => event.key === ' ' && expand('keydown')}
-          className={clsx('focusable text-icon size-5 rounded', expanded && 'rotate-180')}
-        />
-      </div>
-
       <div className="col min-w-0 gap-1">
-        <span className="text-xs text-dim">{description}</span>
         <span className="font-medium">{title}</span>
+        <span className="text-xs text-dim">{description}</span>
       </div>
 
       {shortcut !== undefined && (
@@ -89,6 +81,14 @@ function Header({ expanded, hasError, title, description, shortcut, expand }: He
           <Shortcut keystrokes={['meta', shortcut]} onTrigger={() => expand('shortcut')} />
         </div>
       )}
+
+      <div>
+        <IconChevronDown
+          tabIndex={0}
+          onKeyDown={(event) => event.key === ' ' && expand('keydown')}
+          className={clsx('size-5 rounded-sm text-icon focusable', expanded && 'rotate-180')}
+        />
+      </div>
     </header>
   );
 }

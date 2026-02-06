@@ -1,12 +1,12 @@
 import { z } from 'zod';
 
-import { createValidationGuard } from 'src/application/create-validation-guard';
+import { createValidationGuard } from 'src/application/validation';
+import { Activity } from 'src/model';
 import { requiredDeep, snakeToCamelDeep } from 'src/utils/object';
 
-import { Api } from '../api-types';
-import { Activity } from '../model';
+import { API } from '../api-types';
 
-export function mapActivity(activity: Api.Activity): Activity {
+export function mapActivity(activity: API.Activity): Activity {
   const result = snakeToCamelDeep(requiredDeep(activity));
 
   if (isDatabaseDeploymentActivity(result)) {

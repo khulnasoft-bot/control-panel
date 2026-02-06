@@ -1,36 +1,31 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Alert, Button } from '@design-system';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { useController, useForm, UseFormReturn } from 'react-hook-form';
+import { UseFormReturn, useController, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Alert, Button } from '@snipkit/design-system';
 import {
-  useDatacenters,
-  useInstance,
-  useInstances,
-  useInstancesQuery,
+  useApi,
+  useCatalogInstance,
+  useDatacentersCatalog,
+  useInstancesCatalog,
   useModel,
   useModels,
-  useModelsQuery,
-  useRegions,
-  useRegionsQuery,
-} from 'src/api/hooks/catalog';
-import { useGithubAppQuery } from 'src/api/hooks/git';
-import { AiModel, CatalogInstance } from 'src/api/model';
+  useRegionsCatalog,
+} from 'src/api';
 import { getDefaultRegion } from 'src/application/default-region';
 import { useInstanceAvailabilities } from 'src/application/instance-region-availability';
 import { formatBytes } from 'src/application/memory';
 import { notify } from 'src/application/notify';
-import { routes } from 'src/application/routes';
-import { ControlledSelect } from 'src/components/controlled';
+import { ControlledSelect } from 'src/components/forms';
 import { LinkButton } from 'src/components/link';
-import { Loading } from 'src/components/loading';
 import { Metadata } from 'src/components/metadata';
 import { FormValues, handleSubmit } from 'src/hooks/form';
 import { useDeepCompareMemo } from 'src/hooks/lifecycle';
 import { useNavigate } from 'src/hooks/router';
-import { useZodResolver } from 'src/hooks/validation';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { Translate, createTranslate } from 'src/intl/translate';
+import { AiModel, CatalogInstance } from 'src/model';
 import { InstanceSelector } from 'src/modules/instance-selector/instance-selector';
 import { inArray } from 'src/utils/arrays';
 import { assert, defined } from 'src/utils/assert';
@@ -40,9 +35,7 @@ import { slugify } from 'src/utils/strings';
 import { useGetInstanceBadges } from '../instance-selector/instance-badges';
 import { useInstanceSelector } from '../instance-selector/instance-selector-state';
 
-import { QuotaIncreaseRequestDialog } from './components/quota-increase-request-dialog';
-import { ServiceFormUpgradeDialog } from './components/service-form-upgrade-dialog';
-import { computeEstimatedCost, ServiceCost } from './helpers/estimated-cost';
+import { ServiceCost, computeEstimatedCost } from './helpers/estimated-cost';
 import { defaultServiceForm } from './helpers/initialize-service-form';
 import { usePreSubmitServiceForm } from './helpers/pre-submit-service-form';
 import { submitServiceForm } from './helpers/submit-service-form';
@@ -63,27 +56,16 @@ type ModelFormProps = {
   onCostChanged: (cost?: ServiceCost) => void;
 };
 
-export function ModelForm(props: ModelFormProps) {
-  const instances = useInstancesQuery();
-  const regions = useRegionsQuery();
-  const githubApp = useGithubAppQuery();
-  const models = useModelsQuery();
-
-  if (instances.isPending || regions.isPending || githubApp.isPending || models.isPending) {
-    return <Loading />;
-  }
-
-  return <ModelForm_ {...props} />;
-}
-
-function ModelForm_({ model: initialModel, onCostChanged }: ModelFormProps) {
-  const instances = useInstances();
-  const models = useModels();
+export function ModelForm({ model: initialModel, onCostChanged }: ModelFormProps) {
+  const api = useApi();
   const navigate = useNavigate();
+
+  const instances = useInstancesCatalog();
+  const models = useModels();
 
   const form = useForm<ModelFormType>({
     defaultValues: useInitialValues(initialModel ?? defined(models[0])),
-    resolver: useZodResolver(schema),
+    resolver: zodResolver(schema),
   });
 
   const mutation = useMutation({
@@ -106,68 +88,59 @@ function ModelForm_({ model: initialModel, onCostChanged }: ModelFormProps) {
       assert(serviceForm.ports[0] !== undefined);
       serviceForm.ports[0].healthCheck.gracePeriod = 300;
 
-      return submitServiceForm(serviceForm);
+      return submitServiceForm(api, serviceForm);
     },
     onError: (error) => notify.error(error.message),
-    onSuccess({ serviceId }) {
-      navigate(routes.initialDeployment(serviceId));
+    async onSuccess({ serviceId }) {
+      await navigate({ to: '/services/new', search: { step: 'initialDeployment', serviceId } });
     },
   });
 
   const model = useModel(form.watch('modelSlug'));
   const formRef = useRef<HTMLFormElement>(null);
 
-  const [requiredPlan, preSubmit] = usePreSubmitServiceForm();
+  const preSubmit = usePreSubmitServiceForm(formRef.current);
 
   useOnCostEstimationChanged(form, onCostChanged);
 
   return (
-    <>
-      <form
-        ref={formRef}
-        onSubmit={handleSubmit(form, (values) => {
-          const instance = instances.find(hasProperty('id', values.instance));
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit(form, (values) => {
+        const instance = instances.find(hasProperty('id', values.instance));
 
-          if (instance && preSubmit(instance)) {
-            return mutation.mutateAsync(values);
-          }
-        })}
-        className="col gap-6"
-      >
-        <OverviewSection model={model} form={form} />
-        {initialModel === undefined && <ModelSection form={form} />}
-        <InstanceSection model={model} form={form} />
+        if (instance && preSubmit(instance)) {
+          return mutation.mutateAsync(values);
+        }
+      })}
+      className="col gap-6"
+    >
+      <OverviewSection model={model} form={form} />
+      {initialModel === undefined && <ModelSection form={form} />}
+      <InstanceSection model={model} form={form} />
 
-        <div className="row justify-end gap-2">
-          <LinkButton color="gray" href={routes.home()}>
-            <Translate id="common.cancel" />
-          </LinkButton>
+      <div className="row justify-end gap-2">
+        <LinkButton color="gray" to="/">
+          <Translate id="common.cancel" />
+        </LinkButton>
 
-          <Button type="submit" loading={form.formState.isSubmitting}>
-            <T id="submitButton" />
-          </Button>
-        </div>
-      </form>
-
-      <QuotaIncreaseRequestDialog catalogInstanceId={form.watch('instance')} />
-      <ServiceFormUpgradeDialog plan={requiredPlan} submitForm={() => formRef.current?.requestSubmit()} />
-    </>
+        <Button type="submit" loading={form.formState.isSubmitting}>
+          <T id="submitButton" />
+        </Button>
+      </div>
+    </form>
   );
 }
 
 function useOnCostEstimationChanged(form: ModelForm, onChanged: (cost?: ServiceCost) => void) {
-  const instance = useInstance(form.watch('instance'));
-  const regions = useDeepCompareMemo(useRegions(form.watch('regions')));
+  const instance = useCatalogInstance(form.watch('instance'));
+  const regions = useDeepCompareMemo(useRegionsCatalog(form.watch('regions')));
 
   useEffect(() => {
     const cost = computeEstimatedCost(
       instance,
       regions.map((region) => region.id),
-      {
-        min: 0,
-        max: 1,
-        targets: null as never,
-      },
+      { min: 0, max: 1 },
     );
 
     onChanged(cost);
@@ -190,16 +163,16 @@ function instanceBestFit(model?: AiModel) {
 
 function useInitialValues(model: AiModel): Partial<ModelFormType> {
   const queryClient = useQueryClient();
-  const instances = useInstances();
-  const datacenters = useDatacenters();
-  const regions = useRegions();
+  const instances = useInstancesCatalog();
+  const datacenters = useDatacentersCatalog();
+  const regions = useRegionsCatalog();
 
   const instance = instances.find(instanceBestFit(model));
   const continentalRegions = regions.filter(hasProperty('scope', 'continental'));
   const defaultRegion = getDefaultRegion(queryClient, datacenters, continentalRegions, instance);
 
   return {
-    modelSlug: model?.slug,
+    modelSlug: model.slug,
     instance: instance?.id,
     regions: [defaultRegion?.id ?? 'fra'],
   };
@@ -220,12 +193,12 @@ function Section({ title, children }: SectionProps) {
 }
 
 function OverviewSection({ model, form }: { model?: AiModel; form: ModelForm }) {
-  const instance = useInstance(form.watch('instance'));
-  const regions = useRegions(form.watch('regions'));
+  const instance = useCatalogInstance(form.watch('instance'));
+  const regions = useRegionsCatalog(form.watch('regions'));
 
   return (
     <Section title={<T id="overview.title" />}>
-      <div className="divide-y rounded border">
+      <div className="divide-y rounded-sm border">
         {model && model.metadata.length > 0 && (
           <div className="row flex-wrap gap-x-12 gap-y-4 p-3">
             {model.metadata.map(({ name, value }, index) => (
@@ -246,7 +219,7 @@ function OverviewSection({ model, form }: { model?: AiModel; form: ModelForm }) 
 
 function ModelSection({ form }: { form: ModelForm }) {
   const models = useModels();
-  const instances = useInstances();
+  const instances = useInstancesCatalog();
 
   return (
     <Section title={<T id="model.title" />}>
@@ -256,7 +229,7 @@ function ModelSection({ form }: { form: ModelForm }) {
         items={models}
         getKey={(model) => model.slug}
         itemToString={getName}
-        itemToValue={(model) => model.slug}
+        getValue={(model) => model.slug}
         renderItem={(model) => model.name}
         onChangeEffect={(model) => {
           const instance = instances.find(instanceBestFit(model));
@@ -273,8 +246,8 @@ function ModelSection({ form }: { form: ModelForm }) {
 
 function InstanceSection({ model, form }: { model?: AiModel; form: ModelForm }) {
   const availabilities = useInstanceAvailabilities();
-  const instances = useInstances();
-  const regions = useRegions();
+  const instances = useInstancesCatalog();
+  const regions = useRegionsCatalog();
 
   const bestFit = instances.find(instanceBestFit(model));
 
@@ -301,7 +274,7 @@ function InstanceSection({ model, form }: { model?: AiModel; form: ModelForm }) 
 
   return (
     <Section title={<T id="instance.title" />}>
-      <div className="col scrollbar-green scrollbar-thin max-h-96 gap-3 overflow-auto rounded-md border p-2">
+      <div className="col max-h-96 scrollbar-thin gap-3 overflow-auto rounded-md border p-2 scrollbar-green">
         <InstanceSelector {...selector} getBadges={getBadges} />
       </div>
 

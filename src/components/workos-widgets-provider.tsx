@@ -1,0 +1,29 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { WorkOsWidgets } from '@workos-inc/widgets';
+
+import { getConfig } from 'src/application/config';
+import { useThemeMode } from 'src/hooks/theme';
+
+import '@radix-ui/themes/styles.css';
+import '@workos-inc/widgets/styles.css';
+import 'src/workos.css';
+
+export default function WorkOSWidgetsProvider({ children }: { children: React.ReactNode }) {
+  const theme = useThemeMode();
+  const queryClient = useQueryClient();
+
+  return (
+    <WorkOsWidgets
+      apiHostname={getConfig('workOsApiHost')}
+      queryClient={queryClient}
+      theme={{
+        appearance: theme === 'system' ? 'inherit' : theme,
+        fontFamily: 'var(--font-sans)',
+        accentColor: 'green',
+        grayColor: 'slate',
+      }}
+    >
+      {children}
+    </WorkOsWidgets>
+  );
+}

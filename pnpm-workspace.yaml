@@ -1,3 +1,4 @@
 packages:
-  - .
-  - ./design-system
+  - packages/tsconfig
+  - apps/control-panel
+  - packages/create-ai

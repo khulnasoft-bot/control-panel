@@ -1,17 +1,16 @@
+import { Alert, Button } from '@design-system';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
-import { Alert, Button } from '@snipkit/design-system';
-import { useInstance, useRegions } from 'src/api/hooks/catalog';
-import { Dialog } from 'src/components/dialog';
+import { useCatalogInstance, useRegionsCatalog } from 'src/api';
+import { openDialog } from 'src/components/dialog';
 import { DocumentationLink } from 'src/components/documentation-link';
-import { IconPlus } from 'src/components/icons';
+import { IconPlus } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
 
 import { ServiceFormSection } from '../../components/service-form-section';
 import { ServiceForm, ServiceFormSection as ServiceFormSectionType } from '../../service-form.types';
 import { useWatchServiceForm } from '../../use-service-form';
 
-import { CreateVolumeDialog } from './create-volume-dialog';
 import { VolumeFields } from './volume-fields';
 
 const T = createTranslate('modules.serviceForm.volumes');
@@ -22,9 +21,9 @@ export function VolumesSection() {
   return (
     <ServiceFormSection
       section="volumes"
-      title={<T id="title" values={{ count: volumes.length }} />}
-      description={<T id="description" />}
-      expandedTitle={<T id="titleExpanded" />}
+      title={<T id="title" />}
+      action={<T id="action" />}
+      summary={<T id="summary" values={{ count: volumes.length }} />}
       className="col gaps"
     >
       <SectionContent />
@@ -34,10 +33,9 @@ export function VolumesSection() {
 
 function SectionContent() {
   const { fields, append, remove } = useFieldArray<ServiceForm, 'volumes'>({ name: 'volumes' });
-  const openDialog = Dialog.useOpen();
 
   const documentationLink = (children: React.ReactNode) => (
-    <DocumentationLink path="/docs/reference/volumes" className="!text-default underline">
+    <DocumentationLink path="/docs/reference/volumes" className="text-default! underline">
       {children}
     </DocumentationLink>
   );
@@ -75,7 +73,7 @@ function SectionContent() {
         </div>
       )}
 
-      <div className="col sm:row items-start gap-4">
+      <div className="col items-start gap-4 sm:row">
         <Button
           variant="ghost"
           color="gray"
@@ -85,8 +83,6 @@ function SectionContent() {
           <T id="addVolume" />
         </Button>
       </div>
-
-      <CreateVolumeDialog />
     </>
   );
 }
@@ -94,11 +90,11 @@ function SectionContent() {
 function useVolumesUnavailableAlert(): { title: React.ReactNode; description: React.ReactNode } | undefined {
   const { setValue } = useFormContext<ServiceForm>();
 
-  const instance = useInstance(useWatchServiceForm('instance'));
+  const instance = useCatalogInstance(useWatchServiceForm('instance'));
   const hasScaleToZero = useWatchServiceForm('scaling.min') === 0;
   const hasMultipleInstances = useWatchServiceForm('scaling.max') > 1;
 
-  const regions = useRegions(useWatchServiceForm('regions'));
+  const regions = useRegionsCatalog(useWatchServiceForm('regions'));
   const hasMultipleRegions = useWatchServiceForm('regions').length > 1;
 
   const sectionLink = (section: ServiceFormSectionType) => {
@@ -118,7 +114,7 @@ function useVolumesUnavailableAlert(): { title: React.ReactNode; description: Re
     instancesLink: sectionLink('instance'),
     scalingLink: sectionLink('scaling'),
     documentationLink: (children: React.ReactNode) => (
-      <DocumentationLink path="/docs/reference/volumes" className="!text-default underline">
+      <DocumentationLink path="/docs/reference/volumes" className="text-default! underline">
         {children}
       </DocumentationLink>
     ),

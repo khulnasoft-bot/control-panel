@@ -1,10 +1,10 @@
 import { useController } from 'react-hook-form';
 
-import { ControlledCheckbox } from 'src/components/controlled';
+import { ControlledCheckbox } from 'src/components/forms';
+import { ShellCommandInput } from 'src/components/shell-command-input';
 import { createTranslate } from 'src/intl/translate';
 
 import { ServiceFormSection } from '../../components/service-form-section';
-import { ShellCommandInput } from '../../components/shell-command-input';
 import { DockerDeploymentOptions, ServiceForm } from '../../service-form.types';
 import { useWatchServiceForm } from '../../use-service-form';
 
@@ -14,9 +14,9 @@ export function DeploymentSection() {
   return (
     <ServiceFormSection
       section="deployment"
-      title={<SectionTitle />}
-      expandedTitle={<T id="expandedTitle" />}
-      description={<T id="description" />}
+      title={<T id="title" />}
+      action={<T id="action" />}
+      summary={<Summary />}
       className="col gaps"
     >
       <EntrypointInput />
@@ -26,13 +26,13 @@ export function DeploymentSection() {
       <ControlledCheckbox<ServiceForm>
         name="dockerDeployment.privileged"
         label={<T id="privilegedLabel" />}
-        helpTooltip={<T id="privilegedTooltip" />}
+        tooltip={<T id="privilegedTooltip" />}
       />
     </ServiceFormSection>
   );
 }
 
-function SectionTitle() {
+function Summary() {
   const options = useWatchServiceForm('dockerDeployment');
 
   return <T id={isDefaultConfiguration(options) ? 'defaultConfiguration' : 'customConfiguration'} />;
@@ -52,7 +52,7 @@ function EntrypointInput() {
   return (
     <ShellCommandInput
       label={<T id="entrypointLabel" />}
-      helpTooltip={<T id="entrypointTooltip" />}
+      tooltip={<T id="entrypointTooltip" />}
       placeholder={t('entrypointPlaceholder')}
       instruction="ENTRYPOINT"
       value={field.value}
@@ -79,7 +79,7 @@ function CommandInput() {
   return (
     <ShellCommandInput
       label={<T id="commandLabel" />}
-      helpTooltip={<T id="commandTooltip" />}
+      tooltip={<T id="commandTooltip" />}
       placeholder={t('commandPlaceholder')}
       instruction="CMD"
       value={value}

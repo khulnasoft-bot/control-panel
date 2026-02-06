@@ -2,10 +2,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { dequal } from 'dequal';
 import { useState } from 'react';
 
-import { useDatacenters } from 'src/api/hooks/catalog';
-import { CatalogInstance, CatalogRegion, InstanceCategory, RegionScope } from 'src/api/model';
+import { useDatacentersCatalog } from 'src/api';
 import { getDefaultRegion } from 'src/application/default-region';
 import { InstanceAvailability } from 'src/application/instance-region-availability';
+import { CatalogInstance, CatalogRegion, InstanceCategory, RegionScope } from 'src/model';
 import { last } from 'src/utils/arrays';
 import { hasProperty } from 'src/utils/object';
 
@@ -33,6 +33,8 @@ export type InstanceSelector = {
   selectedRegions: CatalogRegion[];
   onRegionSelected: (region: CatalogRegion) => void;
 
+  singleRegion?: boolean;
+
   instances: CatalogInstance[];
   regions: CatalogRegion[];
 };
@@ -48,7 +50,7 @@ export function useInstanceSelector({
   setSelectedRegions,
 }: InstanceSelectorParams): InstanceSelector {
   const queryClient = useQueryClient();
-  const datacenters = useDatacenters();
+  const datacenters = useDatacentersCatalog();
 
   const [instanceCategory, setInstanceCategory] = useState<InstanceCategory>(
     selectedInstance?.category ?? 'standard',
@@ -142,7 +144,10 @@ export function instanceSelector(
       filteredRegions.includes(region),
     );
 
-    if (nextState.selectedRegions.length === 0 && updates.selectedRegions === undefined) {
+    if (
+      updates.selectedInstance !== undefined ||
+      (nextState.selectedRegions.length === 0 && !updates.selectedRegions)
+    ) {
       const selectDefaultRegion = (scope: RegionScope) => {
         const regions = filterRegions(scope, nextState.selectedInstance);
         let defaultRegion = getDefaultRegion(regions, nextState.selectedInstance ?? undefined);
@@ -210,6 +215,8 @@ export function instanceSelector(
 
       update({ selectedRegions: regions });
     },
+
+    singleRegion,
 
     instances: filterInstances(instanceCategory),
     regions: filterRegions(regionScope, selectedInstance),

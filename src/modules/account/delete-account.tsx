@@ -1,42 +1,33 @@
+import { Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
+import { useAuth } from '@workos-inc/authkit-react';
 
-import { Button } from '@snipkit/design-system';
-import { useOrganizationQuery, useUserUnsafe } from 'src/api/hooks/session';
-import { useApiMutationFn } from 'src/api/use-api';
-import { notify } from 'src/application/notify';
-import { useResetIdentifyUser } from 'src/application/posthog';
-import { routes } from 'src/application/routes';
-import { useToken } from 'src/application/token';
-import { ConfirmationDialog } from 'src/components/confirmation-dialog';
-import { Dialog } from 'src/components/dialog';
-import { useNavigate } from 'src/hooks/router';
+import { apiMutation, useOrganization, useUser } from 'src/api';
+import { useIdentifyUser } from 'src/application/posthog';
+import { closeDialog, openDialog } from 'src/components/dialog';
 import { createTranslate } from 'src/intl/translate';
+import { User } from 'src/model';
 
 const T = createTranslate('modules.account.deleteAccount');
 
 export function DeleteAccount() {
   const t = T.useTranslate();
-  const openDialog = Dialog.useOpen();
 
-  const user = useUserUnsafe();
-  const { data: organization } = useOrganizationQuery();
+  const user = useUser();
+  const organization = useOrganization();
   const canDelete = organization === undefined;
 
-  const { clearToken } = useToken();
-  const resetIdentify = useResetIdentifyUser();
-  const navigate = useNavigate();
+  const deleteMutation = useDeleteMutation();
 
-  const { mutateAsync: deleteAccount } = useMutation({
-    ...useApiMutationFn('deleteUser', {
-      path: { id: user?.id as string },
-    }),
-    onSuccess() {
-      clearToken();
-      resetIdentify();
-      navigate(routes.signIn());
-      notify.success(t('successNotification'));
-    },
-  });
+  const onDelete = () => {
+    openDialog('Confirmation', {
+      title: t('confirmation.title'),
+      description: t('confirmation.description'),
+      confirmationText: user?.name ?? '',
+      submitText: t('confirmation.confirm'),
+      onConfirm: () => deleteMutation.mutateAsync(user!),
+    });
+  };
 
   return (
     <div className="card">
@@ -50,8 +41,8 @@ export function DeleteAccount() {
           </div>
         </div>
 
-        <Button color="red" disabled={!canDelete} onClick={() => openDialog('ConfirmDeleteAccount')}>
-          <T id="cta" />
+        <Button color="red" disabled={!canDelete} onClick={onDelete}>
+          <T id="delete" />
         </Button>
       </div>
 
@@ -62,15 +53,22 @@ export function DeleteAccount() {
           </p>
         </footer>
       )}
-
-      <ConfirmationDialog
-        id="ConfirmDeleteAccount"
-        title={<T id="confirmationDialog.title" />}
-        description={<T id="confirmationDialog.description" />}
-        confirmationText={user?.name ?? ''}
-        submitText={<T id="confirmationDialog.confirm" />}
-        onConfirm={deleteAccount}
-      />
     </div>
   );
+}
+
+function useDeleteMutation() {
+  const [, clearIdentify] = useIdentifyUser();
+  const { signOut } = useAuth();
+
+  return useMutation({
+    ...apiMutation('delete /v1/users/{id}', (user: User) => ({
+      path: { id: user.id },
+    })),
+    onSuccess() {
+      closeDialog();
+      clearIdentify();
+      signOut();
+    },
+  });
 }

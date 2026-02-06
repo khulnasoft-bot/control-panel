@@ -1,9 +1,9 @@
 import { useQueries } from '@tanstack/react-query';
+import { useAuth } from '@workos-inc/authkit-react';
 import { Duration, sub } from 'date-fns';
 
-import { api, ApiEndpointResult } from 'src/api/api';
-import type { Api } from 'src/api/api-types';
-import { useToken } from 'src/application/token';
+import type { API } from 'src/api';
+import { getApiQueryKey, useApi } from 'src/api';
 import { identity } from 'src/utils/generic';
 import { toObject } from 'src/utils/object';
 
@@ -33,40 +33,49 @@ const timeFrameToStep: Record<MetricsTimeFrame, string> = {
 type UseMetricsOptions = {
   serviceId?: string;
   instanceId?: string;
-  metrics: Api.MetricName[];
+  metrics: API.MetricName[];
   timeFrame: MetricsTimeFrame;
 };
 
 export function useMetricsQueries({ serviceId, instanceId, metrics, timeFrame }: UseMetricsOptions) {
-  const { token } = useToken();
+  const api = useApi();
+  const { getAccessToken } = useAuth();
 
   return useQueries({
-    queries: metrics.map((name) => ({
-      queryKey: ['getServiceMetrics', { token, serviceId, instanceId, name, timeFrame }],
-      refetchInterval: 60 * 1000,
-      meta: { showError: false },
-      async queryFn() {
-        const step = timeFrameToStep[timeFrame];
-        const duration = timeFrameToDuration[timeFrame];
-        const start = sub(new Date(), duration).toISOString();
+    queries: metrics.map((name) => {
+      const query = {
+        name,
+        service_id: serviceId,
+        instance_id: instanceId,
+        step: timeFrameToStep[timeFrame],
+        time_frame: timeFrame,
+      };
 
-        return api.getServiceMetrics({
-          token,
-          query: { name, start, step, service_id: serviceId, instance_id: instanceId },
-        });
-      },
-      select(data: ApiEndpointResult<'getServiceMetrics'>) {
-        return data.metrics!.map(({ labels, samples }) => ({
-          labels,
-          samples: samples!.map(
-            ({ timestamp, value }): DataPoint => ({
-              date: timestamp!,
-              value: value ?? undefined,
-            }),
-          ),
-        }));
-      },
-    })),
+      return {
+        meta: { getAccessToken, showError: false },
+        refetchInterval: 60 * 1000,
+        queryKey: getApiQueryKey('get /v1/streams/metrics', { query }),
+        queryFn: () => {
+          const duration = timeFrameToDuration[timeFrame];
+          const start = sub(new Date(), duration).toISOString();
+
+          return api('get /v1/streams/metrics', {
+            query: { ...query, start },
+          });
+        },
+        select(data: API.GetMetricsReply) {
+          return data.metrics!.map(({ labels, samples }) => ({
+            labels,
+            samples: samples!.map(
+              ({ timestamp, value }): DataPoint => ({
+                date: timestamp!,
+                value: value ?? undefined,
+              }),
+            ),
+          }));
+        },
+      };
+    }),
     combine: (queries) => ({
       isPending: queries.some((query) => query.isPending),
       isError: queries.some((query) => query.isError),

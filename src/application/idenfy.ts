@@ -1,26 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@workos-inc/authkit-react';
 
-import { useUserUnsafe } from 'src/api/hooks/session';
-
-import { getConfig } from './config';
+import { apiQuery } from 'src/api';
 
 export function useIdenfyLink() {
-  const user = useUserUnsafe();
-  const { idenfyServiceBaseUrl } = getConfig();
+  const { getAccessToken } = useAuth();
 
   const query = useQuery({
-    enabled: user !== undefined,
-    meta: { showError: false },
-    queryKey: ['idenfy', idenfyServiceBaseUrl, user?.id],
-    async queryFn() {
-      const response = await fetch(`${idenfyServiceBaseUrl}/${user?.id}`, { method: 'POST' });
-
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      return response.text();
-    },
+    ...apiQuery('get /v1/account/idenfy', {}),
+    select: (result) => result.auth_token!,
+    meta: { getAccessToken, showError: false },
+    retry: true,
+    refetchOnMount: false,
   });
 
   if (query.isSuccess) {

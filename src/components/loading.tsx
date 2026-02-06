@@ -1,7 +1,6 @@
+import { Spinner } from '@design-system';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
-
-import { Spinner } from '@snipkit/design-system';
 
 const debounce = 300;
 

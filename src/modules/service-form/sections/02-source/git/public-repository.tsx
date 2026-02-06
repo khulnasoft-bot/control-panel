@@ -2,12 +2,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
-import { GitRepository } from 'src/api/model';
 import { PublicGithubRepositoryInput } from 'src/components/public-github-repository-input/public-github-repository-input';
 import { createTranslate } from 'src/intl/translate';
+import { GitRepository } from 'src/model';
 
-import { ServiceForm } from '../../../service-form.types';
 import { useGenerateServiceName } from '../../00-service-name/use-generate-service-name';
+import { ServiceForm } from '../../../service-form.types';
 
 import { PublicRepositoryBranchSelector } from './public-repository-branch-selector';
 
@@ -35,7 +35,7 @@ export function PublicRepository() {
         render={({ field, fieldState }) => (
           <PublicGithubRepositoryInput
             label={<T id="publicRepositoryLabel" />}
-            helpTooltip={<T id="publicRepositoryTooltip" />}
+            tooltip={<T id="publicRepositoryTooltip" />}
             placeholder={t('publicRepositoryPlaceholder')}
             value={field.value}
             onChange={(url) => {
@@ -54,7 +54,7 @@ export function PublicRepository() {
               });
 
               if (getValues('source.git.publicRepository.branch') === null) {
-                setValue('source.git.publicRepository.branch', repository?.defaultBranch);
+                setValue('source.git.publicRepository.branch', repository.defaultBranch);
               }
 
               generateServiceName();

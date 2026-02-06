@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 
-import { CatalogDatacenter, CatalogInstance, CatalogRegion } from 'src/api/model';
+import { CatalogDatacenter, CatalogInstance, CatalogRegion } from 'src/model';
 import { inArray } from 'src/utils/arrays';
 import { hasProperty } from 'src/utils/object';
 
@@ -13,6 +13,12 @@ export function getDefaultRegion(
   const availableRegions = regions
     .filter((region) => region.status === 'available')
     .filter((region) => !region.instances || inArray(instance?.id, region.instances));
+
+  const northAmerica = availableRegions.find(hasProperty('id', 'na'));
+
+  if (instance?.category === 'gpu' && northAmerica !== undefined) {
+    return northAmerica;
+  }
 
   const regionLatencies = getRegionLatencies(queryClient, datacenters, availableRegions);
 

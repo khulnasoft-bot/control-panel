@@ -1,16 +1,14 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Alert, Button, DialogFooter, DialogHeader } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Alert, Button, DialogFooter, DialogHeader } from '@snipkit/design-system';
-import { api } from 'src/api/api';
-import { useInvalidateApiQuery } from 'src/api/use-api';
+import { apiMutation, useSwitchOrganization } from 'src/api';
 import { notify } from 'src/application/notify';
-import { useToken } from 'src/application/token';
-import { ControlledInput } from 'src/components/controlled';
+import { ControlledInput } from 'src/components/forms';
 import { Link } from 'src/components/link';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
-import { useZodResolver } from 'src/hooks/validation';
 import { createTranslate } from 'src/intl/translate';
 import { isSlug } from 'src/utils/strings';
 
@@ -20,40 +18,28 @@ const schema = z.object({
   organizationName: z
     .string()
     .min(1)
-    .max(39)
+    .max(64)
     .refine(isSlug, { params: { refinement: 'isSlug' } }),
 });
 
 export function Downgrade({ onCancel }: { onCancel: () => void }) {
   const t = T.useTranslate();
-  const invalidate = useInvalidateApiQuery();
-  const { token, setToken } = useToken();
 
-  const form = useForm<z.infer<typeof schema>>({
+  const form = useForm({
     defaultValues: {
       organizationName: '',
     },
-    resolver: useZodResolver(schema),
+    resolver: zodResolver(schema),
   });
 
+  const switchOrganization = useSwitchOrganization();
+
   const mutation = useMutation({
-    async mutationFn({ organizationName }: FormValues<typeof form>) {
-      const { organization } = await api.createOrganization({
-        token,
-        body: { name: organizationName },
-      });
-
-      const { token: newToken } = await api.switchOrganization({
-        token,
-        path: { id: organization!.id! },
-        header: {},
-      });
-
-      return newToken!.id!;
-    },
-    async onSuccess(token) {
-      await invalidate('getCurrentOrganization');
-      setToken(token);
+    ...apiMutation('post /v1/organizations', ({ organizationName }: FormValues<typeof form>) => ({
+      body: { name: organizationName },
+    })),
+    async onSuccess({ organization }) {
+      await switchOrganization.mutateAsync(organization!.external_id!);
       notify.success(t('successNotification'));
     },
     onError: useFormErrorHandler(form, (error) => ({
@@ -85,7 +71,7 @@ export function Downgrade({ onCancel }: { onCancel: () => void }) {
               id="footer.message"
               values={{
                 delete: (children) => (
-                  <Link href={`?settings`} className="underline">
+                  <Link to="/" search={{ settings: 'true' }} className="underline">
                     {children}
                   </Link>
                 ),

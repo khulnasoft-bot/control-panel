@@ -1,5 +1,7 @@
 import { dequal } from 'dequal';
 
+import { entries } from 'src/utils/object';
+
 import { Scaling, ServiceForm } from '../service-form.types';
 
 import { defaultServiceForm } from './initialize-service-form';
@@ -75,12 +77,20 @@ export function getDeployParams(form: ServiceForm, removeDefaultValues = true): 
   set('instance_type', form.instance);
   set('regions', form.regions);
 
-  set('instances_min', String(form.scaling.min));
-  set('instances_max', String(form.scaling.max));
+  set('instances_min', form.scaling.min);
+  set('instances_max', form.scaling.max);
 
-  for (const [target, { enabled, value }] of Object.entries(form.scaling.targets)) {
-    if (enabled) {
-      set(`autoscaling_${scalingTargetMap[target as keyof Scaling['targets']]}`, String(value));
+  for (const [target, value] of entries(form.scaling.targets)) {
+    if ('enabled' in value && value.enabled) {
+      set(`autoscaling_${scalingTargetMap[target]}`, value.value);
+    }
+  }
+
+  if (form.scaling.min === 0) {
+    set('autoscaling_sleep_idle_delay', form.scaling.scaleToZero.idlePeriod);
+
+    if (form.scaling.scaleToZero.lightSleepEnabled) {
+      set('autoscaling_deep_sleep_delay', form.scaling.scaleToZero.lightToDeepPeriod);
     }
   }
 
@@ -91,8 +101,12 @@ export function getDeployParams(form: ServiceForm, removeDefaultValues = true): 
   }
 
   if (form.serviceType === 'web') {
-    for (const { portNumber, path, public: isPublic, protocol, healthCheck } of form.ports) {
-      params.append('ports', [portNumber, protocol, isPublic ? path : undefined].filter(Boolean).join(';'));
+    for (const { portNumber, path, public: isPublic, protocol, tcpProxy, healthCheck } of form.ports) {
+      const port = [portNumber, protocol, isPublic ? path : '', tcpProxy ? 'true' : '']
+        .join(';')
+        .replace(/;+$/, '');
+
+      params.append('ports', port);
 
       set(`hc_protocol[${portNumber}]`, healthCheck.protocol);
       set(`hc_grace_period[${portNumber}]`, healthCheck.gracePeriod);
@@ -109,6 +123,10 @@ export function getDeployParams(form: ServiceForm, removeDefaultValues = true): 
     const keysToDelete = new Set<string>();
 
     for (const key of params.keys()) {
+      if (key === 'type' || key === 'regions') {
+        continue;
+      }
+
       const value = params.getAll(key);
       const defaultValue = defaultParams.getAll(key);
 
@@ -130,5 +148,4 @@ const scalingTargetMap: Record<keyof Scaling['targets'], string> = {
   requests: 'requests_per_second',
   concurrentRequests: 'concurrent_requests',
   responseTime: 'requests_response_time',
-  sleepIdleDelay: 'sleep_idle_delay',
 };

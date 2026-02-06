@@ -1,43 +1,166 @@
-import './polyfills';
-import './sentry';
-import './intercom';
-
-import ReactDOM from 'react-dom/client';
-
 import '@fontsource-variable/inter';
 import '@fontsource-variable/jetbrains-mono';
-
+import './side-effects';
 import './styles.css';
 
-import { hasMessage } from './api/api-errors';
-import { App } from './app';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider, createRouter } from '@tanstack/react-router';
+import { LoginRequiredError } from '@workos-inc/authkit-react';
+import qs from 'query-string';
+import { StrictMode } from 'react';
+import ReactDOM from 'react-dom/client';
+
+import { ApiError } from './api';
+import { AuthKitProvider } from './application/authkit';
 import { notify } from './application/notify';
-import { Providers } from './application/providers';
+import { reportError } from './application/sentry';
+import { configureZod } from './application/validation';
+import { SeonAdapter } from './hooks/seon';
+import { IntlProvider, createTranslateFn } from './intl/translation-provider';
+import { ServiceFormSection } from './modules/service-form';
+import { routeTree } from './route-tree.generated';
 
-import './api/api.intercept';
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router;
+  }
 
-// https://vitejs.dev/guide/build#load-error-handling
-window.addEventListener('vite:preloadError', (event) => {
-  event.preventDefault();
-  window.location.reload();
-});
-
-// https://github.com/facebook/react/issues/10474
-function isGuardedCallbackDev() {
-  const index = new Error().stack?.indexOf('invokeGuardedCallbackDev');
-  return index && index >= 0;
+  interface HistoryState {
+    next?: string;
+    githubAppInstallationRequested?: boolean;
+    expandedSection?: ServiceFormSection;
+    create?: boolean;
+  }
 }
 
-window.addEventListener('error', function (event) {
-  const error: unknown = event.error;
+window.indexedDB.deleteDatabase('tanstack-query');
 
-  if (hasMessage(error) && !isGuardedCallbackDev()) {
-    notify.error(error.message);
-  }
+const queryCache = new QueryCache({
+  onError(error, query) {
+    if (error.name === 'AbortError') {
+      return;
+    }
+
+    const { showError } = { showError: true, ...query.meta };
+
+    if (error instanceof LoginRequiredError) {
+      void router.navigate({ to: '/auth/signin' });
+      return;
+    }
+
+    if (query.queryKey[0] === 'get /v1/account/organization' && ApiError.is(error, 403)) {
+      void router.navigate({ to: '/auth/signout' });
+      return;
+    }
+
+    if (ApiError.is(error) && error.message === 'Token rejected') {
+      // organization is deactivated
+      void router.navigate({ to: '/settings' });
+      return;
+    }
+
+    if (ApiError.is(error, 404)) {
+      queryClient.setQueriesData({ queryKey: query.queryKey, exact: true }, undefined);
+    }
+
+    if (ApiError.is(error, 429)) {
+      notify.error(error.message);
+    }
+
+    if (ApiError.is(error) && error.status >= 500) {
+      notify.error(error.message);
+      reportError(error);
+    }
+
+    if (!ApiError.is(error) && showError) {
+      reportError(error);
+      notify.error(error.message);
+    }
+  },
 });
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <Providers>
-    <App />
-  </Providers>,
-);
+const mutationCache = new MutationCache({
+  async onError(error, variables, context, mutation) {
+    const { showError } = { showError: true, ...mutation.meta };
+
+    if (mutation.options.onError === undefined && showError) {
+      notify.error(error.message);
+    }
+  },
+});
+
+function throwOnError(error: Error) {
+  return ApiError.is(error) && error.status >= 500;
+}
+
+function retry(failureCount: number, error: Error) {
+  if (error instanceof LoginRequiredError) {
+    return failureCount === 0;
+  }
+
+  if (ApiError.is(error) && Math.floor(error.status / 100) === 4) {
+    return false;
+  }
+
+  return failureCount <= 3;
+}
+
+const seon = new SeonAdapter();
+
+const queryClient = new QueryClient({
+  queryCache,
+  mutationCache,
+  defaultOptions: {
+    queries: {
+      throwOnError,
+      retry,
+    },
+    mutations: {
+      throwOnError,
+    },
+  },
+});
+
+const translate = createTranslateFn();
+
+configureZod(translate);
+
+const router = createRouter({
+  routeTree,
+  defaultPreload: 'intent',
+  defaultPreloadStaleTime: 0,
+  scrollRestoration: true,
+  defaultOnCatch: reportError,
+  parseSearch: qs.parse,
+  stringifySearch: (value) => {
+    const result = qs.stringify(value);
+    return result !== '' ? `?${result}` : '';
+  },
+  context: {
+    authKit: undefined!,
+    queryClient,
+    seon,
+    translate,
+  },
+  Wrap({ children }) {
+    return (
+      <IntlProvider>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      </IntlProvider>
+    );
+  },
+});
+
+const rootElement = document.getElementById('root')!;
+
+if (!rootElement.innerHTML) {
+  const root = ReactDOM.createRoot(rootElement);
+
+  root.render(
+    <StrictMode>
+      <AuthKitProvider queryClient={queryClient}>
+        {(authKit) => <RouterProvider router={router} context={{ authKit }} />}
+      </AuthKitProvider>
+    </StrictMode>,
+  );
+}

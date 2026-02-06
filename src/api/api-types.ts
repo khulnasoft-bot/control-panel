@@ -1,7 +1,7 @@
 import { components } from './api.generated';
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace Api {
+export namespace API {
   type schemas = components['schemas'];
 
   export type Activity = schemas['Activity'];
@@ -11,6 +11,8 @@ export namespace Api {
   export type BuildpackBuilder = schemas['BuildpackBuilder'];
   export type CatalogInstance = schemas['CatalogInstance'];
   export type CatalogUsage = schemas['CatalogUsage'];
+  export type CreateSecret = schemas['CreateSecret'];
+  export type CreateService = schemas['CreateService'];
   export type Credential = schemas['Credential'];
   export type DatacenterListItem = schemas['DatacenterListItem'];
   export type Deployment = schemas['Deployment'];
@@ -20,15 +22,16 @@ export namespace Api {
   export type DeploymentHealthCheck = schemas['DeploymentHealthCheck'];
   export type DeploymentNeonPostgresDatabaseInfo = schemas['DeploymentNeonPostgresDatabaseInfo'];
   export type DeploymentProvisioningInfoStage = schemas['DeploymentProvisioningInfo.Stage'];
+  export type DeploymentProxyPort = schemas['DeploymentProxyPort'];
   export type DeploymentScaling = schemas['DeploymentScaling'];
   export type DeploymentScalingTarget = schemas['DeploymentScalingTarget'];
   export type DeploymentStatus = schemas['Deployment.Status'];
   export type DockerBuilder = schemas['DockerBuilder'];
   export type DockerSource = schemas['DockerSource'];
   export type Domain = schemas['Domain'];
-  export type GetDeploymentScalingReplyItem = schemas['GetDeploymentScalingReplyItem'];
   export type GetGithubInstallationReply = schemas['GetGithubInstallationReply'];
   export type GetIntercomProfileReply = schemas['GetIntercomProfileReply'];
+  export type GetMetricsReply = schemas['GetMetricsReply'];
   export type GetMetricsReplyMetric = schemas['GetMetricsReply.Metric'];
   export type GitSource = schemas['GitSource'];
   export type HTTPHealthCheck = schemas['HTTPHealthCheck'];
@@ -48,6 +51,7 @@ export namespace Api {
   export type Quotas = schemas['Quotas'];
   export type Region = schemas['Region'];
   export type RegionalDeployment = schemas['RegionalDeployment'];
+  export type RegionalDeploymentListItem = schemas['RegionalDeploymentListItem'];
   export type Repository = schemas['kgitproxy.Repository'];
   export type RepositoryBranch = schemas['kgitproxy.Branch'];
   export type Route = schemas['Route'];
@@ -58,5 +62,6 @@ export namespace Api {
   export type TCPHealthCheck = schemas['TCPHealthCheck'];
   export type Token = schemas['Token'];
   export type User = schemas['User'];
+  export type UserSettings = schemas['UserSettings'];
   export type VerifyDockerImageReply = schemas['VerifyDockerImageReply'];
 }

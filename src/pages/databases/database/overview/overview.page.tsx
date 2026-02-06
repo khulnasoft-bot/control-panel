@@ -1,6 +1,4 @@
-import { useDeployment, useService } from 'src/api/hooks/service';
-import { isDatabaseDeployment } from 'src/api/mappers/deployment';
-import { routes } from 'src/application/routes';
+import { isDatabaseDeployment, useDeployment, useService } from 'src/api';
 import { LinkButton } from 'src/components/link';
 import { NoResource } from 'src/components/no-resource';
 import { useRouteParam } from 'src/hooks/router';
@@ -29,7 +27,11 @@ export function OverviewPage() {
         title={<T id="noDatabase.title" />}
         description={<T id="noDatabase.description" />}
         cta={
-          <LinkButton href={routes.database.logicalDatabases(service.id)} state={{ create: true }}>
+          <LinkButton
+            to="/database-services/$databaseServiceId/databases"
+            params={{ databaseServiceId }}
+            state={{ create: true }}
+          >
             <T id="noDatabase.cta" />
           </LinkButton>
         }

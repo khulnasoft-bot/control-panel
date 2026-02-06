@@ -1,20 +1,25 @@
-import { useMutation, UseMutationResult, useQuery } from '@tanstack/react-query';
+import { Alert, Button, DialogFooter } from '@design-system';
+import { UseMutationResult, useMutation, useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { dequal } from 'dequal';
 import { diffJson } from 'diff';
 import { useMemo } from 'react';
 
-import { Alert, Button, DialogFooter } from '@snipkit/design-system';
-import { useDeployment } from 'src/api/hooks/service';
-import { isComputeDeployment, mapDeployment } from 'src/api/mappers/deployment';
-import { ComputeDeployment, Service } from 'src/api/model';
-import { useApiMutationFn, useApiQueryFn, useInvalidateApiQuery } from 'src/api/use-api';
+import {
+  apiMutation,
+  apiQuery,
+  isComputeDeployment,
+  mapDeployment,
+  useDeployment,
+  useInvalidateApiQuery,
+} from 'src/api';
 import { useTrackEvent } from 'src/application/posthog';
-import { routes } from 'src/application/routes';
 import { allApiDeploymentStatuses } from 'src/application/service-functions';
-import { Dialog, DialogHeader } from 'src/components/dialog';
+import { Dialog, DialogHeader, closeDialog, openDialog } from 'src/components/dialog';
 import { useNavigate } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
+import { Service } from 'src/model';
+import { exclude } from 'src/utils/arrays';
 import { assert } from 'src/utils/assert';
 
 const T = createTranslate('pages.service.layout.pendingChanges');
@@ -27,11 +32,8 @@ export function PendingChangesAlert({ service }: PendingChangesAlertProps) {
   const latestDeployment = useDeployment(service.latestDeploymentId);
   const latestNonStashedDeployment = useLatestNonStashedDeployment(service);
 
-  const openDialog = Dialog.useOpen();
-  const closeDialog = Dialog.useClose();
-
   const discard = useDiscardChanges(service);
-  const deploy = useApplyChanges(service, () => closeDialog());
+  const deploy = useApplyChanges(service, closeDialog);
 
   if (latestDeployment === undefined || latestNonStashedDeployment === undefined) {
     return null;
@@ -57,7 +59,7 @@ export function PendingChangesAlert({ service }: PendingChangesAlertProps) {
         variant="ghost"
         color="blue"
         loading={deploy.isPending}
-        onClick={() => openDialog('DeploymentsDiff')}
+        onClick={() => openDialog('DeploymentsDiff', [latestNonStashedDeployment, latestDeployment])}
         className="self-center"
       >
         <T id="viewChanges" />
@@ -67,28 +69,25 @@ export function PendingChangesAlert({ service }: PendingChangesAlertProps) {
         <T id="deploy" />
       </Button>
 
-      <DeploymentsDiffDialog
-        deploy={deploy}
-        discard={discard}
-        deployment1={latestNonStashedDeployment}
-        deployment2={latestDeployment}
-      />
+      <DeploymentsDiffDialog deploy={deploy} discard={discard} />
     </Alert>
   );
 }
 
 function useLatestNonStashedDeployment(service: Service) {
-  const { data: latestNonStashedDeployment } = useQuery({
-    ...useApiQueryFn('listDeployments', {
+  const { data } = useQuery({
+    ...apiQuery('get /v1/deployments', {
       query: {
         service_id: service.id,
-        statuses: allApiDeploymentStatuses.filter((status) => status !== 'STASHED'),
+        statuses: exclude(allApiDeploymentStatuses, 'STASHED'),
+        limit: '1',
       },
     }),
-    select: (result) => mapDeployment(result.deployments![0]!),
+    refetchInterval: 5_000,
+    select: ({ deployments }) => deployments!.map(mapDeployment).at(0),
   });
 
-  return latestNonStashedDeployment;
+  return data;
 }
 
 function useDiscardChanges(service: Service) {
@@ -97,7 +96,7 @@ function useDiscardChanges(service: Service) {
   const track = useTrackEvent();
 
   return useMutation({
-    ...useApiMutationFn('updateService', (_: void) => {
+    ...apiMutation('put /v1/services/{id}', (_: void) => {
       assert(isComputeDeployment(latestNonStashedDeployment));
 
       return {
@@ -110,12 +109,13 @@ function useDiscardChanges(service: Service) {
       };
     }),
     async onSuccess() {
-      track('service_change_discarded');
-
       await Promise.all([
-        invalidate('getService', { path: { id: service.id } }),
-        invalidate('listDeployments', { query: { service_id: service.id } }),
+        invalidate('get /v1/services/{id}', { path: { id: service.id } }),
+        invalidate('get /v1/deployments', { query: { service_id: service.id } }),
       ]);
+
+      closeDialog();
+      track('service_change_discarded');
     },
   });
 }
@@ -125,15 +125,21 @@ function useApplyChanges(service: Service, onSuccess: () => void) {
   const navigate = useNavigate();
 
   return useMutation({
-    ...useApiMutationFn('redeployService', { path: { id: service.id }, body: {} }),
+    ...apiMutation('post /v1/services/{id}/redeploy', { path: { id: service.id }, body: {} }),
     async onSuccess({ deployment }) {
       await Promise.all([
-        invalidate('getService', { path: { id: service.id } }),
-        invalidate('listDeployments', { query: { service_id: service.id } }),
+        invalidate('get /v1/services/{id}', { path: { id: service.id } }),
+        invalidate('get /v1/deployments', { query: { service_id: service.id } }),
       ]);
 
+      closeDialog();
       onSuccess();
-      navigate(routes.service.overview(service.id, deployment?.id));
+
+      await navigate({
+        to: '/services/$serviceId',
+        params: { serviceId: service.id },
+        search: { deploymentId: deployment?.id },
+      });
     },
   });
 }
@@ -141,48 +147,52 @@ function useApplyChanges(service: Service, onSuccess: () => void) {
 type DeploymentsDiffDialog = {
   deploy: UseMutationResult<unknown, unknown, void>;
   discard: UseMutationResult<unknown, unknown, void>;
-  deployment1: ComputeDeployment;
-  deployment2: ComputeDeployment;
 };
 
-function DeploymentsDiffDialog({ deploy, discard, deployment1, deployment2 }: DeploymentsDiffDialog) {
-  const diff = useMemo(
-    () => diffJson(deployment1.definitionApi, deployment2.definitionApi),
-    [deployment1, deployment2],
-  );
-
+function DeploymentsDiffDialog({ deploy, discard }: DeploymentsDiffDialog) {
   return (
     <Dialog id="DeploymentsDiff" className="w-full max-w-4xl">
-      <DialogHeader title={<T id="diffDialog.title" />} />
+      {([deployment1, deployment2]) => (
+        <>
+          <DialogHeader title={<T id="diffDialog.title" />} />
 
-      <p className="text-dim">
-        <T id="diffDialog.description" />
-      </p>
+          <p className="text-dim">
+            <T id="diffDialog.description" />
+          </p>
 
-      {/* eslint-disable-next-line tailwindcss/no-arbitrary-value */}
-      <pre className="scrollbar-green max-h-[32rem] overflow-auto rounded bg-muted p-2 dark:bg-neutral">
-        {diff.map(({ added, removed, value }, index) => (
-          <span key={index} className={clsx(added && 'text-green', removed && 'text-red')}>
-            {value}
-          </span>
-        ))}
-      </pre>
+          <Diff left={deployment1.definitionApi} right={deployment2.definitionApi} />
 
-      <DialogFooter>
-        <Button
-          variant="ghost"
-          color="gray"
-          loading={discard.isPending}
-          onClick={() => discard.mutate()}
-          className="self-center"
-        >
-          <T id="discard" />
-        </Button>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              color="gray"
+              loading={discard.isPending}
+              onClick={() => discard.mutate()}
+              className="self-center"
+            >
+              <T id="discard" />
+            </Button>
 
-        <Button loading={deploy.isPending} onClick={() => deploy.mutate()}>
-          <T id="deploy" />
-        </Button>
-      </DialogFooter>
+            <Button loading={deploy.isPending} onClick={() => deploy.mutate()}>
+              <T id="deploy" />
+            </Button>
+          </DialogFooter>
+        </>
+      )}
     </Dialog>
+  );
+}
+
+function Diff({ left, right }: { left: object; right: object }) {
+  const diff = useMemo(() => diffJson(left, right), [left, right]);
+
+  return (
+    <pre className="max-h-128 overflow-auto rounded-sm bg-muted p-2 scrollbar-green dark:bg-neutral">
+      {diff.map(({ added, removed, value }, index) => (
+        <span key={index} className={clsx(added && 'text-green', removed && 'text-red')}>
+          {value}
+        </span>
+      ))}
+    </pre>
   );
 }

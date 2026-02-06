@@ -1,39 +1,34 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@workos-inc/authkit-react';
 
 import { inArray } from 'src/utils/arrays';
 
 import { mapInvoice, mapSubscription } from '../mappers/billing';
-import { useApiQueryFn } from '../use-api';
+import { apiQuery } from '../query';
 
 import { useOrganization, useOrganizationQuery } from './session';
 
-export function useManageBillingQuery() {
-  const organization = useOrganization();
-
-  return useQuery({
-    enabled: organization.latestSubscriptionId !== undefined && !organization.trial,
-    ...useApiQueryFn('manageBilling'),
-  });
-}
-
 export function useSubscriptionQuery(subscriptionId: string | undefined) {
+  const organizationQuery = useOrganizationQuery();
+
   return useQuery({
-    ...useApiQueryFn('getSubscription', { path: { id: subscriptionId! } }),
-    enabled: subscriptionId !== undefined,
+    ...apiQuery('get /v1/subscriptions/{id}', { path: { id: subscriptionId as string } }),
+    staleTime: Infinity,
+    enabled: subscriptionId !== undefined && !organizationQuery.isFetching,
     select: ({ subscription }) => mapSubscription(subscription!),
   });
 }
 
 export function useNextInvoiceQuery() {
-  const { data: organization } = useOrganizationQuery();
+  const organization = useOrganization();
+  const { getAccessToken } = useAuth();
 
   return useQuery({
-    ...useApiQueryFn('getNextInvoice'),
+    ...apiQuery('get /v1/billing/next_invoice', {}),
     enabled:
-      organization &&
-      !organization.trial &&
-      inArray(organization.plan, ['starter', 'startup', 'pro', 'scale', 'business', 'enterprise']),
+      !organization?.trial &&
+      inArray(organization?.plan, ['starter', 'startup', 'pro', 'scale', 'business', 'enterprise']),
     select: mapInvoice,
-    meta: { showError: false },
+    meta: { getAccessToken, showError: false },
   });
 }

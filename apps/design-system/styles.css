@@ -1,0 +1,296 @@
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Inter Variable', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', monospace;
+  --spacing-em: 1em;
+  --shadow-badge: 0 0 2px rgba(0, 0, 0, 0.55);
+}
+
+@theme {
+  --color-neutral: var(--color-white);
+  --color-inverted: var(--color-zinc-950);
+  --color-red: var(--color-red-500);
+  --color-green: var(--color-emerald-500);
+  --color-blue: var(--color-sky-500);
+  --color-orange: var(--color-amber-500);
+  --color-gray: var(--color-gray-500);
+  --color-muted: var(--color-zinc-100);
+  --color-popover: var(--color-white);
+  --color-default: var(--color-zinc-950);
+  --color-dim: var(--color-zinc-500);
+  --color-placeholder: var(--color-zinc-500);
+  --color-border: var(--color-zinc-200);
+}
+
+@layer theme {
+  * {
+    @variant dark {
+      --color-neutral: var(--color-zinc-950);
+      --color-inverted: var(--color-white);
+      --color-red: var(--color-red-600);
+      --color-green: var(--color-emerald-600);
+      --color-blue: var(--color-sky-600);
+      --color-orange: var(--color-amber-600);
+      --color-gray: var(--color-gray-600);
+      --color-muted: var(--color-zinc-800);
+      --color-popover: var(--color-neutral-900);
+      --color-default: var(--color-zinc-50);
+      --color-dim: var(--color-zinc-400);
+      --color-placeholder: var(--color-zinc-400);
+      --color-border: var(--color-zinc-800);
+    }
+  }
+}
+
+@layer utilities {
+  .text-default {
+    color: var(--color-zinc-950);
+
+    @variant dark {
+      color: var(--color-zinc-50);
+    }
+  }
+
+  .text-inverted {
+    color: var(--color-zinc-50);
+
+    @variant dark {
+      color: var(--color-zinc-950);
+    }
+  }
+
+  .text-dim {
+    color: var(--color-zinc-500);
+
+    @variant dark {
+      color: var(--color-zinc-400);
+    }
+  }
+
+  .text-placeholder {
+    color: var(--color-zinc-500);
+
+    @variant dark {
+      color: var(--color-zinc-400);
+    }
+  }
+
+  .text-red {
+    color: var(--color-red-600);
+
+    @variant dark {
+      color: var(--color-red-400);
+    }
+  }
+
+  .text-green,
+  .text-link {
+    color: var(--color-emerald-600);
+
+    @variant dark {
+      color: var(--color-emerald-400);
+    }
+  }
+
+  .text-blue {
+    color: var(--color-sky-600);
+
+    @variant dark {
+      color: var(--color-sky-400);
+    }
+  }
+
+  .text-orange {
+    color: var(--color-amber-600);
+
+    @variant dark {
+      color: var(--color-amber-400);
+    }
+  }
+
+  .text-gray {
+    color: var(--color-gray-600);
+
+    @variant dark {
+      color: var(--color-gray-400);
+    }
+  }
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border, currentColor);
+    outline-color: var(--color-gray, currentColor);
+  }
+
+  body {
+    background-color: var(--color-neutral);
+    color: var(--color-default);
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+  }
+
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+
+  strong {
+    font-weight: var(--font-weight-medium);
+  }
+}
+
+@utility row {
+  @apply flex flex-row;
+}
+
+@utility col {
+  @apply flex flex-col;
+}
+
+@utility gaps {
+  @apply gap-6 sm:gap-4;
+}
+
+@utility text-icon {
+  @apply text-dim;
+}
+
+@utility size-icon {
+  @apply size-6;
+}
+
+@utility icon {
+  @apply text-icon size-icon;
+}
+
+@utility direction-rtl {
+  direction: rtl;
+}
+
+@utility text-link {
+  @apply text-green hover:underline;
+  @apply rounded focusable;
+}
+
+@utility typo-heading {
+  font-weight: 600;
+  font-size: 1.5rem;
+  line-height: 1.8rem;
+}
+
+@utility ping {
+  @apply size-1.5 animate-ping rounded-full bg-blue;
+}
+
+@utility focused {
+  @apply outline-2;
+}
+
+@utility focusable {
+  &:focus-visible {
+    @apply focused;
+  }
+}
+
+@utility focusable-within {
+  &:has(:focus-visible) {
+    @apply focused;
+  }
+}
+
+@utility hide-scrollbars {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility scrollbar-green {
+  /* thumb track (rgb values are not working) */
+  scrollbar-color: #05966999 #05966918;
+
+  &::-webkit-scrollbar {
+    background: --alpha(var(--colors-green) / 50%);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: --alpha(var(--colors-green) / 10%);
+  }
+}
+
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+}
+
+@utility card {
+  @apply bg-white text-zinc-950 rounded-lg border shadow;
+
+  @variant dark {
+    @apply bg-zinc-900 text-zinc-50;
+  }
+
+  & footer {
+    @apply row items-center justify-between bg-muted px-4 py-2 rounded-b-lg;
+  }
+}
+
+@utility table {
+  @apply border-separate border-spacing-0;
+
+  thead th {
+    @apply bg-muted/50 border-t;
+    @apply font-medium text-start text-dim text-xs;
+
+    &:first-of-type {
+      @apply border-l;
+      @apply rounded-tl-md;
+    }
+
+    &:last-of-type {
+      @apply border-r;
+      @apply rounded-tr-md;
+    }
+  }
+
+  tbody td {
+    @apply border-t;
+
+    &:first-of-type {
+      @apply border-l;
+    }
+
+    &:last-of-type {
+      @apply border-r;
+    }
+  }
+
+  tbody tr {
+    @apply hover:bg-muted/10;
+
+    &:last-of-type td {
+      @apply border-b;
+
+      &:first-of-type {
+        @apply rounded-bl-md;
+      }
+
+      &:last-of-type {
+        @apply rounded-br-md;
+      }
+    }
+  }
+
+  th,
+  td {
+    @apply px-3 py-2;
+  }
+}

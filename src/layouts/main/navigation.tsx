@@ -1,10 +1,12 @@
 import clsx from 'clsx';
 
-import { useOrganizationUnsafe } from 'src/api/hooks/session';
-import { routes } from 'src/application/routes';
+import { useOrganization } from 'src/api';
 import { BadgeNew } from 'src/components/badge-new';
+import { Link, ValidateLinkOptions } from 'src/components/link';
+import { usePathname } from 'src/hooks/router';
 import {
   IconActivity,
+  IconBox,
   IconBoxes,
   IconFileKey,
   IconFolders,
@@ -12,16 +14,14 @@ import {
   IconLayoutDashboard,
   IconSettings,
   IconUsers,
-} from 'src/components/icons';
-import { Link } from 'src/components/link';
-import { usePathname } from 'src/hooks/router';
+} from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
 import { inArray } from 'src/utils/arrays';
 
 const T = createTranslate('layouts.main.navigation');
 
 export function Navigation({ collapsed }: { collapsed: boolean }) {
-  const organization = useOrganizationUnsafe();
+  const organization = useOrganization();
 
   const disableComputeLinks =
     organization === undefined || inArray(organization.status, ['WARNING', 'DEACTIVATING', 'DEACTIVATED']);
@@ -34,8 +34,8 @@ export function Navigation({ collapsed }: { collapsed: boolean }) {
           disabled={disableComputeLinks}
           Icon={IconLayoutDashboard}
           label={<T id="overview" />}
-          href={routes.home()}
-          isActive={(pathname) => pathname === routes.home()}
+          to="/"
+          isActive={(pathname) => pathname === '/'}
         />
 
         <NavigationItem
@@ -43,7 +43,7 @@ export function Navigation({ collapsed }: { collapsed: boolean }) {
           disabled={disableComputeLinks}
           Icon={IconBoxes}
           label={<T id="services" />}
-          href={routes.appsList()}
+          to="/services"
           isActive={(pathname) =>
             pathname.startsWith('/services') || pathname.startsWith('/database-services')
           }
@@ -52,9 +52,18 @@ export function Navigation({ collapsed }: { collapsed: boolean }) {
         <NavigationItem
           collapsed={collapsed}
           disabled={disableComputeLinks}
+          Icon={IconBox}
+          label={<T id="sandboxes" />}
+          to="/sandboxes"
+          newBadge
+        />
+
+        <NavigationItem
+          collapsed={collapsed}
+          disabled={disableComputeLinks}
           Icon={IconGlobe}
           label={<T id="domains" />}
-          href={routes.domains()}
+          to="/domains"
         />
 
         <NavigationItem
@@ -62,7 +71,7 @@ export function Navigation({ collapsed }: { collapsed: boolean }) {
           disabled={disableComputeLinks}
           Icon={IconFileKey}
           label={<T id="secrets" />}
-          href={routes.secrets()}
+          to="/secrets"
         />
 
         <NavigationItem
@@ -70,7 +79,7 @@ export function Navigation({ collapsed }: { collapsed: boolean }) {
           disabled={disableComputeLinks}
           Icon={IconFolders}
           label={<T id="volumes" />}
-          href={routes.volumes.index()}
+          to="/volumes"
           newBadge
         />
 
@@ -78,16 +87,16 @@ export function Navigation({ collapsed }: { collapsed: boolean }) {
           collapsed={collapsed}
           Icon={IconActivity}
           label={<T id="activity" />}
-          href={routes.activity()}
+          to="/activity"
         />
 
-        <NavigationItem collapsed={collapsed} Icon={IconUsers} label={<T id="team" />} href={routes.team()} />
+        <NavigationItem collapsed={collapsed} Icon={IconUsers} label={<T id="team" />} to="/team" />
 
         <NavigationItem
           collapsed={collapsed}
           Icon={IconSettings}
           label={<T id="settings" />}
-          href={routes.organizationSettings.index()}
+          to="/settings"
         />
       </ol>
     </nav>
@@ -99,21 +108,21 @@ type NavigationItemProps = {
   disabled?: boolean;
   Icon: React.ComponentType<{ className?: string }>;
   label: React.ReactNode;
-  href: string;
+  to: ValidateLinkOptions['to'];
   isActive?: (pathname: string) => boolean;
   newBadge?: boolean;
 };
 
-function NavigationItem({ collapsed, disabled, Icon, label, href, isActive, newBadge }: NavigationItemProps) {
+function NavigationItem({ collapsed, disabled, Icon, label, to, isActive, newBadge }: NavigationItemProps) {
   const pathname = usePathname();
-  const active = isActive?.(pathname) ?? pathname.startsWith(href);
+  const active = isActive?.(pathname) ?? pathname.startsWith(to);
 
   return (
-    <li className={clsx('mx-3 rounded', active && 'bg-muted', !active && 'text-dim')}>
+    <li className={clsx('mx-3 rounded-sm', active && 'bg-muted', !active && 'text-dim')}>
       <Link
-        href={href}
+        to={to}
         aria-disabled={disabled}
-        className={clsx('row items-center gap-2 p-2 hover:text-default', disabled && 'pointer-events-none')}
+        className="row items-center gap-2 p-2 hover:text-default aria-disabled:pointer-events-none aria-disabled:text-dim/50"
       >
         <div>
           <Icon className="size-icon" />

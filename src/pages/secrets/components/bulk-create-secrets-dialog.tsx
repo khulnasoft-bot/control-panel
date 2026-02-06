@@ -1,26 +1,26 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button } from '@snipkit/design-system';
-import { api } from 'src/api/api';
-import { useInvalidateApiQuery } from 'src/api/use-api';
+import { useApi, useInvalidateApiQuery } from 'src/api';
 import { notify } from 'src/application/notify';
 import { useTrackEvent } from 'src/application/posthog';
-import { useToken } from 'src/application/token';
-import { ControlledTextArea } from 'src/components/controlled';
-import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from 'src/components/dialog';
+import { CloseDialogButton, Dialog, DialogFooter, DialogHeader, closeDialog } from 'src/components/dialog';
+import { ControlledTextArea } from 'src/components/forms';
 import { FormValues, handleSubmit } from 'src/hooks/form';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { Translate, createTranslate } from 'src/intl/translate';
 import { dotenvParse } from 'src/utils/dotenv';
 import { hasProperty } from 'src/utils/object';
 
-const T = createTranslate('pages.secrets.bulkCreateSecretsDialog');
+const T = createTranslate('pages.secrets.bulkCreate');
 
-export function BulkCreateSecretsDialog() {
+export function BulkCreateSecretsDialog({ onCreated }: { onCreated?: () => void }) {
   const t = T.useTranslate();
-  const closeDialog = Dialog.useClose();
+
+  const api = useApi();
+  const invalidate = useInvalidateApiQuery();
   const track = useTrackEvent();
 
   const form = useForm<{ value: string }>({
@@ -36,16 +36,13 @@ export function BulkCreateSecretsDialog() {
     ),
   });
 
-  const { token } = useToken();
-  const invalidate = useInvalidateApiQuery();
-
   const mutation = useMutation({
     async mutationFn({ value }: FormValues<typeof form>) {
       const values = dotenvParse(value);
 
       const results = await Promise.allSettled(
         Object.entries(values).map(([name, value]) =>
-          api.createSecret({ token, body: { type: 'SIMPLE', name, value } }),
+          api('post /v1/secrets', { body: { type: 'SIMPLE', name, value } }),
         ),
       );
 
@@ -57,7 +54,7 @@ export function BulkCreateSecretsDialog() {
       };
     },
     async onSuccess({ created, errors }) {
-      await invalidate('listSecrets');
+      await invalidate('get /v1/secrets');
 
       if (created > 0) {
         notify.success(<T id="successNotification" values={{ created }} />);
@@ -68,6 +65,7 @@ export function BulkCreateSecretsDialog() {
       }
 
       closeDialog();
+      onCreated?.();
       track('BulkSecretsCreated', { count: created });
     },
   });

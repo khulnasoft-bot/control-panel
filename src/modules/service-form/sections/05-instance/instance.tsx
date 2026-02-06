@@ -1,28 +1,29 @@
 import { useRef } from 'react';
 import { useController } from 'react-hook-form';
 
-import { useInstance, useInstances, useRegions } from 'src/api/hooks/catalog';
-import { CatalogInstance, CatalogRegion } from 'src/api/model';
+import { useCatalogInstance, useInstancesCatalog, useRegionsCatalog } from 'src/api';
 import { useInstanceAvailabilities } from 'src/application/instance-region-availability';
+import { CatalogInstance, CatalogRegion } from 'src/model';
 import { useGetInstanceBadges } from 'src/modules/instance-selector/instance-badges';
 import { InstanceCategoryTabs } from 'src/modules/instance-selector/instance-category-tabs';
 import { InstanceSelector as InstanceSelectorComponent } from 'src/modules/instance-selector/instance-selector';
 import { useInstanceSelector } from 'src/modules/instance-selector/instance-selector-state';
 import { hasProperty } from 'src/utils/object';
 
+import { useScalingRules } from '../../helpers/scaling-rules';
 import { ServiceForm } from '../../service-form.types';
 import { useWatchServiceForm } from '../../use-service-form';
 
 import { InstanceAlerts } from './instance-alerts';
 
 export function InstanceSelector() {
-  const instances = useInstances();
-  const regions = useRegions();
+  const instances = useInstancesCatalog();
+  const regions = useRegionsCatalog();
 
   const isServiceEdition = useWatchServiceForm('meta.serviceId') !== null;
   const serviceType = useWatchServiceForm('serviceType');
   const hasVolumes = useWatchServiceForm('volumes').filter((volume) => volume.name !== '').length > 0;
-  const previousInstance = useInstance(useWatchServiceForm('meta.previousInstance'));
+  const previousInstance = useCatalogInstance(useWatchServiceForm('meta.previousInstance'));
 
   const instanceCtrl = useController<ServiceForm, 'instance'>({ name: 'instance' });
   const selectedInstance = instances.find(hasProperty('id', instanceCtrl.field.value)) ?? null;
@@ -35,8 +36,11 @@ export function InstanceSelector() {
 
   const getBadges = useGetInstanceBadges({ previousInstance });
 
+  const scaling = useScalingRules();
+
   const handleInstanceSelected = (instance: CatalogInstance | null) => {
     instanceCtrl.field.onChange(instance?.id ?? null);
+    scaling.onInstanceChanged(selectedInstance, instance);
   };
 
   const handleRegionsSelected = (regions: CatalogRegion[]) => {
@@ -70,7 +74,7 @@ export function InstanceSelector() {
 
       <InstanceAlerts selectedCategory={selector.instanceCategory} />
 
-      <div className="col scrollbar-green scrollbar-thin max-h-96 gap-3 overflow-auto pe-2">
+      <div className="col max-h-96 scrollbar-thin gap-3 overflow-auto pe-2 scrollbar-green">
         <InstanceSelectorComponent {...selector} getBadges={getBadges} />
         <div />
       </div>

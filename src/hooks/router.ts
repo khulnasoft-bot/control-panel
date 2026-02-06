@@ -1,111 +1,66 @@
-import { useCallback, useEffect, useMemo } from 'react';
-// eslint-disable-next-line no-restricted-imports
-import { useParams, useSearch } from 'wouter';
-import { navigate, usePathname, useHistoryState as useWouterHistoryState } from 'wouter/use-browser-location';
+import {
+  ValidateLinkOptions,
+  useNavigate,
+  useParams,
+  useLocation as useTanstackLocation,
+} from '@tanstack/react-router';
+import { useEffect } from 'react';
+
+import { assert } from 'src/utils/assert';
+import { toObject } from 'src/utils/object';
 
 import { usePureFunction } from './lifecycle';
 
-export { usePathname } from 'wouter/use-browser-location';
+export { useNavigate };
 
 export function useLocation() {
-  const pathname = usePathname();
-  const search = useSearch();
+  return useTanstackLocation().href;
+}
 
-  if (search.length === 0) {
-    return pathname;
-  }
-
-  return `${pathname}?${search}`;
+export function usePathname() {
+  return useTanstackLocation().pathname;
 }
 
 export function useRouteParam(name: string) {
-  return useParams()[name] as string;
+  const params = useParams({ strict: false });
+  const value = params[name as keyof typeof params];
+
+  assert(value !== undefined);
+
+  return value;
 }
 
-type HistoryState = Record<string, unknown>;
-
-export function useHistoryState<T extends HistoryState>(): Partial<T> {
-  return useWouterHistoryState() ?? {};
+export function useHistoryState() {
+  return useTanstackLocation({ select: (s) => s.state });
 }
 
-type NavigateOptions = {
-  replace?: boolean;
-  state?: HistoryState;
-};
-
-type Navigate = (
-  param: string | URL | ((url: URL) => string | URL | void),
-  options?: NavigateOptions,
-) => void;
-
-export function useNavigate() {
-  return useCallback<Navigate>((param, options) => {
-    if (typeof param === 'string' || param instanceof URL) {
-      navigate(param, options);
-    } else {
-      const url = new URL(window.location.href);
-      const result = param(url);
-
-      navigate(result ?? url, options);
-    }
-  }, []);
+export function useSearchParams(): URLSearchParams {
+  return new URLSearchParams(useTanstackLocation({ select: (s) => s.searchStr }));
 }
 
-export function useSearchParams() {
-  const search = useSearch();
+export function urlToLinkOptions(url: string | URL): ValidateLinkOptions {
+  const { pathname, searchParams } = new URL(url, window.location.origin);
 
-  return useMemo(() => {
-    return new URLSearchParams(search);
-  }, [search]);
-}
-
-export function useSearchParam(
-  name: string,
-): [value: string | null, setValue: (string: string | null, options?: NavigateOptions) => void];
-
-export function useSearchParam(
-  name: string,
-  options: { array: true },
-): [value: string[], setValue: (value: string[], options?: NavigateOptions) => void];
-
-export function useSearchParam(name: string, options?: { array: true }) {
-  const searchParams = useSearchParams();
-  const value = options?.array ? searchParams.getAll(name) : searchParams.get(name);
-
-  const navigate = useNavigate();
-
-  const setValue = useCallback(
-    (value: string | string[] | null, options?: NavigateOptions) => {
-      navigate((url) => {
-        if (value === null) {
-          url.searchParams.delete(name);
-        }
-
-        if (Array.isArray(value)) {
-          url.searchParams.delete(name);
-          value.forEach((value) => url.searchParams.append(name, value));
-        }
-
-        if (typeof value === 'string') {
-          url.searchParams.set(name, value);
-        }
-      }, options);
-    },
-    [name, navigate],
-  );
-
-  return [value, setValue as unknown] as const;
+  return {
+    to: pathname,
+    search: toObject(
+      Array.from(searchParams.entries()),
+      ([key]) => key,
+      ([, value]) => value,
+    ),
+  } as unknown as ValidateLinkOptions;
 }
 
 export function useOnRouteStateCreate(cb: () => void) {
-  const historyState = useHistoryState<{ create: boolean }>();
+  const historyState = useHistoryState();
   const navigate = useNavigate();
   const cbMemo = usePureFunction(cb);
 
   useEffect(() => {
     if (historyState.create) {
-      navigate('#', { replace: true, state: { create: false } });
-      cbMemo();
+      void navigate({ to: '.', replace: true, state: { create: false } });
+      // wait for the command palette to be closed
+      setTimeout(cbMemo, 0);
     }
   }, [historyState, navigate, cbMemo]);
 }

@@ -1,30 +1,20 @@
+import { Alert, Spinner, Table, TableColumnSelection, useBreakpoint } from '@design-system';
 import clsx from 'clsx';
 
-import {
-  Alert,
-  ButtonMenuItem,
-  Spinner,
-  Table,
-  TableColumnSelection,
-  useBreakpoint,
-} from '@snipkit/design-system';
-import { useApps } from 'src/api/hooks/service';
-import { Domain, type DomainStatus } from 'src/api/model';
-import { stopPropagation } from 'src/application/dom-events';
+import { useApps } from 'src/api';
 import { SvgComponent } from 'src/application/types';
-import { ActionsMenu } from 'src/components/actions-menu';
-import { Dialog } from 'src/components/dialog';
-import { IconChevronDown, IconCircleAlert, IconCircleCheck } from 'src/components/icons';
+import { IconChevronDown, IconCircleAlert, IconCircleCheck } from 'src/icons';
 import { FormattedDistanceToNow } from 'src/intl/formatted';
-import { createTranslate, Translate, TranslateStatus } from 'src/intl/translate';
+import { Translate, TranslateStatus, createTranslate } from 'src/intl/translate';
+import { Domain, type DomainStatus } from 'src/model';
 import { hasProperty } from 'src/utils/object';
 
 import { ChangeAppForm } from './change-app-form';
-import { DeleteDomainDialog } from './delete-domain-dialog';
 import { DnsConfiguration } from './dns-configuration';
+import { DomainActions } from './domains-actions';
 import { NoDomains } from './no-domains';
 
-const T = createTranslate('pages.domains.domainsList');
+const T = createTranslate('pages.domains.list');
 
 type DomainsListProps = {
   domains: Domain[];
@@ -48,7 +38,7 @@ export function DomainsList({ domains, expanded, toggleExpanded, onCreate, selec
         expand: {
           className: clsx('lg:w-12'),
           render: (domain) => (
-            <IconChevronDown className={clsx('text-icon size-4', expanded === domain.id && 'rotate-180')} />
+            <IconChevronDown className={clsx('size-4 text-icon', expanded === domain.id && 'rotate-180')} />
           ),
         },
         name: {
@@ -77,7 +67,7 @@ export function DomainsList({ domains, expanded, toggleExpanded, onCreate, selec
       onRowClick={toggleExpanded}
       isExpanded={(domain) => expanded === domain.id}
       renderExpanded={(domain) => (
-        <div className="col gap-6 px-3 pb-4 pt-2">
+        <div className="col gap-6 px-3 pt-2 pb-4">
           <DomainError domain={domain} />
           <DnsConfiguration domain={domain} />
           <ChangeAppForm domain={domain} />
@@ -85,7 +75,7 @@ export function DomainsList({ domains, expanded, toggleExpanded, onCreate, selec
       )}
       selection={selection}
       classes={{
-        tr: (domain) => clsx(expanded === domain?.id && 'bg-gradient-to-b from-inverted/5 to-inverted/0'),
+        tr: (domain) => clsx(expanded === domain?.id && 'bg-linear-to-b from-inverted/5 to-inverted/0'),
       }}
     />
   );
@@ -120,27 +110,6 @@ function AppName({ appId }: { appId: string | null }) {
   }
 
   return <Translate id="common.noValue" />;
-}
-
-function DomainActions({ domain }: { domain: Domain }) {
-  const openDialog = Dialog.useOpen();
-
-  return (
-    <div onClick={stopPropagation}>
-      <ActionsMenu>
-        {(withClose) => (
-          <ButtonMenuItem
-            disabled={domain.status === 'DELETING'}
-            onClick={withClose(() => openDialog('ConfirmDeleteDomain', { resourceId: domain.id }))}
-          >
-            <T id="actions.delete" />
-          </ButtonMenuItem>
-        )}
-      </ActionsMenu>
-
-      <DeleteDomainDialog domain={domain} />
-    </div>
-  );
 }
 
 function DomainError({ domain }: { domain: Domain }) {

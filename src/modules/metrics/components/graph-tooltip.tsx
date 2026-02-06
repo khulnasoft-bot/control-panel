@@ -13,8 +13,8 @@ type GraphTooltipProps = {
 
 export function GraphTooltip({ data }: GraphTooltipProps) {
   return (
-    <div className="z-50 max-w-80 rounded-lg bg-inverted p-2 text-inverted shadow-lg">
-      <div className="mb-4 text-xs font-medium text-inverted/80">
+    <div className="z-50 max-w-80 rounded-lg bg-inverted p-2 text-neutral shadow-lg">
+      <div className="mb-4 text-xs font-medium text-neutral/80">
         <FormattedDate
           value={data[0]?.date}
           year="numeric"
@@ -26,11 +26,10 @@ export function GraphTooltip({ data }: GraphTooltipProps) {
         />
       </div>
 
-      {/* eslint-disable-next-line tailwindcss/no-arbitrary-value */}
       <div className="inline-grid grid-cols-[repeat(3,min-content)] gap-x-3 gap-y-1 whitespace-nowrap">
         {data.map(({ id, label, color, value }) => (
           <Fragment key={id}>
-            <div className="size-4 rounded" style={{ backgroundColor: color }} />
+            <div className="size-4 rounded-sm" style={{ backgroundColor: color }} />
             <div>{label}</div>
             <div className="font-semibold">{value}</div>
           </Fragment>

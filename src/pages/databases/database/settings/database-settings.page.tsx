@@ -1,20 +1,21 @@
+import { Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { Button } from '@snipkit/design-system';
-import { api } from 'src/api/api';
-import { useDeployment, useService } from 'src/api/hooks/service';
-import { isDatabaseDeployment } from 'src/api/mappers/deployment';
-import { Service } from 'src/api/model';
-import { useInvalidateApiQuery } from 'src/api/use-api';
+import {
+  apiMutation,
+  isDatabaseDeployment,
+  useApi,
+  useDeployment,
+  useInvalidateApiQuery,
+  useService,
+} from 'src/api';
 import { notify } from 'src/application/notify';
-import { routes } from 'src/application/routes';
-import { useToken } from 'src/application/token';
-import { ConfirmationDialog } from 'src/components/confirmation-dialog';
-import { Dialog } from 'src/components/dialog';
+import { openDialog } from 'src/components/dialog';
 import { SectionHeader } from 'src/components/section-header';
 import { useNavigate, useRouteParam } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
+import { Service } from 'src/model';
 import { DatabaseEstimatedCost } from 'src/modules/database-form/database-estimated-cost';
 import { DatabaseForm } from 'src/modules/database-form/database-form';
 import { assert } from 'src/utils/assert';
@@ -35,7 +36,6 @@ export function DatabaseSettingsPage() {
   assert(isDatabaseDeployment(deployment));
 
   return (
-    // eslint-disable-next-line tailwindcss/no-arbitrary-value
     <div className="grid grid-cols-1 gap-8 xl:grid-cols-[1fr_20rem]">
       <DatabaseForm deployment={deployment} onCostChanged={setCost} />
 
@@ -51,38 +51,47 @@ export function DatabaseSettingsPage() {
 
 function DeleteDatabaseService({ service }: { service: Service }) {
   const t = T.useTranslate();
-  const navigate = useNavigate();
-  const openDialog = Dialog.useOpen();
 
+  const api = useApi();
   const invalidate = useInvalidateApiQuery();
-  const { token } = useToken();
+  const navigate = useNavigate();
 
-  const mutation = useMutation({
-    async mutationFn() {
-      await api.deleteService({
-        token,
-        path: { id: service.id },
-      });
+  const deleteAppMutation = useMutation({
+    ...apiMutation('delete /v1/apps/{id}', (appId: string) => ({
+      path: { id: appId },
+    })),
+  });
 
-      const { services } = await api.listServices({
-        token,
+  const deleteServiceMutation = useMutation({
+    ...apiMutation('delete /v1/services/{id}', (service: Service) => ({
+      path: { id: service.id },
+    })),
+    async onSuccess() {
+      const { services } = await api('get /v1/services', {
         query: { app_id: service.appId },
       });
 
       if (services?.length === 0) {
-        await api.deleteApp({
-          token,
-          path: { id: service.appId },
-        });
+        await deleteAppMutation.mutateAsync(service.appId);
       }
-    },
-    async onSuccess() {
-      await invalidate('listApps');
-      await invalidate('listServices');
-      navigate(routes.home());
-      notify.info(t('delete.successNotification', { serviceName: service.name }));
+
+      await Promise.all([invalidate('get /v1/apps'), invalidate('get /v1/services')]);
+
+      notify.info(t('delete.confirmation.success', { serviceName: service.name }));
+      await navigate({ to: '/services' });
     },
   });
+
+  const onDelete = () => {
+    openDialog('Confirmation', {
+      title: t('delete.confirmation.title'),
+      description: t('delete.confirmation.description'),
+      destructiveAction: true,
+      confirmationText: service.name,
+      submitText: t('delete.confirmation.confirm'),
+      onConfirm: () => deleteServiceMutation.mutateAsync(service),
+    });
+  };
 
   return (
     <section className="card">
@@ -93,25 +102,10 @@ function DeleteDatabaseService({ service }: { service: Service }) {
           className="flex-1"
         />
 
-        <Button
-          color="red"
-          loading={mutation.isPending}
-          onClick={() => openDialog('ConfirmDeleteDatabaseService', { resourceId: service.id })}
-        >
+        <Button color="red" loading={deleteServiceMutation.isPending} onClick={onDelete}>
           <T id="delete.delete" />
         </Button>
       </div>
-
-      <ConfirmationDialog
-        id="ConfirmDeleteDatabaseService"
-        resourceId={service.id}
-        title={<T id="delete.confirmationDialog.title" />}
-        description={<T id="delete.confirmationDialog.description" />}
-        destructiveAction
-        confirmationText={service.name}
-        submitText={<T id="delete.confirmationDialog.confirm" />}
-        onConfirm={() => mutation.mutateAsync()}
-      />
     </section>
   );
 }

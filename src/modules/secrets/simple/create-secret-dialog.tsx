@@ -1,7 +1,8 @@
-import { Button } from '@snipkit/design-system';
+import { Button } from '@design-system';
+
 import { notify } from 'src/application/notify';
-import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from 'src/components/dialog';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { CloseDialogButton, Dialog, DialogFooter, DialogHeader, closeDialog } from 'src/components/dialog';
+import { Translate, createTranslate } from 'src/intl/translate';
 import { SecretForm } from 'src/modules/secrets/simple/simple-secret-form';
 
 const T = createTranslate('modules.secrets.simpleSecretForm');
@@ -12,7 +13,6 @@ type CreateSecretDialogProps = {
 
 export function CreateSecretDialog({ onCreated }: CreateSecretDialogProps) {
   const t = T.useTranslate();
-  const closeDialog = Dialog.useClose();
 
   return (
     <Dialog id="CreateSecret" className="col w-full max-w-xl gap-4">

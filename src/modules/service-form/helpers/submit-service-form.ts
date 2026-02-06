@@ -1,6 +1,4 @@
-import { api } from 'src/api/api';
-import { isApiValidationError } from 'src/api/api-errors';
-import { getToken } from 'src/application/token';
+import { ApiError, ApiFn } from 'src/api';
 import { hasProperty } from 'src/utils/object';
 
 import { ServiceForm } from '../service-form.types';
@@ -15,30 +13,29 @@ type SubmitServiceFormResult = {
   deploymentId: string;
 };
 
-export async function submitServiceForm(form: ServiceForm): Promise<SubmitServiceFormResult> {
+export async function submitServiceForm(api: ApiFn, form: ServiceForm): Promise<SubmitServiceFormResult> {
   let appId = form.meta.appId ?? undefined;
   const serviceId = form.meta.serviceId;
 
   if (serviceId === null) {
-    await createService(uuid, form, true);
+    await createService(api, uuid, form, true);
   }
 
   if (!appId) {
-    appId = await findOrCreateApp(form.appName);
+    appId = await findOrCreateApp(api, form.appName);
   }
 
-  await createVolumes(form);
+  await createVolumes(api, form);
 
   if (serviceId === null) {
-    return createService(appId, form);
+    return createService(api, appId, form);
   } else {
-    return updateService(serviceId, form);
+    return updateService(api, serviceId, form);
   }
 }
 
-async function findOrCreateApp(appName: string): Promise<string> {
-  const { apps } = await api.listApps({
-    token: getToken(),
+async function findOrCreateApp(api: ApiFn, appName: string): Promise<string> {
+  const { apps } = await api('get /v1/apps', {
     query: { name: appName, limit: '100' },
   });
 
@@ -48,17 +45,15 @@ async function findOrCreateApp(appName: string): Promise<string> {
     return app.id!;
   }
 
-  const { app: newApp } = await api.createApp({
-    token: getToken(),
+  const { app: newApp } = await api('post /v1/apps', {
     body: { name: appName },
   });
 
   return newApp!.id!;
 }
 
-async function createVolumes(form: ServiceForm): Promise<void> {
-  const { volumes: existingVolumes } = await api.listVolumes({
-    token: getToken(),
+async function createVolumes(api: ApiFn, form: ServiceForm): Promise<void> {
+  const { volumes: existingVolumes } = await api('get /v1/volumes', {
     query: { limit: '100' },
   });
 
@@ -75,6 +70,7 @@ async function createVolumes(form: ServiceForm): Promise<void> {
     }
 
     volume.volumeId = await createVolume(
+      api,
       form.volumes.indexOf(volume),
       volume.name,
       volume.size,
@@ -83,10 +79,15 @@ async function createVolumes(form: ServiceForm): Promise<void> {
   }
 }
 
-async function createVolume(index: number, name: string, size: number, region: string): Promise<string> {
+async function createVolume(
+  api: ApiFn,
+  index: number,
+  name: string,
+  size: number,
+  region: string,
+): Promise<string> {
   try {
-    const response = await api.createVolume({
-      token: getToken(),
+    const response = await api('post /v1/volumes', {
       body: {
         name,
         max_size: size,
@@ -97,8 +98,8 @@ async function createVolume(index: number, name: string, size: number, region: s
 
     return response.volume!.id!;
   } catch (error) {
-    if (isApiValidationError(error)) {
-      for (const field of error.fields) {
+    if (ApiError.isValidationError(error)) {
+      for (const field of error.body.fields) {
         field.field = `volumes.${index}.${field.field}`;
       }
     }
@@ -107,15 +108,17 @@ async function createVolume(index: number, name: string, size: number, region: s
   }
 }
 
-async function createService(appId: string, form: ServiceForm, dryRun: true): Promise<void>;
+async function createService(api: ApiFn, appId: string, form: ServiceForm, dryRun: true): Promise<void>;
 
 async function createService(
+  api: ApiFn,
   appId: string,
   form: ServiceForm,
   dryRun?: false,
 ): Promise<SubmitServiceFormResult>;
 
 async function createService(
+  api: ApiFn,
   appId: string,
   form: ServiceForm,
   dryRun = false,
@@ -126,8 +129,7 @@ async function createService(
     definition.volumes = definition.volumes?.filter((volume) => volume.id !== undefined);
   }
 
-  const result = await api.createService({
-    token: getToken(),
+  const result = await api('post /v1/services', {
     query: { dry_run: dryRun },
     body: {
       app_id: appId,
@@ -146,9 +148,12 @@ async function createService(
   };
 }
 
-async function updateService(serviceId: string, form: ServiceForm): Promise<SubmitServiceFormResult> {
-  const result = await api.updateService({
-    token: getToken(),
+async function updateService(
+  api: ApiFn,
+  serviceId: string,
+  form: ServiceForm,
+): Promise<SubmitServiceFormResult> {
+  const result = await api('put /v1/services/{id}', {
     path: { id: serviceId },
     query: { dry_run: false },
     body: {

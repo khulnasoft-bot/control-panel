@@ -2,7 +2,7 @@ import merge from 'lodash-es/merge';
 import unique from 'lodash-es/uniq';
 import { ValueOf } from 'type-fest';
 
-import { CatalogInstance, CatalogRegion, EnvironmentVariable } from 'src/api/model';
+import { CatalogInstance, CatalogRegion, EnvironmentVariable } from 'src/model';
 import { inArray } from 'src/utils/arrays';
 import { hasProperty } from 'src/utils/object';
 import { DeepPartial } from 'src/utils/types';
@@ -12,7 +12,6 @@ import {
   HealthCheck,
   HealthCheckProtocol,
   Port,
-  PortProtocol,
   Scaling,
   ServiceForm,
   ServiceVolume,
@@ -46,6 +45,7 @@ export function parseDeployParams(
   builder.autoscaling_concurrent_requests = params.get('autoscaling_concurrent_requests');
   builder.autoscaling_requests_response_time = params.get('autoscaling_requests_response_time');
   builder.autoscaling_sleep_idle_delay = params.get('autoscaling_sleep_idle_delay');
+  builder.autoscaling_deep_sleep_delay = params.get('autoscaling_deep_sleep_delay');
   builder.volumes = params.entries();
   builder.healthChecks = params.entries();
 
@@ -89,13 +89,6 @@ class ServiceFormBuilder {
   ) {}
 
   get() {
-    const max = this.values.scaling?.max;
-
-    if (max !== undefined && max > 1) {
-      const target = this.values.serviceType === 'worker' ? 'cpu' : 'requests';
-      this.set('scaling', { targets: { [target]: { enabled: true } } });
-    }
-
     return this.values;
   }
 
@@ -147,14 +140,14 @@ class ServiceFormBuilder {
 
   set privileged(privileged: string | null) {
     if (privileged === 'true') {
-      if (this.type === 'git') {
+      if (this.type === 'docker') {
+        this.set('dockerDeployment', {
+          privileged: true,
+        });
+      } else {
         this.set('builder', {
           buildpackOptions: { privileged: true },
           dockerfileOptions: { privileged: true },
-        });
-      } else {
-        this.set('dockerDeployment', {
-          privileged: true,
         });
       }
     }
@@ -210,29 +203,24 @@ class ServiceFormBuilder {
   }
 
   private parsePort(value: string): Port | void {
-    let match = value.match(/(\d+);(http|http2);(.+)/);
+    const [port, protocol, path = '', tcpProxy] = value.split(';');
 
-    if (match) {
-      return {
-        portNumber: Number(match[1]),
-        protocol: match[2] as PortProtocol,
-        public: true,
-        path: match[3] as string,
-        healthCheck: defaultHealthCheck(),
-      };
+    if (Number.isNaN(Number(port))) {
+      return;
     }
 
-    match = value.match(/(\d+);tcp/);
-
-    if (match) {
-      return {
-        portNumber: Number(match[1]),
-        protocol: 'tcp',
-        public: false,
-        path: '',
-        healthCheck: defaultHealthCheck(),
-      };
+    if (!inArray(protocol, ['http', 'http2', 'tcp'] as const)) {
+      return;
     }
+
+    return {
+      portNumber: Number(port),
+      protocol: protocol,
+      public: protocol !== 'tcp' && path !== '',
+      tcpProxy: tcpProxy === 'true',
+      path,
+      healthCheck: defaultHealthCheck(),
+    };
   }
 
   set ports(portsInput: string[]) {
@@ -253,43 +241,21 @@ class ServiceFormBuilder {
 
   set instances_min(value: string | null) {
     if (value !== null) {
-      this.setScaling(Number(value), this.values.scaling?.max);
+      const min = Number(value);
+
+      if (!Number.isNaN(min) && min >= 0 && min <= 20) {
+        this.set('scaling', { min });
+      }
     }
   }
 
   set instances_max(value: string | null) {
     if (value !== null) {
-      this.setScaling(this.values.scaling?.min, Number(value));
-    }
-  }
+      const max = Number(value);
 
-  private setScaling(min: number | undefined, max: number | undefined) {
-    if (Number.isNaN(min) || Number.isNaN(max)) {
-      return;
-    }
-
-    if (min !== undefined && (min < 0 || min >= 20)) {
-      return;
-    }
-
-    if (max !== undefined && (max <= 0 || max >= 20)) {
-      return;
-    }
-
-    if (min !== undefined && max !== undefined) {
-      if (min > max) {
-        this.setScaling(max, min);
-      } else {
-        this.set('scaling', { min, max });
+      if (!Number.isNaN(max) && max > 0 && max <= 20) {
+        this.set('scaling', { max });
       }
-    }
-
-    if (max === undefined) {
-      this.set('scaling', { min });
-    }
-
-    if (min === undefined) {
-      this.set('scaling', { max });
     }
   }
 
@@ -314,7 +280,19 @@ class ServiceFormBuilder {
   }
 
   set autoscaling_sleep_idle_delay(value: string | null) {
-    this.setAutoscalingTarget('sleepIdleDelay', value);
+    if (value !== null) {
+      this.set('scaling', {
+        scaleToZero: { idlePeriod: Number(value) },
+      });
+    }
+  }
+
+  set autoscaling_deep_sleep_delay(value: string | null) {
+    if (value !== null) {
+      this.set('scaling', {
+        scaleToZero: { lightSleepEnabled: true, lightToDeepPeriod: Number(value) },
+      });
+    }
   }
 
   private setAutoscalingTarget(target: keyof Scaling['targets'], value: string | null) {

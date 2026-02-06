@@ -1,6 +1,6 @@
 import { useWatch } from 'react-hook-form';
 
-import { ControlledInput } from 'src/components/controlled';
+import { ControlledInput } from 'src/components/forms';
 import { createTranslate } from 'src/intl/translate';
 
 import { DatabaseServiceFormSection } from '../components/database-service-form-section';
@@ -14,10 +14,10 @@ export function DefaultRoleSection() {
   return (
     <DatabaseServiceFormSection
       section="defaultRole"
-      title={defaultRole || <T id="defaultRoleMissing" />}
-      expandedTitle={<T id="expandedTitle" />}
+      title={<T id="title" />}
+      action={<T id="action" />}
+      summary={defaultRole || <T id="defaultRoleMissing" />}
       shortcut={3}
-      description={<T id="description" />}
     >
       <ControlledInput<DatabaseServiceForm, 'defaultRole'>
         name="defaultRole"

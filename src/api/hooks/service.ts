@@ -1,8 +1,11 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
+import { ComputeDeployment, DeploymentStatus, InstanceStatus } from 'src/model';
+import { createArray } from 'src/utils/arrays';
 import { assert } from 'src/utils/assert';
 import { hasProperty } from 'src/utils/object';
 
+import { useApi } from '../index';
 import {
   isComputeDeployment,
   mapDeployment,
@@ -10,36 +13,13 @@ import {
   mapRegionalDeployment,
   mapReplica,
 } from '../mappers/deployment';
-import { mapApp, mapService } from '../mappers/service';
-import { DeploymentStatus, InstanceStatus } from '../model';
-import { useApiQueryFn } from '../use-api';
-
-export function useAppsQuery() {
-  return useQuery({
-    ...useApiQueryFn('listApps', { query: { limit: '100' } }),
-    select: ({ apps }) => apps!.map(mapApp),
-  });
-}
-
-export function useApps() {
-  return useAppsQuery().data;
-}
-
-export function useAppQuery(appId?: string) {
-  return useQuery({
-    ...useApiQueryFn('getApp', { path: { id: appId! } }),
-    enabled: appId !== undefined,
-    select: ({ app }) => mapApp(app!),
-  });
-}
-
-export function useApp(appId?: string) {
-  return useAppQuery(appId).data;
-}
+import { mapService } from '../mappers/service';
+import { apiQuery, getApiQueryKey } from '../query';
 
 export function useServicesQuery(appId?: string) {
   return useQuery({
-    ...useApiQueryFn('listServices', { query: { limit: '100', app_id: appId } }),
+    ...apiQuery('get /v1/services', { query: { limit: '100', app_id: appId } }),
+    refetchInterval: 5_000,
     select: ({ services }) => services!.map(mapService),
   });
 }
@@ -50,8 +30,9 @@ export function useServices(appId?: string) {
 
 export function useServiceQuery(serviceId?: string) {
   return useQuery({
-    ...useApiQueryFn('getService', { path: { id: serviceId! } }),
+    ...apiQuery('get /v1/services/{id}', { path: { id: serviceId! } }),
     enabled: serviceId !== undefined,
+    refetchInterval: 5_000,
     select: ({ service }) => mapService(service!),
   });
 }
@@ -61,20 +42,53 @@ export function useService(serviceId?: string) {
 }
 
 export function useDeploymentsQuery(serviceId: string, statuses?: DeploymentStatus[]) {
-  return useQuery({
-    ...useApiQueryFn('listDeployments', { query: { service_id: serviceId, statuses } }),
-    select: ({ deployments }) => deployments!.map(mapDeployment),
-  });
-}
+  const api = useApi();
 
-export function useDeployments(serviceId: string, statuses?: DeploymentStatus[]) {
-  return useDeploymentsQuery(serviceId, statuses).data;
+  return useInfiniteQuery({
+    queryKey: getApiQueryKey('get /v1/deployments', {
+      query: {
+        service_id: serviceId,
+        statuses,
+      },
+    }),
+
+    async queryFn({ queryKey: [, { query }], pageParam }) {
+      return api('get /v1/deployments', {
+        query: {
+          limit: String(10),
+          offset: String(10 * pageParam),
+          ...query,
+        },
+      });
+    },
+
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, pages, lastPageParam) => {
+      const nextPage = lastPageParam + 1;
+
+      if (nextPage * lastPage.limit! >= lastPage.count!) {
+        return undefined;
+      }
+
+      return nextPage;
+    },
+
+    refetchInterval: 5_000,
+
+    select({ pages }) {
+      return {
+        count: pages[0]!.count!,
+        deployments: pages.flatMap((page) => page.deployments!.map(mapDeployment)),
+      };
+    },
+  });
 }
 
 export function useDeploymentQuery(deploymentId: string | undefined) {
   return useQuery({
-    ...useApiQueryFn('getDeployment', { path: { id: deploymentId as string } }),
+    ...apiQuery('get /v1/deployments/{id}', { path: { id: deploymentId as string } }),
     enabled: deploymentId !== undefined,
+    refetchInterval: 5_000,
     select: ({ deployment }) => mapDeployment(deployment!),
   });
 }
@@ -95,8 +109,9 @@ export function useComputeDeployment(deploymentId: string | undefined) {
 
 export function useRegionalDeploymentsQuery(deploymentId: string | undefined) {
   return useQuery({
-    ...useApiQueryFn('listRegionalDeployments', { query: { deployment_id: deploymentId } }),
+    ...apiQuery('get /v1/regional_deployments', { query: { deployment_id: deploymentId } }),
     enabled: deploymentId !== undefined,
+    refetchInterval: 5_000,
     select: ({ regional_deployments }) => regional_deployments!.map(mapRegionalDeployment),
   });
 }
@@ -109,22 +124,66 @@ export function useRegionalDeployment(deploymentId: string | undefined, region: 
   return useRegionalDeployments(deploymentId)?.find(hasProperty('region', region));
 }
 
-export function useDeploymentScalingQuery(deploymentId: string | undefined, filters?: { region?: string }) {
+type DeploymentScalingFilters = {
+  statuses?: InstanceStatus[];
+  regions?: string[];
+};
+
+type DeploymentScalingOptions = {
+  filters?: DeploymentScalingFilters;
+  refetchInterval?: number;
+};
+
+export function useDeploymentScalingQuery(
+  deployment?: ComputeDeployment,
+  { filters, refetchInterval = 5_000 }: DeploymentScalingOptions = {},
+) {
+  const deploymentId = deployment?.id;
+
   return useQuery({
-    ...useApiQueryFn('getDeploymentScaling', {
-      path: { id: deploymentId! },
-      query: { ...filters },
+    ...apiQuery('get /v1/instances', {
+      query: {
+        deployment_id: deploymentId,
+        statuses: filters?.statuses ?? [
+          'ALLOCATING',
+          'STARTING',
+          'HEALTHY',
+          'UNHEALTHY',
+          'STOPPING',
+          'SLEEPING',
+        ],
+        limit: '100',
+      },
     }),
+    refetchInterval,
     enabled: deploymentId !== undefined,
     placeholderData: keepPreviousData,
-    select: ({ replicas }) => replicas!.map(mapReplica),
+    select: ({ instances }) => {
+      assert(deployment !== undefined);
+
+      const regions = filters?.regions ?? deployment.definition.regions;
+      const replicasCount = deployment.definition.scaling.max;
+
+      const getReplica = (region: string, index: number) => ({
+        region,
+        replica_index: index,
+        instances: instances!.filter(
+          (instance) => instance.region === region && instance.replica_index === index,
+        ),
+      });
+
+      const replicas = regions
+        .slice()
+        .sort()
+        .flatMap((region) => createArray(replicasCount, (index) => getReplica(region, index)));
+
+      return replicas.map(mapReplica);
+    },
   });
 }
 
-export function useDeploymentScaling(deploymentId: string | undefined, filters?: { region?: string }) {
-  const { data } = useDeploymentScalingQuery(deploymentId, filters);
-
-  return data;
+export function useDeploymentScaling(deployment?: ComputeDeployment, options?: DeploymentScalingOptions) {
+  return useDeploymentScalingQuery(deployment, options).data;
 }
 
 type InstancesQueryOptions = {
@@ -147,7 +206,7 @@ export function useInstancesQuery({
   offset,
 }: InstancesQueryOptions = {}) {
   return useQuery({
-    ...useApiQueryFn('listInstances', {
+    ...apiQuery('get /v1/instances', {
       query: {
         service_id: serviceId,
         deployment_id: deploymentId,
@@ -161,6 +220,7 @@ export function useInstancesQuery({
     }),
     placeholderData: keepPreviousData,
     enabled: serviceId !== undefined || deploymentId !== undefined || regionalDeploymentId !== undefined,
+    refetchInterval: 5_000,
     select: ({ count, instances }) => ({
       instances: instances!.map((instance) => mapInstance(instance)),
       count: count!,
@@ -170,8 +230,9 @@ export function useInstancesQuery({
 
 export function useInstanceQuery(instanceId: string) {
   return useQuery({
-    ...useApiQueryFn('getInstance', { path: { id: instanceId } }),
+    ...apiQuery('get /v1/instances/{id}', { path: { id: instanceId } }),
     placeholderData: keepPreviousData,
+    refetchInterval: 5_000,
     select: ({ instance }) => mapInstance(instance!),
   });
 }

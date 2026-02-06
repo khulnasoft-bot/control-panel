@@ -1,12 +1,10 @@
-import { useInfiniteQuery, UseInfiniteQueryResult, useQueryClient } from '@tanstack/react-query';
+import { Spinner } from '@design-system';
+import { UseInfiniteQueryResult, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { useState } from 'react';
 
-import { Spinner } from '@snipkit/design-system';
-import { api } from 'src/api/api';
-import { mapActivity } from 'src/api/mappers/activity';
-import { Activity } from 'src/api/model';
-import { useToken } from 'src/application/token';
+import { getApiQueryKey, mapActivity, useApi } from 'src/api';
+import { ApiEndpoint } from 'src/api/api';
 import { DocumentTitle } from 'src/components/document-title';
 import { Loading } from 'src/components/loading';
 import { QueryError } from 'src/components/query-error';
@@ -14,7 +12,9 @@ import { TextSkeleton } from 'src/components/skeleton';
 import { Title } from 'src/components/title';
 import { useIntersectionObserver } from 'src/hooks/intersection-observer';
 import { useMount } from 'src/hooks/lifecycle';
+import { useSearchParams } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
+import { Activity } from 'src/model';
 import { ActivityIcon } from 'src/modules/activity/activity-icon';
 import { ActivityItem } from 'src/modules/activity/activity-item';
 import { createArray } from 'src/utils/arrays';
@@ -23,23 +23,40 @@ const T = createTranslate('pages.activity');
 
 const pageSize = 20;
 
+const allTypes = [
+  'session',
+  'secret',
+  'deployment',
+  'domain',
+  'service',
+  'subscription',
+  'user',
+  'app',
+  'credential',
+  'organization_member',
+  'organization_invitation',
+  'organization',
+];
+
 export function ActivityPage() {
-  const { token } = useToken();
-  const queryClient = useQueryClient();
   const t = T.useTranslate();
 
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  const params = useSearchParams();
+  const types = params.has('types') ? params.getAll('types') : allTypes;
+
   const query = useInfiniteQuery({
-    queryKey: ['listActivities', { token }],
+    queryKey: getApiQueryKey('get /v1/activities', { query: { types } }),
     async queryFn({ pageParam }) {
-      return api
-        .listActivities({
-          token,
-          query: {
-            offset: String(pageParam * pageSize),
-            limit: String(pageSize),
-          },
-        })
-        .then(({ activities }) => activities!.map(mapActivity));
+      return api('get /v1/activities', {
+        query: {
+          offset: String(pageParam * pageSize),
+          limit: String(pageSize),
+          types,
+        },
+      }).then(({ activities }) => activities!.map(mapActivity));
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage: Activity[], pages, lastPageParam) => {
@@ -54,7 +71,7 @@ export function ActivityPage() {
   const setInfiniteScrollElementRef = useInfiniteScroll(query);
 
   useMount(() => {
-    return () => queryClient.removeQueries({ queryKey: ['listActivities'] });
+    return () => queryClient.removeQueries({ queryKey: ['get /v1/activities' satisfies ApiEndpoint] });
   });
 
   if (query.isError) {
@@ -121,7 +138,7 @@ function ActivitySkeleton() {
             <div className={clsx('flex-1', index < 10 - 1 && 'border-l')} />
           </div>
 
-          <span className="col my-3 flex-1 gap-2 rounded-lg border p-3">
+          <span className="my-3 col flex-1 gap-2 rounded-lg border p-3">
             <TextSkeleton width={20} />
             <TextSkeleton width={12} />
           </span>

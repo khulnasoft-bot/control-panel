@@ -1,9 +1,9 @@
+import { TabButton, TabButtons } from '@design-system';
 import clsx from 'clsx';
 import { Controller } from 'react-hook-form';
 
-import { TabButton, TabButtons } from '@snipkit/design-system';
-import { useGithubApp } from 'src/api/hooks/git';
-import { ControlledSelect } from 'src/components/controlled';
+import { useGithubApp } from 'src/api';
+import { ControlledSelect } from 'src/components/forms';
 import { createTranslate } from 'src/intl/translate';
 import { identity } from 'src/utils/generic';
 
@@ -23,12 +23,12 @@ export function GitSource() {
     <>
       <ControlledSelect<ServiceForm, 'source.git.repositoryType'>
         name="source.git.repositoryType"
-        className="sm:!hidden"
+        className="sm:hidden!"
         label={<T id="repositoryTypeLabel" />}
         items={['organization', 'public']}
         getKey={identity}
         itemToString={identity}
-        itemToValue={identity}
+        getValue={identity}
         renderItem={(type) =>
           ({
             organization: githubApp?.organizationName,
@@ -56,11 +56,11 @@ export function GitSource() {
         />
       </div>
 
-      <div className={clsx('col gap-4', repositoryType !== 'organization' && '!hidden')}>
+      <div className={clsx('col gap-4', repositoryType !== 'organization' && 'hidden!')}>
         <OrganizationRepository />
       </div>
 
-      <div className={clsx('col gap-4', repositoryType !== 'public' && '!hidden')}>
+      <div className={clsx('col gap-4', repositoryType !== 'public' && 'hidden!')}>
         <PublicRepository />
       </div>
     </>

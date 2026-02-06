@@ -1,5 +1,5 @@
-import { useGithubApp } from 'src/api/hooks/git';
-import { ControlledCheckbox } from 'src/components/controlled';
+import { useGithubApp } from 'src/api';
+import { ControlledCheckbox } from 'src/components/forms';
 import { createTranslate } from 'src/intl/translate';
 
 import { ServiceForm } from '../../../service-form.types';
@@ -37,7 +37,7 @@ export function OrganizationRepository() {
       <ControlledCheckbox<ServiceForm, 'source.git.organizationRepository.autoDeploy'>
         name="source.git.organizationRepository.autoDeploy"
         label={<T id="autoDeploy" />}
-        helpTooltip={<T id="autoDeployTooltip" />}
+        tooltip={<T id="autoDeployTooltip" />}
         className="self-start"
       />
 

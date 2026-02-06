@@ -1,15 +1,15 @@
 import { useEffect } from 'react';
 import { useFormContext, useFormState } from 'react-hook-form';
 
-import { ControlledInput } from 'src/components/controlled';
 import { DockerImageHelperText } from 'src/components/docker-image-input/docker-image-helper-text';
 import { useVerifyDockerImage } from 'src/components/docker-image-input/use-verify-docker-image';
+import { ControlledInput } from 'src/components/forms';
 import { useFormValues } from 'src/hooks/form';
-import IconDocker from 'src/icons/docker.svg?react';
+import { IconDocker } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
 
-import { ServiceForm } from '../../../service-form.types';
 import { useGenerateServiceName } from '../../00-service-name/use-generate-service-name';
+import { ServiceForm } from '../../../service-form.types';
 
 const T = createTranslate('modules.serviceForm.source.docker');
 
@@ -45,7 +45,7 @@ export function DockerImageField() {
       name="source.docker.image"
       label={<T id="imageLabel" />}
       placeholder={t('imagePlaceholder')}
-      helpTooltip={<T id="imageTooltip" />}
+      tooltip={<T id="imageTooltip" />}
       helperText={
         <DockerImageHelperText
           verifying={verifying}

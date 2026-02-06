@@ -1,10 +1,10 @@
-import { Serie } from '@nivo/line';
 import { useIntl } from 'react-intl';
 
 import { isDefined } from 'src/utils/generic';
 import { shortId } from 'src/utils/strings';
 
 import { LineGraph } from '../components/line-graph';
+import { LabelledLineSeries } from '../components/nivo';
 import { toGraph } from '../metrics-helpers';
 import { Metric } from '../metrics-types';
 
@@ -37,7 +37,7 @@ export function CpuGraph({ loading, data, error }: CpuGraphProps) {
   );
 }
 
-function getSeries(data?: Array<Metric>): Serie[] {
+function getSeries(data?: Array<Metric>): LabelledLineSeries[] {
   if (data === undefined) {
     return [];
   }
@@ -48,7 +48,7 @@ function getSeries(data?: Array<Metric>): Serie[] {
     data: data.samples.map(toGraph),
   }));
 
-  if (series.every((serie) => serie.data.every((data) => data.y === undefined))) {
+  if (series.every((serie) => serie.data.every((data) => data.y === null))) {
     return [];
   }
 

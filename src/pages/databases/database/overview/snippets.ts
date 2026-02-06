@@ -1,4 +1,4 @@
-import { CodeLang } from '@snipkit/design-system';
+import { CodeLang } from '@design-system';
 
 // cSpell:words dbname jdbc pgbouncer psql psql sqlalchemy sslmode symfony
 

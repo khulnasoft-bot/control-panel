@@ -1,69 +1,81 @@
-import { useQuery } from '@tanstack/react-query';
-
-import { inArray } from 'src/utils/arrays';
-import { AssertionError, defined } from 'src/utils/assert';
-
-import { isApiError } from '../api-errors';
 import {
-  mapOrganization,
-  mapOrganizationMember,
-  mapOrganizationQuotas,
-  mapOrganizationSummary,
-  mapUser,
-} from '../mappers/session';
-import { useApiQueryFn } from '../use-api';
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
+import { useAuth } from '@workos-inc/authkit-react';
+import { unstable_useWidgetsInvalidator as useWidgetsInvalidator } from '@workos-inc/widgets/utils';
+
+import { apiQuery, getApiQueryKey } from 'src/api';
+
+import { mapOrganization, mapOrganizationQuotas, mapOrganizationSummary, mapUser } from '../mappers/session';
 
 export function useUserQuery() {
   return useQuery({
-    ...useApiQueryFn('getCurrentUser'),
-    select: ({ user }) => mapUser(user!),
-    throwOnError: (error) => {
-      if (!isApiError(error)) {
-        return true;
-      }
-
-      return !inArray(error.code, ['authentication_error', 'authorization_error']);
-    },
+    ...apiQuery('get /v1/account/profile', {}),
+    refetchInterval: 5_000,
+    select: (result) => mapUser(result.user!),
   });
 }
 
-export function useUserUnsafe() {
-  return useUserQuery().data;
-}
-
 export function useUser() {
-  return defined(useUserUnsafe(), new AssertionError('User is not set'));
+  return useUserQuery().data;
 }
 
 export function useOrganizationQuery() {
   return useQuery({
-    ...useApiQueryFn('getCurrentOrganization'),
-    select: ({ organization }) => mapOrganization(organization!),
-    throwOnError: (error) => {
-      if (!isApiError(error)) {
-        return true;
-      }
+    ...apiQuery('get /v1/account/organization', {}),
+    refetchInterval: 5_000,
+    select: (result) => mapOrganization(result.organization!),
+  });
+}
 
-      return !inArray(error.code, ['authentication_error', 'authorization_error', 'not_found']);
+export function useOrganization() {
+  return useOrganizationQuery().data;
+}
+
+export function useSwitchOrganization({ onSuccess }: { onSuccess?: () => void | Promise<void> } = {}) {
+  const queryClient = useQueryClient();
+  const { switchToOrganization } = useAuth();
+  const invalidateWidgets = useWidgetsInvalidator();
+
+  return useMutation({
+    mutationFn: (externalId: string) => switchToOrganization({ organizationId: externalId }),
+    async onSuccess() {
+      await queryClient.cancelQueries();
+      await queryClient.refetchQueries({ queryKey: getApiQueryKey('get /v1/account/organization', {}) });
+      await Promise.all([queryClient.invalidateQueries(), invalidateWidgets()]);
+      await onSuccess?.();
     },
   });
 }
 
-export function useOrganizationUnsafe() {
-  return useOrganizationQuery().data;
-}
+export function useOrganizationsList({ search, limit }: { search?: string; limit?: number } = {}) {
+  const { data } = useQuery({
+    ...apiQuery('get /v1/account/organizations', {
+      query: {
+        search,
+        limit: limit ? String(limit) : undefined,
+        statuses: ['ACTIVE', 'WARNING', 'LOCKED', 'DEACTIVATING', 'DEACTIVATED'],
+      },
+    }),
+    placeholderData: keepPreviousData,
+    select: ({ organizations }) => organizations!.map(mapOrganization),
+  });
 
-export function useOrganization() {
-  return defined(useOrganizationUnsafe(), new AssertionError('Organization is not set'));
+  return data ?? [];
 }
 
 export function useOrganizationSummaryQuery() {
-  const { data: organization } = useOrganizationQuery();
-  const organizationId = organization?.id;
+  const organization = useOrganization();
 
-  return useQuery({
-    ...useApiQueryFn('organizationSummary', { path: { organization_id: organizationId! } }),
-    enabled: organizationId !== undefined,
+  return useSuspenseQuery({
+    ...apiQuery('get /v1/organizations/{organization_id}/summary', {
+      path: { organization_id: organization?.id as string },
+    }),
+    refetchInterval: 5_000,
     select: ({ summary }) => mapOrganizationSummary(summary!),
   });
 }
@@ -73,28 +85,16 @@ export function useOrganizationSummary() {
 }
 
 export function useOrganizationQuotasQuery() {
-  const { data: organization } = useOrganizationQuery();
-  const organizationId = organization?.id;
+  const organization = useOrganization();
 
-  return useQuery({
-    ...useApiQueryFn('organizationQuotas', { path: { organization_id: organizationId! } }),
-    enabled: organizationId !== undefined,
-    refetchInterval: false,
+  return useSuspenseQuery({
+    ...apiQuery('get /v1/organizations/{organization_id}/quotas', {
+      path: { organization_id: organization?.id as string },
+    }),
     select: ({ quotas }) => mapOrganizationQuotas(quotas!),
   });
 }
 
 export function useOrganizationQuotas() {
   return useOrganizationQuotasQuery().data;
-}
-
-export function useUserOrganizationMemberships() {
-  const user = useUserUnsafe();
-
-  return useQuery({
-    ...useApiQueryFn('listOrganizationMembers', { query: { user_id: user?.id } }),
-    refetchInterval: false,
-    enabled: user !== undefined,
-    select: ({ members }) => members!.map(mapOrganizationMember),
-  });
 }

@@ -1,5 +1,3 @@
-import { z } from 'zod';
-
 import { SnakeToCamelCase } from './types';
 
 export function lowerCase(str: undefined): undefined;
@@ -51,6 +49,14 @@ export function isSlug(value: string): boolean {
   return /^[-.a-z0-9]*$/.exec(value) !== null;
 }
 
+export function ellipsis(value: string, max: number): string {
+  if (value.length <= max) {
+    return value;
+  }
+
+  return value.slice(0, max - 3) + '...';
+}
+
 export function shortId(uuid: string | undefined): string | undefined;
 export function shortId(uuid: string): string;
 export function shortId(uuid?: string) {
@@ -64,6 +70,13 @@ export function snakeToCamelCase<Str extends string>(str: Str): SnakeToCamelCase
     .join('') as SnakeToCamelCase<Str>;
 }
 
-export function isUuid(str: string): boolean {
-  return z.string().uuid().safeParse(str).success;
+export function normalizeDiacriticCharacters(string: string) {
+  return string.normalize('NFD').replace(/\p{Diacritic}/gu, '');
+}
+
+// eslint-disable-next-line no-control-regex
+const stripAnsiRegexp = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g; // cspell:disable-line
+
+export function stripAnsi(text: string) {
+  return text.replaceAll(stripAnsiRegexp, '');
 }

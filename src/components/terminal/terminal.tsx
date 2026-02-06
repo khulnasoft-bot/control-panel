@@ -1,8 +1,8 @@
+import { useWatchElementSize } from '@design-system';
 import { FitAddon } from '@xterm/addon-fit';
 import { ITerminalOptions, Terminal as XTerm } from '@xterm/xterm';
 import { useEffect, useImperativeHandle, useMemo, useState } from 'react';
 
-import { useWatchElementSize } from '@snipkit/design-system';
 import { useThemeModeOrPreferred } from 'src/hooks/theme';
 
 import '@xterm/xterm/css/xterm.css';
@@ -51,7 +51,7 @@ export default function Terminal({ ref, onSizeChange, onData }: TerminalProps) {
   useTerminalTheme(xterm);
 
   return (
-    <div className="rounded border py-2 pl-2">
+    <div className="rounded-sm border py-2 pl-2">
       <div ref={setContainer} className="h-96 resize-y overflow-hidden" />
     </div>
   );
@@ -60,25 +60,26 @@ export default function Terminal({ ref, onSizeChange, onData }: TerminalProps) {
 function useTerminalTheme(xterm: XTerm) {
   const themeMode = useThemeModeOrPreferred();
 
-  const theme = useMemo<ITerminalOptions['theme']>(() => {
+  const styles = useMemo(() => {
     void themeMode;
-
-    const styles = getComputedStyle(document.body);
-
-    const body = styles.getPropertyValue('--color-background-neutral');
-    const text = styles.getPropertyValue('--color-text-default');
-    const muted = styles.getPropertyValue('--color-background-muted');
-
-    return {
-      background: `rgb(${body})`,
-      foreground: `rgb(${text})`,
-      cursor: `rgb(${text})`,
-      selectionBackground: `rgb(${muted})`,
-    };
+    return getComputedStyle(document.body);
   }, [themeMode]);
 
+  const theme = useMemo<ITerminalOptions['theme']>(
+    () => ({
+      background: styles.getPropertyValue('--color-neutral'),
+      foreground: styles.getPropertyValue('--color-default'),
+      cursor: styles.getPropertyValue('--color-default'),
+      selectionBackground: styles.getPropertyValue('--color-muted'),
+    }),
+    [styles],
+  );
+
   useEffect(() => {
-    xterm.options.fontFamily = '"JetBrains Mono Variable", monospace';
+    const styles = getComputedStyle(document.body);
+
+    // eslint-disable-next-line react-hooks/immutability
+    xterm.options.fontFamily = styles.getPropertyValue('--font-mono');
     xterm.options.fontSize = 12;
     xterm.options.theme = theme;
   }, [xterm, theme]);

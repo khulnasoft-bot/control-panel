@@ -1,20 +1,21 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button, DialogFooter } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button, DialogFooter } from '@snipkit/design-system';
-import { DatabaseDeployment, Service } from 'src/api/model';
-import { useInvalidateApiQuery } from 'src/api/use-api';
+import { useApi, useInvalidateApiQuery } from 'src/api';
 import { notify } from 'src/application/notify';
 import { updateDatabaseService } from 'src/application/service-functions';
-import { ControlledInput, ControlledSelect } from 'src/components/controlled';
-import { CloseDialogButton, Dialog, DialogHeader } from 'src/components/dialog';
+import { CloseDialogButton, Dialog, DialogHeader, closeDialog } from 'src/components/dialog';
+import { ControlledInput, ControlledSelect } from 'src/components/forms';
+import { NoItems } from 'src/components/forms/helpers/no-items';
 import { FormValues, handleSubmit } from 'src/hooks/form';
-import { useZodResolver } from 'src/hooks/validation';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { Translate, createTranslate } from 'src/intl/translate';
+import { DatabaseDeployment, Service } from 'src/model';
 import { getName } from 'src/utils/object';
 
-const T = createTranslate('pages.database.logicalDatabases.createDialog');
+const T = createTranslate('pages.database.logicalDatabases.create');
 
 const schema = z.object({
   name: z.string().min(1).max(63),
@@ -27,27 +28,28 @@ type CreateLogicalDatabaseDialogProps = {
 };
 
 export function CreateLogicalDatabaseDialog({ service, deployment }: CreateLogicalDatabaseDialogProps) {
-  const invalidate = useInvalidateApiQuery();
-  const closeDialog = Dialog.useClose();
   const t = T.useTranslate();
 
-  const form = useForm<z.infer<typeof schema>>({
+  const api = useApi();
+  const invalidate = useInvalidateApiQuery();
+
+  const form = useForm({
     defaultValues: {
       name: '',
-      owner: deployment.roles?.[0]?.name,
+      owner: deployment.roles?.[0]?.name ?? '',
     },
-    resolver: useZodResolver(schema),
+    resolver: zodResolver(schema),
   });
 
   const mutation = useMutation({
     async mutationFn({ name, owner }: FormValues<typeof form>) {
-      await updateDatabaseService(service.id, (definition) => {
+      await updateDatabaseService(api, service.id, (definition) => {
         definition.database!.neon_postgres!.databases?.push({ name, owner });
       });
     },
     async onSuccess(_, { name }) {
-      await invalidate('getService', { path: { id: service.id } });
-      notify.info(t('successNotification', { name }));
+      await invalidate('get /v1/services/{id}', { path: { id: service.id } });
+      notify.info(t('success', { name }));
       closeDialog();
     },
   });
@@ -66,9 +68,9 @@ export function CreateLogicalDatabaseDialog({ service, deployment }: CreateLogic
           items={deployment.roles ?? []}
           getKey={getName}
           itemToString={getName}
-          itemToValue={getName}
+          getValue={getName}
           renderItem={getName}
-          renderNoItems={() => <T id="noRoles" />}
+          renderNoItems={() => <NoItems message={<T id="noRoles" />} />}
         />
 
         <DialogFooter>

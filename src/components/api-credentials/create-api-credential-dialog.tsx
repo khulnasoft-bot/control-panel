@@ -1,29 +1,27 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button, Input } from '@snipkit/design-system';
-import { useOrganization, useUser } from 'src/api/hooks/session';
-import { ApiCredential } from 'src/api/model';
-import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
+import { apiMutation, useInvalidateApiQuery, useOrganization, useUser } from 'src/api';
 import { notify } from 'src/application/notify';
-import { ControlledInput } from 'src/components/controlled';
 import { CopyIconButton } from 'src/components/copy-icon-button';
+import { ControlledInput } from 'src/components/forms';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
-import { useZodResolver } from 'src/hooks/validation';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { Translate, createTranslate } from 'src/intl/translate';
+import { ApiCredential } from 'src/model';
 import { upperCase } from 'src/utils/strings';
 
-import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from '../dialog';
+import { CloseDialogButton, Dialog, DialogFooter, DialogHeader, openDialog } from '../dialog';
+import { Input } from '../forms/input';
 
-type CreateApiCredentialDialogProps = {
-  type: ApiCredential['type'];
-};
+const TO = createTranslate('pages.organizationSettings.apiCredential');
+const TU = createTranslate('pages.userSettings.apiCredential');
 
-export function CreateApiCredentialDialog({ type }: CreateApiCredentialDialogProps) {
-  const T = createTranslate(`pages.${type}Settings.apiCredential`);
-  const openDialog = Dialog.useOpen();
+export function CreateApiCredentialDialog({ type }: { type: ApiCredential['type'] }) {
+  const T = type === 'organization' ? TO : TU;
 
   const user = useUser();
   const organization = useOrganization();
@@ -34,12 +32,12 @@ export function CreateApiCredentialDialog({ type }: CreateApiCredentialDialogPro
   return (
     <>
       <Dialog id="CreateApiCredential" className="col w-full max-w-xl gap-4">
-        <DialogHeader title={<T id="createDialog.title" />} />
+        <DialogHeader title={<T id="create.title" />} />
 
         <p className="text-dim">
           <T
-            id="createDialog.description"
-            values={{ organizationName: organization.name, userName: user.name }}
+            id="create.description"
+            values={{ organizationName: organization?.name, userName: user?.name }}
           />
         </p>
 
@@ -57,10 +55,10 @@ export function CreateApiCredentialDialog({ type }: CreateApiCredentialDialogPro
         onClosed={() => setCreated(undefined)}
         className="col w-full max-w-xl gap-4"
       >
-        <DialogHeader title={<T id="createDialog.createdTitle" />} />
+        <DialogHeader title={<T id="created.title" />} />
 
         <p className="text-dim">
-          <T id="createDialog.createdDescription" />
+          <T id="created.description" />
         </p>
 
         <Input
@@ -69,7 +67,6 @@ export function CreateApiCredentialDialog({ type }: CreateApiCredentialDialogPro
           readOnly
           end={<CopyIconButton text={created!} className="mx-2 size-4 self-center" />}
           onClick={() => inputRef.current?.select()}
-          inputClassName="truncate"
         />
 
         <DialogFooter>
@@ -101,24 +98,24 @@ function CreateApiCredentialForm({ type, onCreated }: CreateApiCredentialFormPro
       name: '',
       description: '',
     },
-    resolver: useZodResolver(schema),
+    resolver: zodResolver(schema),
   });
 
   const invalidate = useInvalidateApiQuery();
 
   const mutation = useMutation({
-    ...useApiMutationFn('createApiCredential', (values: FormValues<typeof form>) => ({
+    ...apiMutation('post /v1/credentials', (values: FormValues<typeof form>) => ({
       body: {
         name: values.name,
         description: values.description || undefined,
         type: upperCase(type),
-        organization_id: organization.id,
+        organization_id: organization?.id,
       },
     })),
     async onSuccess(result, { name }) {
-      await invalidate('listApiCredentials');
+      await invalidate('get /v1/credentials');
 
-      notify.success(t('createDialog.successNotification', { name }));
+      notify.success(t('create.success', { name }));
       form.reset();
 
       onCreated(result.credential!.token!);
@@ -128,13 +125,9 @@ function CreateApiCredentialForm({ type, onCreated }: CreateApiCredentialFormPro
 
   return (
     <form className="col gap-4" onSubmit={handleSubmit(form, mutation.mutateAsync)}>
-      <ControlledInput control={form.control} name="name" label={<T id="createDialog.nameLabel" />} />
+      <ControlledInput control={form.control} name="name" label={<T id="create.nameLabel" />} />
 
-      <ControlledInput
-        control={form.control}
-        name="description"
-        label={<T id="createDialog.descriptionLabel" />}
-      />
+      <ControlledInput control={form.control} name="description" label={<T id="create.descriptionLabel" />} />
 
       <DialogFooter>
         <CloseDialogButton />

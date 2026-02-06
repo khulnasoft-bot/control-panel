@@ -1,42 +1,36 @@
-import { useState } from 'react';
+import { Suspense } from 'react';
 
-import { routes } from 'src/application/routes';
-import { DeployToSnipkitButton } from 'src/components/deploy-to-snipkit-button';
+import { DeployToKhulnaSoftButton } from 'src/components/deploy-to-khulnasoft-button';
 import { DocumentTitle } from 'src/components/document-title';
 import { ServiceEstimatedCost } from 'src/components/service-estimated-cost';
-import { useNavigate, useSearchParam } from 'src/hooks/router';
+import { useNavigate, useSearchParams } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
-import { ServiceCost } from 'src/modules/service-form/helpers/estimated-cost';
-import { ServiceForm } from 'src/modules/service-form/service-form';
+import {
+  ServiceForm,
+  ServiceFormSkeleton,
+  useDeployUrl,
+  useEstimatedCost,
+  useServiceForm,
+} from 'src/modules/service-form';
 
 import { DeployModel } from './deploy-model';
-import { DeployOneClickApp } from './deploy-one-click-app';
 
 const T = createTranslate('pages.deploy');
 
 export function DeployPage() {
-  const [oneClickApp] = useSearchParam('one_click_app');
-  const [type] = useSearchParam('type');
-
-  if (oneClickApp) {
-    return <DeployOneClickApp />;
-  }
+  const params = useSearchParams();
+  const type = params.get('type');
+  const serviceId = params.get('serviceId');
 
   if (type === 'model') {
     return <DeployModel />;
   }
 
-  return <DeployServiceForm />;
+  return <DeployServiceForm serviceId={serviceId ?? undefined} />;
 }
 
-function DeployServiceForm() {
+function DeployServiceForm({ serviceId }: { serviceId?: string }) {
   const t = T.useTranslate();
-  const navigate = useNavigate();
-
-  const [serviceId] = useSearchParam('serviceId');
-
-  const [cost, setCost] = useState<ServiceCost>();
-  const [deployUrl, setDeployUrl] = useState<string>();
 
   return (
     <div className="col gap-6">
@@ -46,19 +40,40 @@ function DeployServiceForm() {
         <T id="title" />
       </h1>
 
-      <div className="col xl:row gap-8">
-        <ServiceForm
-          serviceId={serviceId ?? undefined}
-          className="grow"
-          onDeployed={(appId, serviceId) => navigate(routes.initialDeployment(serviceId))}
-          onCostChanged={setCost}
-          onDeployUrlChanged={setDeployUrl}
-        />
+      <Suspense
+        fallback={
+          <div className="col gap-8 lg:row">
+            <ServiceFormSkeleton className="grow" />
+            <div className="col w-full max-w-xs gap-8" />
+          </div>
+        }
+      >
+        <ServiceFormWrapper serviceId={serviceId} />
+      </Suspense>
+    </div>
+  );
+}
 
-        <div className="col shrink-0 gap-8 xl:basis-80">
-          <ServiceEstimatedCost cost={cost} />
-          <DeployToSnipkitButton deployUrl={deployUrl} />
-        </div>
+function ServiceFormWrapper({ serviceId }: { serviceId?: string }) {
+  const navigate = useNavigate();
+
+  const form = useServiceForm(serviceId);
+  const cost = useEstimatedCost(form.watch());
+  const deployUrl = useDeployUrl(form);
+
+  return (
+    <div className="col gap-8 lg:row">
+      <ServiceForm
+        form={form}
+        onDeployed={(appId, serviceId) =>
+          void navigate({ to: '/services/new', search: { step: 'initialDeployment', serviceId } })
+        }
+        className="grow"
+      />
+
+      <div className="col w-full max-w-xs gap-8">
+        <ServiceEstimatedCost cost={cost} />
+        <DeployToKhulnaSoftButton deployUrl={deployUrl} />
       </div>
     </div>
   );

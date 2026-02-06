@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { create } from 'src/utils/factories';
 
@@ -42,7 +42,7 @@ describe('getServiceUrls', () => {
 
   it('private port', () => {
     const urls = getServiceUrls(
-      create.app({ name: 'app', domains: [{ id: '', name: 'app.snipkit.app', type: 'AUTOASSIGNED' }] }),
+      create.app({ name: 'app', domains: [{ id: '', name: 'app.khulnasoft.app', type: 'AUTOASSIGNED' }] }),
       create.service({ name: 'svc', type: 'web' }),
       create.computeDeployment({
         definition: create.deploymentDefinition({
@@ -54,15 +54,38 @@ describe('getServiceUrls', () => {
     expect(urls).toEqual<ServiceUrl[]>([{ portNumber: 8000, internalUrl: 'svc.app.internal:8000' }]);
   });
 
+  it('tcp proxy', () => {
+    vi.stubEnv('VITE_ENVIRONMENT', 'production');
+
+    const urls = getServiceUrls(
+      create.app({ domains: [{ id: '', name: 'app.khulnasoft.app', type: 'AUTOASSIGNED' }] }),
+      create.service(),
+      create.computeDeployment({
+        definition: create.deploymentDefinition({
+          ports: [{ portNumber: 8000, protocol: 'tcp', tcpProxy: true }],
+        }),
+        proxyPorts: [{ port: 8000, publicPort: 12345, host: 'some-domain.khulnasoft.app' }],
+      }),
+    );
+
+    expect(urls).toEqual<ServiceUrl[]>([
+      {
+        portNumber: 8000,
+        internalUrl: expect.anything() as string,
+        tcpProxyUrl: 'some-domain.khulnasoft.app:12345',
+      },
+    ]);
+  });
+
   it('database host', () => {
     const urls = getServiceUrls(
       create.app(),
       create.service({ type: 'database' }),
       create.databaseDeployment({
-        host: 'test.snipkit.app',
+        host: 'test.khulnasoft.app',
       }),
     );
 
-    expect(urls).toEqual<ServiceUrl[]>([{ portNumber: 5432, internalUrl: 'test.snipkit.app' }]);
+    expect(urls).toEqual<ServiceUrl[]>([{ portNumber: 5432, internalUrl: 'test.khulnasoft.app' }]);
   });
 });

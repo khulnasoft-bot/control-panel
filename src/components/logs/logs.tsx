@@ -1,21 +1,19 @@
+import { Spinner } from '@design-system';
 import clsx from 'clsx';
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { FormattedTime } from 'react-intl';
 
-import { Floating, IconButton, Spinner } from '@snipkit/design-system';
-import { LogLine } from 'src/api/model';
 import { downloadFileFromString } from 'src/application/download-file-from-string';
 import { notify } from 'src/application/notify';
-import { IconCopy, IconDownload, IconEllipsis } from 'src/components/icons';
+import { LogsApi } from 'src/components/logs/use-logs';
 import { useClipboard } from 'src/hooks/clipboard';
 import { useIntersectionObserver } from 'src/hooks/intersection-observer';
-import { LogsApi } from 'src/hooks/logs';
+import { IconCopy, IconDownload, IconEllipsis } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
+import { LogLine } from 'src/model';
 import { shortId } from 'src/utils/strings';
 
-import { LogOptions } from './log-options';
-
-export { type LogOptions };
+import { ActionsMenu } from '../dropdown-menu';
 
 const T = createTranslate('components.logs');
 
@@ -23,44 +21,32 @@ type LogsFooterProps = {
   appName: string;
   serviceName: string;
   lines: LogLine[];
-  renderMenu: (props: Record<string, unknown>) => React.ReactNode;
+  menu: React.ReactNode;
 };
 
-export function LogsFooter({ appName, serviceName, lines, renderMenu }: LogsFooterProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-
+export function LogsFooter({ appName, serviceName, lines, menu }: LogsFooterProps) {
   const downloadLogs = useDownloadLogs(appName, serviceName, lines);
   const copyLogs = useCopyLogs(lines);
 
   return (
     <footer className="row flex-wrap items-center justify-end gap-4">
-      <button type="button" className="text-link row items-center gap-2" onClick={downloadLogs}>
+      <button type="button" className="row items-center gap-2 text-link" onClick={downloadLogs}>
         <IconDownload className="size-em" />
         <T id="download" />
       </button>
 
-      <button type="button" className="text-link row items-center gap-2" onClick={copyLogs}>
+      <button type="button" className="row items-center gap-2 text-link" onClick={copyLogs}>
         <IconCopy className="size-em" />
         <T id="copy" />
       </button>
 
-      <Floating
-        open={menuOpen}
-        setOpen={setMenuOpen}
-        placement="bottom-start"
-        renderReference={(props) => (
-          <div>
-            <IconButton
-              variant="ghost"
-              color="gray"
-              Icon={IconEllipsis}
-              onClick={() => setMenuOpen(!menuOpen)}
-              {...props}
-            />
-          </div>
-        )}
-        renderFloating={renderMenu}
-      />
+      <ActionsMenu
+        closeOnClick={false}
+        Icon={IconEllipsis}
+        dropdown={{ floating: { placement: 'bottom-start' } }}
+      >
+        {menu}
+      </ActionsMenu>
     </footer>
   );
 }
@@ -84,25 +70,26 @@ function useCopyLogs(lines: LogLine[]) {
 }
 
 type LogLinesProps = {
-  options: LogOptions;
-  setOption: (option: keyof LogOptions, value: boolean) => void;
+  fullScreen: boolean;
+  tail: boolean;
+  setTail: (tail: boolean) => void;
   logs: LogsApi;
-  filterLine?: (line: LogLine) => boolean;
-  renderLine: (line: LogLine, options: LogOptions) => React.ReactNode;
+  renderLine: (line: LogLine) => React.ReactNode;
   renderNoLogs: () => React.ReactNode;
 };
 
-export function LogLines({ options, setOption, logs, filterLine, renderLine, renderNoLogs }: LogLinesProps) {
-  const lines = logs.lines.filter(filterLine ?? (() => true));
+export function LogLines({ fullScreen, tail, setTail, logs, renderLine, renderNoLogs }: LogLinesProps) {
   const container = useRef<HTMLDivElement>(null);
   const [before, setBefore] = useState<HTMLDivElement | null>(null);
   const [after, setAfter] = useState<HTMLDivElement | null>(null);
 
+  const lines = logs.lines;
+
   useEffect(() => {
-    if (options.tail) {
+    if (tail) {
       container.current?.scrollTo({ top: container.current.scrollHeight });
     }
-  }, [options.tail, lines]);
+  }, [tail, lines]);
 
   useIntersectionObserver(
     before,
@@ -114,7 +101,7 @@ export function LogLines({ options, setOption, logs, filterLine, renderLine, ren
   useIntersectionObserver(
     after,
     { root: container.current },
-    ([entry]) => setOption('tail', Boolean(entry?.isIntersecting)),
+    ([entry]) => setTail(Boolean(entry?.isIntersecting)),
     [after],
   );
 
@@ -135,11 +122,10 @@ export function LogLines({ options, setOption, logs, filterLine, renderLine, ren
   return (
     <div
       ref={container}
-      // eslint-disable-next-line tailwindcss/no-arbitrary-value
       className={clsx(
-        'scrollbar-green scrollbar-thin overflow-auto rounded border py-2',
-        !options.fullScreen && 'h-[32rem] resize-y',
-        options.fullScreen && 'flex-1',
+        'scrollbar-thin overflow-auto rounded-sm border py-2 scrollbar-green',
+        !fullScreen && 'h-128 resize-y',
+        fullScreen && 'flex-1',
       )}
     >
       {lines.length === 0 && (
@@ -156,9 +142,9 @@ export function LogLines({ options, setOption, logs, filterLine, renderLine, ren
             </div>
           )}
 
-          <div className="min-w-min break-all font-mono">
+          <div className="min-w-min font-mono break-all">
             {lines.map((line) => (
-              <Fragment key={line.id}>{renderLine(line, options)}</Fragment>
+              <Fragment key={line.id}>{renderLine(line)}</Fragment>
             ))}
           </div>
 
@@ -182,19 +168,19 @@ export function LogLineDate({ line, ...props }: LogLineDateProps) {
 export function LogLineStream({ line }: { line: LogLine }) {
   return (
     <LogLineMeta className={clsx(line.stream === 'stderr' && 'text-red')}>
-      {(line.stream === 'snipkit' ? 'event' : line.stream).padEnd(6, ' ')}
+      {(line.stream === 'khulnasoft' ? 'event' : line.stream).padEnd(6, ' ')}
     </LogLineMeta>
   );
 }
 
 export function LogLineInstanceId({ line }: { line: LogLine }) {
-  return <LogLineMeta>{shortId(line.instanceId)}</LogLineMeta>;
+  return <LogLineMeta>{shortId(line.instanceId) ?? Array(8).fill(' ').join('')}</LogLineMeta>;
 }
 
-export function LogLineContent({ line, options }: { line: LogLine; options: LogOptions }) {
+export function LogLineContent({ line, wordWrap }: { line: LogLine; wordWrap: boolean }) {
   return (
     <span
-      className={clsx(options.wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre')}
+      className={clsx(wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre')}
       dangerouslySetInnerHTML={{ __html: line.html }}
     />
   );
@@ -202,7 +188,7 @@ export function LogLineContent({ line, options }: { line: LogLine; options: LogO
 
 function LogLineMeta({ className, children, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
   return (
-    <span className={clsx('select-none whitespace-pre', className)} {...props}>
+    <span className={clsx('whitespace-pre select-none', className)} {...props}>
       {children}
       {'  '}
     </span>

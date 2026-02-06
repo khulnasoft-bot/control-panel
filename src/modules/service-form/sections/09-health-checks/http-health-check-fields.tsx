@@ -1,9 +1,9 @@
+import { Button, IconButton, useBreakpoint } from '@design-system';
 import clsx from 'clsx';
 import { useFieldArray } from 'react-hook-form';
 
-import { Button, IconButton, useBreakpoint } from '@snipkit/design-system';
-import { ControlledInput, ControlledSelect } from 'src/components/controlled';
-import { IconTrash, IconPlus } from 'src/components/icons';
+import { ControlledInput, ControlledSelect } from 'src/components/forms';
+import { IconPlus, IconTrash } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
 import { identity } from 'src/utils/generic';
 import { upperCase } from 'src/utils/strings';
@@ -24,18 +24,18 @@ export function HttpHealthCheckFields({ index }: HttpHealthCheckFieldsProps) {
         name={`ports.${index}.healthCheck.path`}
         type="text"
         label={<T id="httpPathLabel" />}
-        helpTooltip={<T id="httpPathTooltip" />}
+        tooltip={<T id="httpPathTooltip" />}
         className="md:col-span-3"
       />
 
       <ControlledSelect
         name={`ports.${index}.healthCheck.method`}
         label={<T id="httpMethodLabel" />}
-        helpTooltip={<T id="httpMethodTooltip" />}
+        tooltip={<T id="httpMethodTooltip" />}
         items={['get', 'head', 'post', 'put', 'delete', 'connect', 'options', 'trace']}
         getKey={identity}
         itemToString={identity}
-        itemToValue={identity}
+        getValue={identity}
         renderItem={upperCase}
         className="md:col-span-3"
       />
@@ -72,8 +72,7 @@ function HttpHeaders({ portIndex }: HttpHeadersProps) {
   }
 
   return (
-    // eslint-disable-next-line tailwindcss/no-arbitrary-value
-    <div className="grid grid-cols-1 gap-4 rounded border px-3 py-2 md:col-span-6 md:grid-cols-[1fr_1fr_auto]">
+    <div className="grid grid-cols-1 gap-4 rounded-sm border px-3 py-2 md:col-span-6 md:grid-cols-[1fr_1fr_auto]">
       {fields.map((header, headerIndex) => (
         <HeaderFields key={header.id} portIndex={portIndex} index={headerIndex} onRemove={remove} />
       ))}
@@ -109,8 +108,7 @@ function HeaderFields({ portIndex, index, onRemove }: HeaderFieldsProps) {
       <ControlledInput name={`${name}.name`} label={showLabel && <T id="httpHeaderNameLabel" />} />
       <ControlledInput name={`${name}.value`} label={showLabel && <T id="httpHeaderValueLabel" />} />
 
-      {/* eslint-disable-next-line tailwindcss/no-arbitrary-value */}
-      <div className={clsx(!isMobile && showLabel && 'mt-[1.625rem]')}>
+      <div className={clsx(!isMobile && showLabel && 'mt-6.5')}>
         <IconButton color="gray" Icon={IconTrash} onClick={onRemove}>
           <T id="removeHeader" />
         </IconButton>

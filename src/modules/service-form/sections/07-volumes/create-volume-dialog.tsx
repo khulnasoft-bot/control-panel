@@ -1,20 +1,17 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button, DialogHeader, InputEnd } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
-import { useForm, useFormContext } from 'react-hook-form';
+import { UseFormReturn, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button, InputEnd } from '@snipkit/design-system';
-import { mapVolume } from 'src/api/mappers/volume';
-import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
-import { withStopPropagation } from 'src/application/dom-events';
-import { ControlledInput } from 'src/components/controlled';
-import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from 'src/components/dialog';
+import { apiMutation, mapVolume, useInvalidateApiQuery } from 'src/api';
+import { CloseDialogButton, Dialog, DialogFooter, closeDialog } from 'src/components/dialog';
+import { ControlledInput } from 'src/components/forms';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
-import { useZodResolver } from 'src/hooks/validation';
-import { createTranslate, Translate } from 'src/intl/translate';
-import { assert } from 'src/utils/assert';
+import { Translate, createTranslate } from 'src/intl/translate';
+import { Volume } from 'src/model';
 
 import { ServiceForm } from '../../service-form.types';
-import { useWatchServiceForm } from '../../use-service-form';
 
 const T = createTranslate('modules.serviceForm.volumes.createDialog');
 
@@ -23,12 +20,39 @@ const schema = z.object({
   size: z.number(),
 });
 
-export function CreateVolumeDialog() {
-  const regions = useWatchServiceForm('regions');
+export function CreateVolumeDialog({ form }: { form: UseFormReturn<ServiceForm> }) {
+  return (
+    <Dialog id="CreateVolume" className="col w-full max-w-xl gap-4">
+      {({ index }) => (
+        <>
+          <DialogHeader title={<T id="title" />} />
+
+          <p className="text-dim">
+            <T id="description" />
+          </p>
+
+          <CreateVolumeForm
+            regions={form.watch('regions')}
+            onCreated={(volume) => {
+              form.setValue(`volumes.${index}.volumeId`, volume.id);
+              form.setValue(`volumes.${index}.name`, volume.name);
+              form.setValue(`volumes.${index}.size`, volume.size);
+              form.setValue(`volumes.${index}.mounted`, false);
+            }}
+          />
+        </>
+      )}
+    </Dialog>
+  );
+}
+
+type CreateVolumeFormProps = {
+  regions: string[];
+  onCreated: (volume: Volume) => void;
+};
+
+export function CreateVolumeForm({ regions, onCreated }: CreateVolumeFormProps) {
   const invalidate = useInvalidateApiQuery();
-  const { setValue } = useFormContext<ServiceForm>();
-  const closeDialog = Dialog.useClose();
-  const { index } = Dialog.useContext<{ index: number }>();
   const t = T.useTranslate();
 
   const form = useForm<z.infer<typeof schema>>({
@@ -36,11 +60,11 @@ export function CreateVolumeDialog() {
       name: '',
       size: NaN,
     },
-    resolver: useZodResolver(schema),
+    resolver: zodResolver(schema),
   });
 
   const mutation = useMutation({
-    ...useApiMutationFn('createVolume', ({ name, size }: FormValues<typeof form>) => ({
+    ...apiMutation('post /v1/volumes', ({ name, size }: FormValues<typeof form>) => ({
       body: {
         volume_type: 'PERSISTENT_VOLUME_BACKING_STORE_LOCAL_BLK' as const,
         name,
@@ -49,16 +73,8 @@ export function CreateVolumeDialog() {
       },
     })),
     async onSuccess({ volume }) {
-      const { id: volumeId, name, size } = mapVolume(volume!);
-
-      await invalidate('listVolumes');
-
-      assert(index !== undefined);
-      setValue(`volumes.${index}.volumeId`, volumeId);
-      setValue(`volumes.${index}.name`, name);
-      setValue(`volumes.${index}.size`, size);
-      setValue(`volumes.${index}.mounted`, false);
-
+      await invalidate('get /v1/volumes');
+      onCreated(mapVolume(volume!));
       closeDialog();
     },
     onError: useFormErrorHandler(form, (error) => ({
@@ -69,50 +85,37 @@ export function CreateVolumeDialog() {
   });
 
   return (
-    <Dialog
-      id="CreateVolume"
-      context={{ index }}
-      onClosed={() => form.reset()}
-      className="col w-full max-w-xl gap-4"
-    >
-      <DialogHeader title={<T id="title" />} />
+    <form className="col gap-4" onSubmit={handleSubmit(form, mutation.mutateAsync)}>
+      <ControlledInput
+        control={form.control}
+        name="name"
+        label={<T id="nameLabel" />}
+        placeholder={t('namePlaceholder')}
+      />
 
-      <p className="text-dim">
-        <T id="description" />
-      </p>
+      <ControlledInput
+        control={form.control}
+        type="number"
+        name="size"
+        min={1}
+        label={<T id="sizeLabel" />}
+        placeholder={t('sizePlaceholder')}
+        end={
+          <InputEnd>
+            <T id="sizeUnit" />
+          </InputEnd>
+        }
+      />
 
-      <form className="col gap-4" onSubmit={withStopPropagation(handleSubmit(form, mutation.mutateAsync))}>
-        <ControlledInput
-          control={form.control}
-          name="name"
-          label={<T id="nameLabel" />}
-          placeholder={t('namePlaceholder')}
-        />
+      <DialogFooter>
+        <CloseDialogButton>
+          <Translate id="common.cancel" />
+        </CloseDialogButton>
 
-        <ControlledInput
-          control={form.control}
-          type="number"
-          name="size"
-          min={1}
-          label={<T id="sizeLabel" />}
-          placeholder={t('sizePlaceholder')}
-          end={
-            <InputEnd>
-              <T id="sizeUnit" />
-            </InputEnd>
-          }
-        />
-
-        <DialogFooter>
-          <CloseDialogButton>
-            <Translate id="common.cancel" />
-          </CloseDialogButton>
-
-          <Button type="submit" loading={form.formState.isSubmitting}>
-            <Translate id="common.create" />
-          </Button>
-        </DialogFooter>
-      </form>
-    </Dialog>
+        <Button type="submit" loading={form.formState.isSubmitting}>
+          <Translate id="common.create" />
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

@@ -1,114 +1,134 @@
 import { QueryClient } from '@tanstack/react-query';
 import merge from 'lodash-es/merge';
+import { DeepPartial } from 'react-hook-form';
 
-import { api } from 'src/api/api';
-import { mapRepository } from 'src/api/mappers/git';
-import { CatalogDatacenter, CatalogInstance, CatalogRegion, GithubApp, Organization } from 'src/api/model';
+import {
+  createEnsureApiQueryData,
+  isComputeDeployment,
+  mapApp,
+  mapCatalogDatacenter,
+  mapCatalogInstance,
+  mapCatalogRegion,
+  mapDeployment,
+  mapGithubApp,
+  mapOrganization,
+  mapOrganizationQuotas,
+  mapRepository,
+  mapService,
+} from 'src/api';
 import { getDefaultRegion } from 'src/application/default-region';
 import { notify } from 'src/application/notify';
-import { getToken } from 'src/application/token';
 import { fetchGithubRepository } from 'src/components/public-github-repository-input/github-api';
+import {
+  CatalogDatacenter,
+  CatalogInstance,
+  CatalogRegion,
+  Organization,
+  OrganizationQuotas,
+} from 'src/model';
+import { assert } from 'src/utils/assert';
+import { clamp } from 'src/utils/math';
 import { hasProperty } from 'src/utils/object';
 
 import { generateServiceName } from '../sections/00-service-name/use-generate-service-name';
-import { HealthCheck, ServiceForm } from '../service-form.types';
+import { HealthCheck, ServiceForm, ServiceFormSection } from '../service-form.types';
 
 import { deploymentDefinitionToServiceForm } from './deployment-to-service-form';
 import { generateAppName } from './generate-app-name';
 import { parseDeployParams } from './parse-deploy-params';
+import { getScaleToZeroBounds } from './service-form.schema';
+
+type ApiFn = ReturnType<typeof createEnsureApiQueryData>;
 
 export async function initializeServiceForm(
   params: URLSearchParams,
-  datacenters: CatalogDatacenter[],
-  regions: CatalogRegion[],
-  instances: CatalogInstance[],
-  organization: Organization,
-  githubApp: GithubApp | undefined,
   serviceId: string | undefined,
+  expandedSection: ServiceFormSection | undefined,
   queryClient: QueryClient,
 ): Promise<ServiceForm> {
-  const token = getToken();
+  const api = createEnsureApiQueryData(queryClient);
   let values = defaultServiceForm();
 
-  const getApp = async (appId: string) => {
-    return api.getApp({ token, path: { id: appId } });
-  };
-
-  const getService = async (serviceId: string) => {
-    return api.getService({ token, path: { id: serviceId } });
-  };
-
-  const getDeployment = async (deploymentId: string) => {
-    return api.getDeployment({ token, path: { id: deploymentId } });
-  };
+  const organization = await getOrganization(api);
+  const githubApp = await getGithubApp(api);
 
   if (serviceId) {
-    const { service } = await getService(serviceId);
-    const { app } = await getApp(service!.app_id!);
-    const { volumes } = await api.listVolumes({ token, query: { limit: '100' } });
-    const deployment = await getDeployment(service!.latest_deployment_id!);
-    const definition = deployment.deployment!.definition!;
+    const service = await getService(api, serviceId);
+    const app = await getApp(api, service.appId);
+    const volumes = await getVolumes(api);
+    const deployment = await getDeployment(api, service.latestDeploymentId);
 
-    values.meta.serviceId = service!.id!;
-    values.meta.appId = app!.id!;
-    values.appName = app!.name!;
+    values.meta.serviceId = service.id;
+    values.meta.appId = app.id;
+    values.appName = app.name;
 
     values = merge(
       values,
-      deploymentDefinitionToServiceForm(definition, githubApp?.organizationName, volumes!),
+      deploymentDefinitionToServiceForm(deployment.definitionApi, githubApp?.organizationName, volumes!),
     );
 
     values.meta.previousInstance = values.instance;
-    values.meta.hasPreviousBuild = service?.last_provisioned_deployment_id !== '';
+    values.meta.hasPreviousBuild = service.lastProvisionedDeploymentId !== undefined;
+
+    if (params.has('attach-volume')) {
+      const volume = volumes?.find(hasProperty('id', params.get('attach-volume')));
+
+      values.meta.expandedSection = 'volumes';
+
+      if (volume) {
+        values.volumes.push({
+          mounted: false,
+          mountPath: '',
+          name: volume.name!,
+          size: volume.max_size!,
+          volumeId: volume.id!,
+        });
+      }
+    }
   }
 
   const duplicateServiceId = params.get('duplicate-service-id');
 
   if (duplicateServiceId !== null) {
-    const { service } = await getService(duplicateServiceId);
-    const deployment = await getDeployment(service!.latest_deployment_id!);
-    const definition = deployment.deployment!.definition!;
+    const service = await getService(api, duplicateServiceId);
+    const deployment = await getDeployment(api, service.latestDeploymentId);
 
-    definition.volumes = [];
-
-    values = merge(values, deploymentDefinitionToServiceForm(definition, githubApp?.organizationName, []));
+    values = merge(
+      values,
+      deploymentDefinitionToServiceForm(
+        { ...deployment.definitionApi, volumes: [] },
+        githubApp?.organizationName,
+        [],
+      ),
+    );
   }
 
   if (!serviceId) {
-    values = merge(values, parseDeployParams(params, instances, regions, githubApp?.organizationName));
+    const instances = await getInstances(api);
+    const regions = await getRegions(api);
+
+    const parsedParams = parseDeployParams(params, instances, regions, githubApp?.organizationName);
+
+    values = merge(values, parsedParams);
 
     if (!values.appName) {
       values.appName = generateAppName();
     }
 
-    if (organization.plan === 'hobby' && !params.has('instance_type')) {
-      values.instance = 'free';
-    }
+    if (!duplicateServiceId) {
+      const quotas = await getOrganizationQuotas(api, organization.id);
+      const datacenters = await getDatacenters(api);
 
-    if (values.instance === 'free') {
-      values.scaling.min = 0;
-    }
-
-    // todo: remove
-    // eslint-disable-next-line
-    const registrySecret: string | undefined = (window as any).__SNIPKIT_REGISTRY_SECRET_HACK;
-
-    if (registrySecret) {
-      values.source.docker.registrySecret = registrySecret;
-    }
-
-    const instance = instances.find(hasProperty('id', values.instance));
-
-    if (values.serviceType === 'web' && instance?.category === 'gpu') {
-      values.scaling.min = 0;
-    }
-
-    if (!params.has('regions')) {
-      const defaultRegion = getDefaultRegion(queryClient, datacenters, regions, instance);
-
-      if (defaultRegion !== undefined) {
-        values.regions = [defaultRegion.id];
-      }
+      ensureServiceCreationBusinessRules(
+        values,
+        datacenters,
+        regions,
+        instances,
+        organization,
+        quotas,
+        parsedParams,
+        queryClient,
+      );
     }
   }
 
@@ -117,17 +137,11 @@ export async function initializeServiceForm(
       const { repositoryName } = values.source.git.organizationRepository;
 
       if (repositoryName) {
-        const repository = await api
-          .listRepositories({ token, query: { name: repositoryName, name_search_op: 'equality' } })
-          .then(({ repositories }) => repositories!.map(mapRepository))
-          .then(([repository]) => repository);
+        const repository = await getRepository(api, repositoryName);
 
         if (repository) {
           values.source.git.organizationRepository.id = repository.id;
           values.source.git.organizationRepository.branch ??= repository.defaultBranch;
-
-          queryClient.setQueryData(['listRepositories', repositoryName, 'equality'], [repository]);
-          queryClient.setQueryData(['listRepositoryBranches', repository.id, ''], [repository.defaultBranch]);
         } else {
           values.source.git.organizationRepository.repositoryName = null;
           values.source.git.organizationRepository.branch = null;
@@ -139,14 +153,15 @@ export async function initializeServiceForm(
       const { repositoryName } = values.source.git.publicRepository;
 
       const repository = repositoryName
-        ? await fetchGithubRepository(repositoryName).catch(() => null)
+        ? await queryClient.ensureQueryData({
+          queryKey: ['getPublicRepository', repositoryName],
+          queryFn: () => fetchGithubRepository(repositoryName).catch(() => null),
+        })
         : null;
 
       if (repository) {
         values.source.git.publicRepository.url = repository.url;
         values.source.git.publicRepository.branch ??= repository.defaultBranch;
-
-        queryClient.setQueryData(['getPublicRepository', repositoryName], repository);
       } else {
         values.source.git.publicRepository.url = '';
         values.source.git.publicRepository.repositoryName = null;
@@ -165,6 +180,10 @@ export async function initializeServiceForm(
     notify.error(params.get('github_error'));
   }
 
+  if (expandedSection !== undefined) {
+    values.meta.expandedSection = expandedSection;
+  }
+
   if (!values.serviceName) {
     const serviceName = generateServiceName(values);
 
@@ -176,17 +195,72 @@ export async function initializeServiceForm(
   return values;
 }
 
-export function defaultHealthCheck(): HealthCheck {
-  return {
-    protocol: 'tcp',
-    gracePeriod: 5,
-    interval: 30,
-    restartLimit: 3,
-    timeout: 5,
-    method: 'get',
-    path: '/',
-    headers: [],
-  };
+async function getInstances(api: ApiFn) {
+  return api('get /v1/catalog/instances', { query: { limit: '100' } }).then(({ instances }) =>
+    instances!.map(mapCatalogInstance),
+  );
+}
+
+async function getDatacenters(api: ApiFn) {
+  return api('get /v1/catalog/datacenters', {}).then(({ datacenters }) =>
+    datacenters!.map(mapCatalogDatacenter),
+  );
+}
+
+async function getRegions(api: ApiFn) {
+  return api('get /v1/catalog/regions', { query: { limit: '100' } }).then(({ regions }) =>
+    regions!.map(mapCatalogRegion),
+  );
+}
+
+async function getOrganization(api: ApiFn) {
+  return api('get /v1/account/organization', {}).then(({ organization }) => mapOrganization(organization!));
+}
+
+async function getOrganizationQuotas(api: ApiFn, organizationId: string) {
+  return api('get /v1/organizations/{organization_id}/quotas', {
+    path: { organization_id: organizationId },
+  }).then(({ quotas }) => mapOrganizationQuotas(quotas!));
+}
+
+async function getGithubApp(api: ApiFn) {
+  try {
+    return await api('get /v1/github/installation', {}).then(mapGithubApp);
+  } catch {
+    return null;
+  }
+}
+
+async function getRepository(api: ApiFn, repositoryName: string) {
+  return api('get /v1/git/repositories', {
+    query: { name: repositoryName, name_search_op: 'equality' },
+  })
+    .then(({ repositories }) => repositories!.map(mapRepository))
+    .then(([repository]) => repository);
+}
+
+async function getApp(api: ApiFn, appId: string) {
+  return api('get /v1/apps/{id}', { path: { id: appId } }).then(({ app }) => mapApp(app!));
+}
+
+async function getService(api: ApiFn, serviceId: string) {
+  return api('get /v1/services/{id}', { path: { id: serviceId } }).then(({ service }) =>
+    mapService(service!),
+  );
+}
+
+async function getDeployment(api: ApiFn, deploymentId: string) {
+  return api('get /v1/deployments/{id}', { path: { id: deploymentId } })
+    .then(({ deployment }) => mapDeployment(deployment!))
+    .then((deployment) => {
+      assert(isComputeDeployment(deployment));
+      return deployment;
+    });
+}
+
+async function getVolumes(api: ApiFn) {
+  // todo: handle pagination at some point
+  return api('get /v1/volumes', { query: { limit: '100' } }).then(({ volumes }) => volumes);
 }
 
 export function defaultServiceForm(): ServiceForm {
@@ -199,6 +273,7 @@ export function defaultServiceForm(): ServiceForm {
       hasPreviousBuild: false,
       skipBuild: false,
       saveOnly: false,
+      proxyFields: {},
     },
     appName: '',
     serviceName: '',
@@ -261,13 +336,17 @@ export function defaultServiceForm(): ServiceForm {
     scaling: {
       min: 1,
       max: 1,
+      scaleToZero: {
+        idlePeriod: (60 + 5) * 60,
+        lightToDeepPeriod: 60 * 60,
+        lightSleepEnabled: false,
+      },
       targets: {
         requests: { enabled: false, value: 50 },
         cpu: { enabled: false, value: 80 },
         memory: { enabled: false, value: 80 },
         concurrentRequests: { enabled: false, value: 20 },
         responseTime: { enabled: false, value: 300 },
-        sleepIdleDelay: { enabled: false, value: 5 * 60 },
       },
     },
     instance: 'nano',
@@ -278,9 +357,87 @@ export function defaultServiceForm(): ServiceForm {
         protocol: 'http',
         path: '/',
         public: true,
+        tcpProxy: false,
         healthCheck: defaultHealthCheck(),
       },
     ],
     volumes: [],
   };
+}
+
+export function defaultHealthCheck(): HealthCheck {
+  return {
+    protocol: 'tcp',
+    gracePeriod: 5,
+    interval: 30,
+    restartLimit: 3,
+    timeout: 5,
+    method: 'get',
+    path: '/',
+    headers: [],
+  };
+}
+
+function ensureServiceCreationBusinessRules(
+  values: ServiceForm,
+  datacenters: CatalogDatacenter[],
+  regions: CatalogRegion[],
+  instances: CatalogInstance[],
+  organization: Organization | undefined,
+  quotas: OrganizationQuotas,
+  parsedParams: DeepPartial<ServiceForm>,
+  queryClient: QueryClient,
+) {
+  if (organization?.plan === 'hobby' && !parsedParams.instance) {
+    values.instance = 'free';
+  }
+
+  const { serviceType } = values;
+  const instance = instances.find(hasProperty('id', values.instance));
+
+  if (instance?.id === 'free') {
+    values.scaling.min = 0;
+  }
+
+  if (serviceType === 'web' && instance?.category === 'gpu' && parsedParams.scaling?.min === undefined) {
+    values.scaling.min = 0;
+  }
+
+  if (values.scaling.max < values.scaling.min) {
+    values.scaling.max = values.scaling.min;
+  }
+
+  if (values.scaling.min === 0 && values.scaling.max === 1) {
+    Object.values(values.scaling.targets).forEach((target) => (target.enabled = false));
+  }
+
+  if (values.scaling.min > 0 && values.scaling.min < values.scaling.max) {
+    const target = serviceType === 'worker' ? 'cpu' : 'requests';
+    values.scaling.targets[target].enabled = true;
+  }
+
+  const scaleToZero = values.scaling.scaleToZero;
+  const bounds = getScaleToZeroBounds(quotas, scaleToZero);
+
+  scaleToZero.idlePeriod = clamp(scaleToZero.idlePeriod, bounds.idlePeriod);
+
+  if (bounds.lightToDeepPeriod) {
+    scaleToZero.lightToDeepPeriod = clamp(scaleToZero.lightToDeepPeriod, bounds.lightToDeepPeriod);
+  }
+
+  // todo: remove
+  // eslint-disable-next-line
+  const registrySecret: string | undefined = (window as any).__KHULNASOFT_REGISTRY_SECRET_HACK;
+
+  if (registrySecret) {
+    values.source.docker.registrySecret = registrySecret;
+  }
+
+  if (parsedParams.regions === undefined) {
+    const defaultRegion = getDefaultRegion(queryClient, datacenters, regions, instance);
+
+    if (defaultRegion !== undefined) {
+      values.regions = [defaultRegion.id];
+    }
+  }
 }

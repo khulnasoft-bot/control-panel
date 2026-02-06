@@ -1,16 +1,21 @@
+import { Badge, Button, Collapse } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import clsx from 'clsx';
+import { useEffect, useEffectEvent, useState } from 'react';
 
-import { Badge, Button, Collapse, Tooltip } from '@snipkit/design-system';
-import { ComputeDeployment, GitDeploymentTrigger, Service } from 'src/api/model';
-import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
-import { withStopPropagation } from 'src/application/dom-events';
+import { apiMutation, isComputeDeployment, useDeploymentsQuery, useInvalidateApiQuery } from 'src/api';
+import { withPreventDefault } from 'src/application/dom-events';
 import { notify } from 'src/application/notify';
-import { isUpcomingDeployment } from 'src/application/service-functions';
-import { IconChevronRight } from 'src/components/icons';
+import { allApiDeploymentStatuses, isUpcomingDeployment } from 'src/application/service-functions';
+import { Link } from 'src/components/link';
 import { DeploymentStatusBadge } from 'src/components/status-badges';
+import { IconChevronRight } from 'src/icons';
 import { FormattedDistanceToNow } from 'src/intl/formatted';
 import { createTranslate } from 'src/intl/translate';
+import { Deployment, Service } from 'src/model';
+import { exclude } from 'src/utils/arrays';
+import { assert } from 'src/utils/assert';
+import { hasProperty } from 'src/utils/object';
 
 import { DeploymentTrigger } from './deployment-trigger';
 
@@ -18,42 +23,39 @@ const T = createTranslate('pages.service.overview.deployments');
 
 type DeploymentsListProps = {
   service: Service;
-  totalDeployments: number;
-  hasMoreDeployments: boolean;
-  isLoadingMoreDeployments: boolean;
-  loadMoreDeployments: () => void;
-  selectedDeployment?: ComputeDeployment;
-  activeDeployment?: ComputeDeployment;
-  upcomingDeployments: ComputeDeployment[];
-  upcomingExpanded: boolean;
-  setUpcomingExpanded: (expanded: boolean) => void;
-  pastDeployments: ComputeDeployment[];
-  pastExpanded: boolean;
-  setPastExpanded: (expanded: boolean) => void;
-  onDeploymentSelected: (deployment: ComputeDeployment) => void;
+  selected?: Deployment;
+  active?: Deployment;
+  upcoming: Deployment[];
+  history: Deployment[];
+  setListExpanded: (expanded: boolean) => void;
+  onSelected: () => void;
 };
 
 export function DeploymentsList({
   service,
-  totalDeployments,
-  hasMoreDeployments,
-  isLoadingMoreDeployments,
-  loadMoreDeployments,
-  selectedDeployment,
-  activeDeployment: active,
-  upcomingDeployments: upcoming,
-  upcomingExpanded,
-  setUpcomingExpanded,
-  pastDeployments: past,
-  pastExpanded,
-  setPastExpanded,
-  onDeploymentSelected,
+  selected,
+  active,
+  upcoming,
+  history,
+  setListExpanded,
+  onSelected,
 }: DeploymentsListProps) {
-  const pastCount = totalDeployments - (active ? 1 : 0) - upcoming.length;
+  const deploymentsQuery = useDeploymentsQuery(service.id, exclude(allApiDeploymentStatuses, 'STASHED'));
+  const { data: { count: deploymentsCount = 0 } = {} } = deploymentsQuery;
 
-  const isSelected = (deployment: ComputeDeployment) => {
-    return selectedDeployment !== undefined && deployment.id === selectedDeployment.id;
-  };
+  const [upcomingExpanded, setUpcomingExpanded] = useState(upcoming.length > 0);
+  const [historyExpanded, setHistoryExpanded] = useState(history.some(hasProperty('id', selected?.id)));
+
+  useAutoExpand({ selected, setListExpanded, upcoming, setUpcomingExpanded, history, setHistoryExpanded });
+
+  const deploymentItem = (deployment: Deployment) => (
+    <DeploymentItem
+      service={service}
+      deployment={deployment}
+      isSelected={deployment.id === selected?.id}
+      onSelected={onSelected}
+    />
+  );
 
   return (
     <div className="col w-full gap-6 md:w-72">
@@ -66,28 +68,14 @@ export function DeploymentsList({
         >
           <ol className="col gap-2">
             {upcoming.map((deployment) => (
-              <li key={deployment.id}>
-                <DeploymentItem
-                  service={service}
-                  deployment={deployment}
-                  selected={isSelected(deployment)}
-                  onClick={() => onDeploymentSelected(deployment)}
-                />
-              </li>
+              <li key={deployment.id}>{deploymentItem(deployment)}</li>
             ))}
           </ol>
         </DeploymentsSection>
       )}
 
       <DeploymentsSection title={<T id="active.title" />} description={<T id="active.description" />}>
-        {active && (
-          <DeploymentItem
-            service={service}
-            deployment={active}
-            selected={isSelected(active)}
-            onClick={() => onDeploymentSelected(active)}
-          />
-        )}
+        {active && deploymentItem(active)}
 
         {!active && (
           <div className="col min-h-24 items-center justify-center rounded-md border border-dashed bg-muted/50 text-xs text-dim">
@@ -96,33 +84,26 @@ export function DeploymentsList({
         )}
       </DeploymentsSection>
 
-      {past.length > 0 && (
+      {history.length > 0 && (
         <DeploymentsSection
           title={<T id="past.title" />}
-          count={pastCount}
-          expanded={pastExpanded}
-          onClick={() => setPastExpanded(!pastExpanded)}
+          count={deploymentsCount - (active ? 1 : 0) - upcoming.length}
+          expanded={historyExpanded}
+          onClick={() => setHistoryExpanded(!historyExpanded)}
         >
           <ol className="col gap-2">
-            {past.map((deployment) => (
-              <li key={deployment.id}>
-                <DeploymentItem
-                  service={service}
-                  deployment={deployment}
-                  selected={isSelected(deployment)}
-                  onClick={() => onDeploymentSelected(deployment)}
-                />
-              </li>
+            {history.map((deployment) => (
+              <li key={deployment.id}>{deploymentItem(deployment)}</li>
             ))}
 
-            {hasMoreDeployments && (
+            {deploymentsQuery.hasNextPage && (
               <li>
                 <Button
                   size={1}
                   color="gray"
                   className="w-full"
-                  loading={isLoadingMoreDeployments}
-                  onClick={loadMoreDeployments}
+                  loading={deploymentsQuery.isLoading}
+                  onClick={() => void deploymentsQuery.fetchNextPage()}
                 >
                   <T id="loadMore" />
                 </Button>
@@ -183,36 +164,44 @@ function DeploymentsSection({
 
 type DeploymentItemProps = {
   service: Service;
-  deployment: ComputeDeployment;
-  selected: boolean;
-  onClick: () => void;
+  deployment: Deployment;
+  isSelected: boolean;
+  onSelected: () => void;
 };
 
-function DeploymentItem({ service, deployment, selected, onClick }: DeploymentItemProps) {
+function DeploymentItem({ service, deployment, isSelected, onSelected }: DeploymentItemProps) {
   const t = T.useTranslate();
-
-  const active = deployment.id === service.activeDeploymentId;
-  const upcoming = isUpcomingDeployment(deployment);
-
   const invalidate = useInvalidateApiQuery();
 
+  const isActive = deployment.id === service.activeDeploymentId;
+  const isUpcoming = isUpcomingDeployment(deployment);
+
   const cancelMutation = useMutation({
-    ...useApiMutationFn('cancelDeployment', {
+    ...apiMutation('post /v1/deployments/{id}/cancel', {
       path: { id: deployment.id },
     }),
     async onSuccess() {
-      await invalidate('listDeployments');
+      await invalidate('get /v1/deployments');
       notify.info(t('upcoming.cancelSuccess'));
     },
   });
 
+  assert(isComputeDeployment(deployment));
+
   return (
-    <div role="button" onClick={onClick} className={clsx('card shadow-none', selected && 'border-green')}>
-      <div className={clsx('col gap-2 p-3', selected && 'bg-green/10')}>
+    <Link
+      to="/services/$serviceId"
+      params={{ serviceId: service.id }}
+      search={(prev) => ({ ...prev, deploymentId: deployment.id })}
+      role="button"
+      onClick={onSelected}
+      className={clsx('card block shadow-none', isSelected && 'border-green')}
+    >
+      <div className={clsx('col gap-2 p-3', isSelected && 'bg-green/10')}>
         <div className="row items-center gap-1">
           <DeploymentStatusBadge status={deployment.status} />
 
-          <Badge size={1} color="gray" className="!text-default">
+          <Badge size={1} color="gray" className="text-default!">
             {deployment.name}
           </Badge>
 
@@ -222,32 +211,36 @@ function DeploymentItem({ service, deployment, selected, onClick }: DeploymentIt
             className="ml-auto text-xs font-medium text-dim"
           />
 
-          {deployment.trigger?.type == 'git' && <TriggerCommitAuthor trigger={deployment.trigger} />}
+          {deployment.trigger?.type == 'git' && (
+            <img
+              src={deployment.trigger.commit.author.avatar}
+              className="size-5 rounded-full"
+              title={deployment.trigger.commit.author.name}
+            />
+          )}
         </div>
 
-        <Tooltip content={<DeploymentTrigger deployment={deployment} />}>
-          {(props) => (
-            <div {...props} className="truncate text-xs text-dim">
-              <DeploymentTrigger deployment={deployment} />
-            </div>
-          )}
-        </Tooltip>
+        <div className="truncate text-xs text-dim">
+          <DeploymentTrigger deployment={deployment} />
+        </div>
       </div>
 
-      {active && (
+      {isActive && (
         <footer
           className={clsx(
-            '!justify-start gap-2 !px-3 !py-1',
-            !selected && '!bg-green/10 !text-green',
-            selected && '!bg-green text-white',
+            'justify-start! gap-2 px-3! py-1!',
+            !isSelected && 'bg-green/10! text-green!',
+            isSelected && 'bg-green! text-white',
           )}
         >
-          <span className={clsx('size-2.5 rounded-full', !selected && 'bg-green', selected && 'bg-white')} />
+          <span
+            className={clsx('size-2.5 rounded-full', !isSelected && 'bg-green', isSelected && 'bg-white')}
+          />
           <T id="active.activeDeployment" />
         </footer>
       )}
 
-      {upcoming && (
+      {isUpcoming && (
         <footer className="p-2">
           <div className="text-xs text-dim">
             {deployment.status === 'PENDING' && <T id="upcoming.inQueue" />}
@@ -258,21 +251,46 @@ function DeploymentItem({ service, deployment, selected, onClick }: DeploymentIt
             color="gray"
             size={1}
             loading={cancelMutation.isPending}
-            onClick={withStopPropagation(() => cancelMutation.mutate())}
+            onClick={withPreventDefault(() => cancelMutation.mutate())}
             className="bg-neutral"
           >
             <T id="upcoming.cancel" />
           </Button>
         </footer>
       )}
-    </div>
+    </Link>
   );
 }
 
-function TriggerCommitAuthor({ trigger }: { trigger: GitDeploymentTrigger }) {
-  return (
-    <Tooltip content={trigger.commit.author.name}>
-      {(props) => <img {...props} src={trigger.commit.author.avatar} className="size-5 rounded-full" />}
-    </Tooltip>
-  );
+function useAutoExpand(props: {
+  selected?: Deployment;
+  setListExpanded: (expanded: boolean) => void;
+  upcoming: Deployment[];
+  setUpcomingExpanded: (expanded: boolean) => void;
+  history: Deployment[];
+  setHistoryExpanded: (expanded: boolean) => void;
+}) {
+  const { selected, setListExpanded, upcoming, setUpcomingExpanded, history, setHistoryExpanded } = props;
+
+  const expandUpcoming = useEffectEvent(() => {
+    setListExpanded(true);
+    setUpcomingExpanded(true);
+  });
+
+  useEffect(() => {
+    if (upcoming.length > 0) {
+      expandUpcoming();
+    }
+  }, [upcoming.length]);
+
+  const expandHistory = useEffectEvent(() => {
+    setListExpanded(true);
+    setHistoryExpanded(true);
+  });
+
+  useEffect(() => {
+    if (history.some(hasProperty('id', selected?.id))) {
+      expandHistory();
+    }
+  }, [history, selected]);
 }

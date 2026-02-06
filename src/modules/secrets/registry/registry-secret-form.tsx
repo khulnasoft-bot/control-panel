@@ -1,19 +1,17 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { FieldValues, FormState, Path, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button } from '@snipkit/design-system';
-import { api, ApiEndpointParams } from 'src/api/api';
-import { RegistrySecret, type RegistryType } from 'src/api/model';
-import { useInvalidateApiQuery } from 'src/api/use-api';
+import { API, useApi, useInvalidateApiQuery } from 'src/api';
 import { readFile } from 'src/application/read-file';
-import { useToken } from 'src/application/token';
-import { ControlledInput, ControlledSelect } from 'src/components/controlled';
+import { ControlledInput, ControlledSelect } from 'src/components/forms';
 import { useFormErrorHandler } from 'src/hooks/form';
 import { useUpdateEffect } from 'src/hooks/lifecycle';
-import { useZodResolver } from 'src/hooks/validation';
 import { createTranslate } from 'src/intl/translate';
+import { RegistrySecret, type RegistryType } from 'src/model';
 import { identity } from 'src/utils/generic';
 
 import { RegistryType as RegistryTypeComponent } from './registry-type';
@@ -23,11 +21,11 @@ const T = createTranslate('modules.secrets.registrySecretForm');
 const schema = z.object({
   name: z.string().min(2),
   type: z.string(),
-  username: z.string(),
-  password: z.string(),
-  registryName: z.string(),
-  registryUrl: z.string(),
-  keyFile: z.string(),
+  username: z.string().optional(),
+  password: z.string().optional(),
+  registryName: z.string().optional(),
+  registryUrl: z.string().optional(),
+  keyFile: z.string().optional(),
 });
 
 const registries = [
@@ -59,7 +57,7 @@ export function RegistrySecretForm({ secret, renderFooter, onSubmitted }: Regist
       registryUrl: '',
       keyFile: '',
     },
-    resolver: useZodResolver(schema),
+    resolver: zodResolver(schema),
   });
 
   useUpdateEffect(() => {
@@ -68,27 +66,25 @@ export function RegistrySecretForm({ secret, renderFooter, onSubmitted }: Regist
     }
   }, [form, secret]);
 
+  const api = useApi();
   const invalidate = useInvalidateApiQuery();
-  const { token } = useToken();
 
   const { mutateAsync: createSecret } = useMutation({
     async mutationFn(values: z.infer<typeof schema>) {
       if (secret) {
-        return api.updateSecret({
-          token,
+        return api('put /v1/secrets/{id}', {
           path: { id: secret.id },
           query: {},
           body: getSecretPayload(values),
         });
       } else {
-        return api.createSecret({
-          token,
+        return api('post /v1/secrets', {
           body: getSecretPayload(values),
         });
       }
     },
     onSuccess({ secret }) {
-      void invalidate('listSecrets');
+      void invalidate('get /v1/secrets');
       form.reset();
       onSubmitted(secret!.name!);
     },
@@ -132,7 +128,7 @@ export function RegistrySecretForm({ secret, renderFooter, onSubmitted }: Regist
         items={registries}
         getKey={identity}
         itemToString={identity}
-        itemToValue={identity}
+        getValue={identity}
         renderItem={(registry) => <RegistryTypeComponent registry={registry} />}
       />
 
@@ -235,7 +231,7 @@ function KeyFileUpload({ error, onChange }: KeyFileUploadProps) {
 }
 
 function getSecretPayload(values: z.infer<typeof schema>) {
-  const payload: ApiEndpointParams<'createSecret'>['body'] = {
+  const payload: API.CreateSecret = {
     name: values.name,
     type: 'REGISTRY',
   };

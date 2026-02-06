@@ -1,7 +1,7 @@
+import { Alert } from '@design-system';
 import { useFormState } from 'react-hook-form';
 
-import { Alert } from '@snipkit/design-system';
-import { ControlledInput } from 'src/components/controlled';
+import { ControlledInput } from 'src/components/forms';
 import { createTranslate } from 'src/intl/translate';
 import { capitalize } from 'src/utils/strings';
 
@@ -19,9 +19,9 @@ export function ServiceNameSection() {
   return (
     <ServiceFormSection
       section="serviceName"
-      description={<T id="description" />}
-      title={<SectionTitle />}
-      expandedTitle={<T id="titleExpanded" />}
+      title={<T id="title" />}
+      action={<T id="action" />}
+      summary={<Summary />}
       className="col gaps"
     >
       {serviceId !== null && (
@@ -31,7 +31,7 @@ export function ServiceNameSection() {
       <ControlledInput
         name="serviceName"
         label={<T id="serviceNameLabel" />}
-        helpTooltip={<T id="serviceNameTooltip" />}
+        tooltip={<T id="serviceNameTooltip" />}
         helperText={errors.serviceName?.message}
         className="max-w-md"
       />
@@ -39,11 +39,11 @@ export function ServiceNameSection() {
   );
 }
 
-function SectionTitle() {
+function Summary() {
   const serviceName = useWatchServiceForm('serviceName');
 
   if (serviceName === '') {
-    return <T id="titleServiceNameMissing" />;
+    return <T id="summaryServiceNameMissing" />;
   }
 
   return <div className="max-w-full truncate">{serviceName}</div>;

@@ -1,6 +1,6 @@
-import { useOneClickApps } from 'src/api/hooks/catalog';
-import { IconArrowRight } from 'src/components/icons';
-import { ExternalLink, Link } from 'src/components/link';
+import { useOneClickApps } from 'src/api';
+import { Link } from 'src/components/link';
+import { IconArrowRight } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
 import { isDefined } from 'src/utils/generic';
 import { hasProperty } from 'src/utils/object';
@@ -28,7 +28,7 @@ export function OneClickAppList() {
 
       <ul>
         {apps.map((app) => (
-          <Link key={app.slug} href={app.deployUrl}>
+          <Link key={app.slug} to="/one-clicks/$slug/deploy" params={{ slug: app.slug }}>
             <ServiceTypeItem
               icon={
                 <div className="rounded-md bg-black/60 p-1.5">
@@ -41,10 +41,10 @@ export function OneClickAppList() {
         ))}
       </ul>
 
-      <ExternalLink href="https://snipkit.com/deploy" className="row text-link ms-4 items-center gap-1">
+      <Link to="/one-clicks" className="ms-4 row items-center gap-1 text-link">
         <T id="navigation.moreOneClickApps" />
         <IconArrowRight className="size-4" />
-      </ExternalLink>
+      </Link>
     </>
   );
 }

@@ -1,35 +1,37 @@
 import clsx from 'clsx';
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 
-import { Tooltip } from '@snipkit/design-system';
+import { Tooltip } from 'src/components/tooltip';
 import { createTranslate } from 'src/intl/translate';
 import { entries } from 'src/utils/object';
 
-import { ControlledInput } from './controlled';
-import { IconCheck } from './icons';
+import { IconCheck } from '../icons';
+
+import { ControlledInput } from './forms';
 
 const T = createTranslate('components.organizationNameField');
 
 type OrganizationNameFieldProps = {
   form: UseFormReturn<{ organizationName: string }>;
   label: React.ReactNode;
+  tooltipPlacement: 'bottom-start' | 'bottom-end';
 };
 
-export function OrganizationNameField({ form, label }: OrganizationNameFieldProps) {
+export function OrganizationNameField({ form, label, tooltipPlacement }: OrganizationNameFieldProps) {
   const [inputFocused, setInputFocused] = useState(false);
 
   return (
     <Tooltip
       open={inputFocused}
       allowHover
+      forceDesktop
       arrow={false}
-      placement="bottom-start"
+      placement={tooltipPlacement}
       offset={8}
       content={<OrganizationNameTooltip name={form.watch('organizationName')} />}
-      className="!bg-muted"
-    >
-      {(props) => (
+      className="bg-muted!"
+      trigger={(props) => (
         <div {...props}>
           <ControlledInput
             control={form.control}
@@ -40,7 +42,7 @@ export function OrganizationNameField({ form, label }: OrganizationNameFieldProp
           />
         </div>
       )}
-    </Tooltip>
+    />
   );
 }
 

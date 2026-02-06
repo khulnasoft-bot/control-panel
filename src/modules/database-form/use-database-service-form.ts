@@ -1,10 +1,9 @@
-import merge from 'lodash-es/merge';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect } from 'react';
-import { DeepPartial, useForm, UseFormReturn, useWatch } from 'react-hook-form';
+import { UseFormReturn, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 
-import { DatabaseDeployment } from 'src/api/model';
-import { useZodResolver } from 'src/hooks/validation';
+import { DatabaseDeployment } from 'src/model';
 import { hasProperty } from 'src/utils/object';
 
 import { databaseInstances } from './database-instance-types';
@@ -12,11 +11,22 @@ import { DatabaseServiceForm, DatabaseServiceFormSection } from './database-serv
 
 const schema = z.object({
   meta: z.object({
+    appId: z.string().nullable(),
     databaseServiceId: z.string().nullable(),
-    expandedSection: z.string().nullable(),
+    expandedSection: z
+      .union([
+        z.literal('engine'),
+        z.literal('region'),
+        z.literal('instance'),
+        z.literal('defaultRole'),
+        z.literal('serviceName'),
+      ])
+      .nullable(),
     allowFreeInstanceIfAlreadyUsed: z.boolean(),
   }),
-  engine: z.object({ version: z.number() }),
+  engine: z.object({
+    version: z.union([z.literal(14), z.literal(15), z.literal(16), z.literal(17), z.literal(18)]),
+  }),
   region: z.string(),
   instance: z.string(),
   defaultRole: z.string().min(1).max(63),
@@ -24,14 +34,15 @@ const schema = z.object({
 });
 
 type UseDatabaseServiceFormProps = {
+  appId?: string;
   deployment?: DatabaseDeployment;
   onCostChanged: (cost: number) => void;
 };
 
-export function useDatabaseServiceForm({ deployment, onCostChanged }: UseDatabaseServiceFormProps) {
+export function useDatabaseServiceForm({ appId, deployment, onCostChanged }: UseDatabaseServiceFormProps) {
   const form = useForm<DatabaseServiceForm>({
-    defaultValues: getDefaultValues(deployment),
-    resolver: useZodResolver(schema),
+    defaultValues: getDefaultValues(appId, deployment),
+    resolver: zodResolver(schema),
   });
 
   useExpandFirstSectionInError(form);
@@ -40,36 +51,22 @@ export function useDatabaseServiceForm({ deployment, onCostChanged }: UseDatabas
   return form;
 }
 
-function defaultDatabaseServiceForm(): DatabaseServiceForm {
+function getDefaultValues(appId?: string, deployment?: DatabaseDeployment): DatabaseServiceForm {
   return {
     meta: {
-      databaseServiceId: null,
+      appId: appId ?? null,
+      databaseServiceId: deployment?.serviceId ?? null,
       expandedSection: null,
-      allowFreeInstanceIfAlreadyUsed: false,
+      allowFreeInstanceIfAlreadyUsed: deployment?.instance === 'free',
     },
     engine: {
-      version: 17,
+      version: 18,
     },
-    region: 'fra',
-    instance: 'small',
-    defaultRole: 'snipkit-adm',
-    serviceName: 'database',
+    instance: deployment?.instance ?? 'small',
+    region: deployment?.region ?? 'fra',
+    defaultRole: 'khulnasoft-adm',
+    serviceName: deployment?.name ?? 'database',
   };
-}
-
-function getDefaultValues(deployment?: DatabaseDeployment): DatabaseServiceForm {
-  if (deployment === undefined) {
-    return defaultDatabaseServiceForm();
-  }
-
-  return merge(defaultDatabaseServiceForm(), {
-    meta: {
-      databaseServiceId: deployment.serviceId,
-      allowFreeInstanceIfAlreadyUsed: deployment.instance === 'free',
-    },
-    instance: deployment.instance,
-    serviceName: deployment.name,
-  } satisfies DeepPartial<DatabaseServiceForm>);
 }
 
 function useExpandFirstSectionInError(form: UseFormReturn<DatabaseServiceForm>) {

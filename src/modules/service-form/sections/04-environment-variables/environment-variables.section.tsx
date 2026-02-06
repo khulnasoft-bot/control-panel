@@ -1,14 +1,14 @@
+import { Button, TabButton, TabButtons } from '@design-system';
 import { useState } from 'react';
 import { useFieldArray, useFormContext, useFormState } from 'react-hook-form';
 
-import { Button, TabButton, TabButtons } from '@snipkit/design-system';
-import { useSecrets } from 'src/api/hooks/secret';
+import { useSecrets } from 'src/api';
 import { notify } from 'src/application/notify';
 import { readFile } from 'src/application/read-file';
-import { Dialog } from 'src/components/dialog';
+import { openDialog } from 'src/components/dialog';
 import { FileDropZone } from 'src/components/file-drop-zone';
-import { IconPlus } from 'src/components/icons';
 import { useMount } from 'src/hooks/lifecycle';
+import { IconPlus } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
 import { CreateSecretDialog } from 'src/modules/secrets/simple/create-secret-dialog';
 
@@ -16,7 +16,6 @@ import { ServiceFormSection } from '../../components/service-form-section';
 import { parseEnvironmentVariables } from '../../helpers/parse-environment-variables';
 import { ServiceForm } from '../../service-form.types';
 
-import { BulkEnvironmentVariablesEditionDialog } from './bulk-environment-variables-edition';
 import { EnvironmentVariableFields } from './environment-variable-fields';
 import { Files } from './files';
 
@@ -36,9 +35,9 @@ export function EnvironmentVariablesSection() {
   return (
     <ServiceFormSection
       section="environmentVariables"
-      title={<T id="title" values={{ variables: variables.length, files: files.length }} />}
-      description={<T id="description" />}
-      expandedTitle={<T id="expandedTitle" />}
+      title={<T id="title" />}
+      action={<T id="action" />}
+      summary={<T id="summary" values={{ variables: variables.length, files: files.length }} />}
       className="col gaps"
     >
       <TabButtons>
@@ -72,7 +71,6 @@ function WatchFilesErrors({ onError }: { onError: () => void }) {
 
 function EnvironmentVariables() {
   const t = T.useTranslate();
-  const openDialog = Dialog.useOpen();
 
   const { setValue } = useFormContext<ServiceForm>();
 
@@ -82,7 +80,7 @@ function EnvironmentVariables() {
 
   const [createSecretIndex, setCreateSecretIndex] = useState<number>();
 
-  const secrets = useSecrets('simple');
+  const secrets = useSecrets('SIMPLE');
 
   const environmentFileDropped = async (file: File) => {
     if (file.type !== '' && file.type !== 'text/plain') {
@@ -131,7 +129,7 @@ function EnvironmentVariables() {
             ))}
           </div>
 
-          <div className="col sm:row items-start gap-4">
+          <div className="col items-start gap-4 sm:row">
             <Button variant="ghost" color="gray" onClick={() => append({ name: '', value: '', regions: [] })}>
               <IconPlus className="size-4" />
               <T id="addVariable" />
@@ -147,8 +145,6 @@ function EnvironmentVariables() {
           </div>
         </div>
       </FileDropZone>
-
-      <BulkEnvironmentVariablesEditionDialog />
 
       <CreateSecretDialog
         onCreated={(secretName) => {

@@ -1,28 +1,24 @@
-import { expect, PlaywrightTestArgs, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-import { authenticate, catchNewPage, deleteSnipkitResources } from './test-utils';
+import { authenticate, catchNewPage, deleteAllApps } from './test-utils';
 
-async function cleanup({ page }: PlaywrightTestArgs) {
-  test.setTimeout(5 * 60 * 1000);
-  await authenticate(page);
-  await deleteSnipkitResources(page);
-}
-
-test.beforeEach(cleanup);
-test.afterEach(cleanup);
+test.beforeEach(({ page }) => authenticate(page));
+test.beforeEach(deleteAllApps);
+test.afterEach(deleteAllApps);
 
 test('github service creation', async ({ context, page }) => {
-  test.setTimeout(15 * 60 * 1000);
-  await authenticate(page);
+  test.setTimeout(10 * 60 * 1000);
+  await page.goto('/');
 
-  await page.getByRole('link', { name: 'Create service' }).click();
-  await page.getByRole('button', { name: 'GitHub' }).click();
-  await page.getByPlaceholder('https://github.com/snipkit/example-go').fill('snipkit/example-go-gin');
+  await page.getByRole('button', { name: 'Create service' }).click();
+  await page.getByRole('link', { name: 'GitHub' }).click();
+  await page.getByPlaceholder('https://github.com/khulnasoft/example-go').fill('khulnasoft/example-go-gin');
   await page.getByRole('button', { name: 'Import' }).click();
+  await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Deploy' }).click();
 
-  await expect(page.getByText('Your service is ready')).toBeVisible({ timeout: 15 * 60 * 1_000 });
+  await expect(page.getByText('Your service is ready')).toBeVisible({ timeout: 10 * 60 * 1_000 });
 
   const servicePage = await catchNewPage(context, async () => {
     await page.getByRole('link', { name: 'Visit your service public domain' }).click();
@@ -32,21 +28,22 @@ test('github service creation', async ({ context, page }) => {
     await servicePage.reload();
     await expect(servicePage.getByText('Hello, world!')).toBeVisible();
   }).toPass({ timeout: 60 * 1000 });
+
+  await servicePage.close();
 });
 
 test('docker service creation', async ({ context, page }) => {
-  test.setTimeout(15 * 60 * 1000);
-
+  test.setTimeout(10 * 60 * 1000);
   await page.goto('/');
 
-  await page.getByRole('link', { name: 'Create service' }).click();
-  await page.getByRole('button', { name: 'Docker' }).click();
-  await page.getByPlaceholder('docker.io/snipkit/demo:latest').fill('snipkit/demo');
+  await page.getByRole('button', { name: 'Create service' }).click();
+  await page.getByRole('link', { name: 'Docker' }).click();
+  await page.getByPlaceholder('docker.io/khulnasoft/demo:latest').fill('khulnasoft/demo');
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: 'Deploy' }).click();
 
-  await expect(page.getByText('Your service is ready')).toBeVisible({ timeout: 15 * 60 * 1_000 });
+  await expect(page.getByText('Your service is ready')).toBeVisible({ timeout: 10 * 60 * 1_000 });
 
   const servicePage = await catchNewPage(context, async () => {
     await page.getByRole('link', { name: 'Visit your service public domain' }).click();
@@ -54,6 +51,8 @@ test('docker service creation', async ({ context, page }) => {
 
   await expect(async () => {
     await servicePage.reload();
-    await expect(servicePage.getByText('Welcome to Snipkit')).toBeVisible();
+    await expect(servicePage.getByText('Welcome to KhulnaSoft')).toBeVisible();
   }).toPass({ timeout: 60 * 1000 });
+
+  await servicePage.close();
 });

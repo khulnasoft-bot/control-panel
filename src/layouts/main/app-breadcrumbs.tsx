@@ -1,287 +1,139 @@
+import { RegisteredRouter, ValidateLinkOptions, linkOptions, useRouterState } from '@tanstack/react-router';
 import clsx from 'clsx';
-import { useState } from 'react';
-// eslint-disable-next-line no-restricted-imports
-import { Route, Switch } from 'wouter';
+import { Fragment } from 'react';
 
-import { Floating, Menu, MenuItem } from '@snipkit/design-system';
-import { useAppQuery, useServiceQuery, useServices } from 'src/api/hooks/service';
-import { routes } from 'src/application/routes';
-import { Breadcrumbs, Crumb } from 'src/components/breadcrumbs';
-import { IconCheck, IconChevronDown, IconHouse } from 'src/components/icons';
+import { useAppQuery, useServiceQuery, useServices } from 'src/api';
+import { DropdownMenu, LinkMenuItem } from 'src/components/dropdown-menu';
 import { Link } from 'src/components/link';
 import { TextSkeleton } from 'src/components/skeleton';
 import { ServiceStatusDot } from 'src/components/status-dot';
-import { usePathname } from 'src/hooks/router';
-import { createTranslate, Translate } from 'src/intl/translate';
-
-const T = createTranslate('layouts.main.breadcrumbs');
+import { IconCheck, IconChevronDown, IconChevronRight, IconHouse } from 'src/icons';
+import { Translate, TranslationKeys } from 'src/intl/translate';
+import { Service } from 'src/model';
+import { unique } from 'src/utils/arrays';
+import { isDefined } from 'src/utils/generic';
 
 export function AppBreadcrumbs() {
-  const pathname = usePathname();
+  const matches = useRouterState({ select: (s) => s.matches });
+  const crumbs = unique(matches.map((match) => match.context.breadcrumb).filter(isDefined));
+
+  if (crumbs.length === 0) {
+    return <div className="h-14" />;
+  }
 
   return (
-    <Breadcrumbs className="h-14 overflow-x-auto">
-      {pathname !== routes.home() && (
-        <Crumb
-          isFirst
-          label={
-            <div>
-              <IconHouse className="icon" />
-            </div>
-          }
-          link={routes.home()}
-        />
-      )}
+    <div className="row h-14 items-center gap-2 overflow-x-auto whitespace-nowrap">
+      <Link to="/" className="font-medium text-dim">
+        <IconHouse className="icon" />
+      </Link>
 
-      <Switch>
-        <CrumbRoute path="/services" label={<T id="services" />} link={routes.services()} />
+      {crumbs.map((Crumb, index) => (
+        <Fragment key={index}>
+          <div>
+            <IconChevronRight className="size-em text-dim" />
+          </div>
 
-        <Route path="/volumes">
-          <Crumb label={<T id="volumes" />} link={routes.volumes.index()} />
-          <CrumbRoute
-            path="/snapshots"
-            label={<T id="volumeSnapshots" />}
-            link={routes.volumes.snapshots()}
-          />
-        </Route>
-
-        <CrumbRoute path="/domains" label={<T id="domains" />} link={routes.domains()} />
-        <CrumbRoute path="/secrets" label={<T id="secrets" />} link={routes.secrets()} />
-        <CrumbRoute path="/activity" label={<T id="activity" />} link={routes.activity()} />
-        <CrumbRoute path="/team" label={<T id="team" />} link={routes.team()} />
-
-        <CrumbRoute
-          path="/database-services/new"
-          label={<T id="createService" />}
-          link={routes.createService()}
-        />
-
-        <CrumbRoute
-          path="/services/deploy"
-          label={<T id="deploy" />}
-          link={routes.deploy() + window.location.search}
-        />
-
-        <CrumbRoute path="/services/new" label={<T id="createService" />} link={routes.createService()} />
-
-        <Route path="/database-services/:serviceId/*?">
-          {({ serviceId }) => <DatabaseServiceCrumbs serviceId={serviceId} />}
-        </Route>
-
-        <Route path="/services/:serviceId/*?">
-          {({ serviceId }) => <ServiceCrumbs serviceId={serviceId} />}
-        </Route>
-
-        <Route path="/settings/*?">
-          <OrganizationSettingsCrumbs />
-        </Route>
-
-        <Route path="/user/settings/*?">
-          <UserSettingsCrumbs />
-        </Route>
-      </Switch>
-    </Breadcrumbs>
+          <Crumb />
+        </Fragment>
+      ))}
+    </div>
   );
 }
 
-function OrganizationSettingsCrumbs() {
+export function Crumb({ className, children }: { className?: string; children: React.ReactNode }) {
+  return <div className={clsx('font-medium text-dim last-of-type:text-default', className)}>{children}</div>;
+}
+
+export function CrumbLink<Router extends RegisteredRouter, Options>(
+  props: ValidateLinkOptions<Router, Options> & { children?: React.ReactNode },
+) {
   return (
-    <>
-      <CrumbRoute
-        path="/settings/*?"
-        label={<T id="organizationSettings.index" />}
-        link={routes.organizationSettings.index()}
-      />
-
-      <CrumbRoute
-        path="/settings/billing"
-        label={<T id="organizationSettings.billing" />}
-        link={routes.organizationSettings.billing()}
-      />
-
-      <CrumbRoute
-        path="/settings/plans"
-        label={<T id="organizationSettings.plans" />}
-        link={routes.organizationSettings.plans()}
-      />
-
-      <CrumbRoute
-        path="/settings/api"
-        label={<T id="organizationSettings.api" />}
-        link={routes.organizationSettings.api()}
-      />
-    </>
+    <Crumb>
+      <Link {...props}>
+        {props.children ?? (
+          <Translate id={`layouts.main.breadcrumbs.${props.to as string}` as TranslationKeys} />
+        )}
+      </Link>
+    </Crumb>
   );
 }
 
-function UserSettingsCrumbs() {
-  return (
-    <>
-      <CrumbRoute
-        path="/user/settings/*?"
-        label={<T id="userSettings.index" />}
-        link={routes.userSettings.index()}
-      />
-
-      <CrumbRoute
-        path="/user/settings/organizations"
-        label={<T id="userSettings.organizations" />}
-        link={routes.userSettings.organizations()}
-      />
-
-      <CrumbRoute
-        path="/user/settings/api"
-        label={<T id="userSettings.api" />}
-        link={routes.userSettings.api()}
-      />
-    </>
-  );
-}
-
-function ServiceCrumbs({ serviceId }: { serviceId: string }) {
-  return (
-    <>
-      <AppServiceCrumb serviceId={serviceId} />
-
-      <CrumbRoute
-        path="/services/:serviceId/metrics"
-        label={<T id="service.metrics" />}
-        link={routes.service.metrics(serviceId)}
-      />
-
-      <CrumbRoute
-        path="/services/:serviceId/console"
-        label={<T id="service.console" />}
-        link={routes.service.console(serviceId)}
-      />
-
-      <CrumbRoute
-        path="/services/:serviceId/settings"
-        label={<T id="service.settings" />}
-        link={routes.service.settings(serviceId)}
-      />
-    </>
-  );
-}
-
-function DatabaseServiceCrumbs({ serviceId }: { serviceId: string }) {
-  return (
-    <>
-      <AppServiceCrumb serviceId={serviceId} />
-
-      <CrumbRoute
-        path="/database-services/:serviceId/databases"
-        label={<T id="database.databases" />}
-        link={routes.database.logicalDatabases(serviceId)}
-      />
-
-      <CrumbRoute
-        path="/database-services/:serviceId/roles"
-        label={<T id="database.roles" />}
-        link={routes.database.roles(serviceId)}
-      />
-
-      <CrumbRoute
-        path="/database-services/:serviceId/settings"
-        label={<T id="database.settings" />}
-        link={routes.database.settings(serviceId)}
-      />
-    </>
-  );
-}
-
-function CrumbRoute({ path, ...props }: { path: string } & React.ComponentProps<typeof Crumb>) {
-  return (
-    <Route path={path}>
-      <Crumb {...props} />
-    </Route>
-  );
-}
-
-function AppServiceCrumb({ serviceId }: { serviceId: string }) {
+export function AppServiceCrumb<Router extends RegisteredRouter, Options>({
+  serviceId,
+  link,
+}: {
+  serviceId: string;
+  link: ValidateLinkOptions<Router, Options>;
+}) {
   const serviceQuery = useServiceQuery(serviceId);
   const appQuery = useAppQuery(serviceQuery.data?.appId);
 
-  if (!appQuery.isSuccess || !serviceQuery.isSuccess) {
-    return <Crumb label={<TextSkeleton width={8} />} />;
+  if (appQuery.isError || serviceQuery.isError) {
+    return null;
+  }
+
+  if (appQuery.isPending || serviceQuery.isPending) {
+    return <TextSkeleton width={8} />;
   }
 
   const app = appQuery.data;
   const service = serviceQuery.data;
 
   return (
-    <div className="row items-center gap-2">
-      <Crumb
-        link={
-          service.type === 'database'
-            ? routes.database.overview(service.id)
-            : routes.service.overview(service.id)
-        }
-        label={
-          <div className="row max-w-48 items-center gap-2 sm:max-w-96 lg:max-w-none">
-            <div>
-              <ServiceStatusDot status={service.status} className="size-2" />
-            </div>
+    <Crumb className="row items-center gap-2">
+      <Link className="row max-w-48 items-center gap-2 sm:max-w-96 lg:max-w-none" {...link}>
+        <div>
+          <ServiceStatusDot status={service.status} className="size-2" />
+        </div>
 
-            <div className="direction-rtl truncate">
-              <Translate
-                id="common.appServiceName"
-                values={{ appName: app.name, serviceName: service.name }}
-              />
-            </div>
-          </div>
-        }
-      />
+        <div className="truncate direction-rtl">{`${app.name}/${service.name}`}</div>
+      </Link>
 
-      <ServiceSwitcherMenu appId={appQuery.data?.id} serviceId={serviceId} />
-    </div>
+      <ServiceSwitcherMenu appId={app.id} serviceId={serviceId} />
+    </Crumb>
   );
 }
 
-function ServiceSwitcherMenu({ appId, serviceId }: { appId?: string; serviceId: string }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+export function ServiceSwitcherMenu({ appId, serviceId }: { appId: string; serviceId: string }) {
   const appServices = useServices(appId);
 
+  const linkProps = (service: Service) => {
+    if (service.type === 'database') {
+      return linkOptions({
+        to: '/database-services/$databaseServiceId',
+        params: { databaseServiceId: service.id },
+      });
+    }
+
+    return linkOptions({
+      to: '/services/$serviceId',
+      params: { serviceId: service.id },
+    });
+  };
+
   return (
-    <Floating
-      open={menuOpen}
-      setOpen={setMenuOpen}
-      placement="bottom-start"
-      offset={8}
-      renderReference={(props) => (
+    <DropdownMenu
+      reference={(props) => (
         <button
           type="button"
-          onClick={() => setMenuOpen(true)}
           className={clsx({ hidden: !appServices || appServices.length <= 1 })}
           {...props}
         >
-          <IconChevronDown className="text-icon size-4" />
+          <IconChevronDown className="size-4 text-icon" />
         </button>
       )}
-      renderFloating={(props) => (
-        <Menu className="min-w-48" {...props}>
-          {appServices?.map((service) => (
-            <MenuItem
-              key={service.id}
-              element={Link}
-              href={
-                service.type === 'database'
-                  ? routes.database.overview(service.id)
-                  : routes.service.overview(service.id)
-              }
-              onClick={() => setMenuOpen(false)}
-            >
-              <div>
-                <ServiceStatusDot status={service.status} className="size-2" />
-              </div>
+    >
+      {appServices?.map((service) => (
+        <LinkMenuItem key={service.id} {...linkProps(service)}>
+          <div>
+            <ServiceStatusDot status={service.status} className="size-2" />
+          </div>
 
-              {service.name}
+          {service.name}
 
-              {service.id === serviceId && <IconCheck className="text-icon ml-auto size-4" />}
-            </MenuItem>
-          ))}
-        </Menu>
-      )}
-    />
+          {service.id === serviceId && <IconCheck className="ml-auto size-4 text-icon" />}
+        </LinkMenuItem>
+      ))}
+    </DropdownMenu>
   );
 }

@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 
-import { IconExternalLink } from 'src/components/icons';
+import { IconExternalLink } from 'src/icons';
 
 import { ExternalLink } from './link';
 
@@ -12,7 +12,7 @@ type DocumentationLinkProps = {
 
 export function DocumentationLink({ path, className, children }: DocumentationLinkProps) {
   return (
-    <ExternalLink openInNewTab href={`https://snipkit.com${path}`} className={clsx('text-link', className)}>
+    <ExternalLink openInNewTab href={`https://khulnasoft.com${path}`} className={clsx('text-link', className)}>
       {children}
       <IconExternalLink className="inline-block h-4 align-middle" />
     </ExternalLink>

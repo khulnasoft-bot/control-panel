@@ -1,11 +1,11 @@
-import { usePathname } from 'wouter/use-browser-location';
+import { TabButtons } from '@design-system';
 
-import { TabButtons } from '@snipkit/design-system';
-import { routes } from 'src/application/routes';
+import { useOrganization } from 'src/api';
 import { DocumentTitle } from 'src/components/document-title';
 import { TabButtonLink } from 'src/components/link';
 import { Title } from 'src/components/title';
 import { createTranslate } from 'src/intl/translate';
+import { inArray } from 'src/utils/arrays';
 
 const T = createTranslate('pages.organizationSettings.layout');
 
@@ -23,29 +23,26 @@ export function OrganizationSettingsLayout({ children }: { children: React.React
 }
 
 function Navigation() {
+  const organization = useOrganization();
+  const isDeactivated = inArray(organization?.status, ['DEACTIVATING', 'DEACTIVATED']);
+
   return (
     <TabButtons className="self-start">
-      <Tab href={routes.organizationSettings.index()}>
+      <TabButtonLink to="/settings">
         <T id="navigation.general" />
-      </Tab>
-      <Tab href={routes.organizationSettings.billing()}>
+      </TabButtonLink>
+      <TabButtonLink to="/settings/billing">
         <T id="navigation.billing" />
-      </Tab>
-      <Tab href={routes.organizationSettings.plans()}>
+      </TabButtonLink>
+      <TabButtonLink to="/settings/plans">
         <T id="navigation.plans" />
-      </Tab>
-      <Tab href={routes.organizationSettings.api()}>
+      </TabButtonLink>
+      <TabButtonLink to="/settings/api">
         <T id="navigation.api" />
-      </Tab>
-      <Tab href={routes.organizationSettings.registrySecrets()}>
+      </TabButtonLink>
+      <TabButtonLink to="/settings/registry-configuration" disabled={isDeactivated}>
         <T id="navigation.registrySecrets" />
-      </Tab>
+      </TabButtonLink>
     </TabButtons>
   );
-}
-
-function Tab(props: { href: string; children: React.ReactNode }) {
-  const pathname = usePathname();
-
-  return <TabButtonLink selected={pathname === props.href} className="whitespace-nowrap" {...props} />;
 }

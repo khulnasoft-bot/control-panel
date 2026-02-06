@@ -1,20 +1,18 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { IconButton } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { useState } from 'react';
 import { FieldValues, FormState, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { IconButton } from '@snipkit/design-system';
-import { api } from 'src/api/api';
-import { Secret } from 'src/api/model';
-import { useInvalidateApiQuery } from 'src/api/use-api';
-import { useToken } from 'src/application/token';
-import { ControlledInput, ControlledSwitch, ControlledTextArea } from 'src/components/controlled';
-import { IconEye, IconEyeOff } from 'src/components/icons';
+import { useApi, useInvalidateApiQuery } from 'src/api';
+import { ControlledInput, ControlledSwitch, ControlledTextArea } from 'src/components/forms';
 import { useFormErrorHandler } from 'src/hooks/form';
 import { useUpdateEffect } from 'src/hooks/lifecycle';
-import { useZodResolver } from 'src/hooks/validation';
+import { IconEye, IconEyeOff } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
+import { Secret } from 'src/model';
 
 const T = createTranslate('modules.secrets.simpleSecretForm');
 
@@ -32,16 +30,17 @@ type SecretFormProps = {
 
 export function SecretForm({ secret, renderFooter, onSubmitted }: SecretFormProps) {
   const t = T.useTranslate();
-  const { token } = useToken();
+
+  const api = useApi();
   const invalidate = useInvalidateApiQuery();
 
-  const form = useForm<z.infer<typeof schema>>({
+  const form = useForm({
     defaultValues: {
       name: secret?.name ?? '',
       value: '',
       multiline: false,
     },
-    resolver: useZodResolver(schema),
+    resolver: zodResolver(schema),
   });
 
   useUpdateEffect(() => {
@@ -53,24 +52,22 @@ export function SecretForm({ secret, renderFooter, onSubmitted }: SecretFormProp
   const { mutateAsync: createSecret } = useMutation({
     async mutationFn(param: { name: string; value: string }) {
       if (secret) {
-        return api.updateSecret({
-          token,
+        return api('put /v1/secrets/{id}', {
           path: { id: secret.id },
           query: {},
           body: { type: 'SIMPLE', ...param },
         });
       } else {
-        return api.createSecret({
-          token,
+        return api('post /v1/secrets', {
           body: { type: 'SIMPLE', ...param },
         });
       }
     },
     async onSuccess({ secret }) {
       await Promise.all([
-        invalidate('listSecrets'),
-        invalidate('revealSecret', { path: { id: secret!.id! } }),
-        invalidate('getServiceVariables', { body: { definition: {} } }),
+        invalidate('get /v1/secrets'),
+        invalidate('post /v1/secrets/{id}/reveal', { path: { id: secret!.id! } }),
+        invalidate('post /v1/services-autocomplete', { body: { definition: {} } }),
       ]);
 
       form.reset();
@@ -119,7 +116,7 @@ export function SecretForm({ secret, renderFooter, onSubmitted }: SecretFormProp
           rows={3}
           label={valueLabel}
           spellCheck="false"
-          textAreaClassName={clsx('scrollbar-green scrollbar-thin', !showValue && 'text-security-disc')}
+          textAreaClassName={clsx('scrollbar-thin scrollbar-green', !showValue && 'text-security-disc')}
         />
       ) : (
         <ControlledInput
@@ -131,13 +128,7 @@ export function SecretForm({ secret, renderFooter, onSubmitted }: SecretFormProp
         />
       )}
 
-      <ControlledSwitch
-        control={form.control}
-        name="multiline"
-        label="Multi-line"
-        labelPosition="left"
-        className="self-start"
-      />
+      <ControlledSwitch control={form.control} name="multiline" label="Multi-line" className="self-start" />
 
       {renderFooter(form.formState)}
     </form>

@@ -1,6 +1,7 @@
-import { TabButton, TabButtons } from '@snipkit/design-system';
-import { InstanceCategory } from 'src/api/model';
+import { TabButton, TabButtons } from '@design-system';
+
 import { createTranslate } from 'src/intl/translate';
+import { InstanceCategory } from 'src/model';
 
 const T = createTranslate('components.instanceSelector');
 

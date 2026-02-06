@@ -1,5 +1,6 @@
-import { Spinner } from '@snipkit/design-system';
-import { IconCheck } from 'src/components/icons';
+import { Spinner } from '@design-system';
+
+import { IconCheck } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
 
 const T = createTranslate('components.dockerImageInput');

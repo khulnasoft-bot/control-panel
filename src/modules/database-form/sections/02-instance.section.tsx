@@ -1,6 +1,6 @@
 import { useWatch } from 'react-hook-form';
 
-import { createTranslate, Translate } from 'src/intl/translate';
+import { Translate, createTranslate } from 'src/intl/translate';
 import { hasProperty } from 'src/utils/object';
 
 import { DatabaseInstanceSelector } from '../components/database-instance-selector';
@@ -22,10 +22,10 @@ export function InstanceSection() {
   return (
     <DatabaseServiceFormSection
       section="instance"
-      title={<SectionTitle />}
-      expandedTitle={<T id="expandedTitle" />}
+      title={<T id="title" />}
+      action={<T id="action" />}
+      summary={<Summary />}
       shortcut={serviceId ? 1 : 2}
-      description={<T id="description" />}
       className="pb-0"
     >
       <DatabaseInstanceSelector allowFreeInstanceIfAlreadyUsed={allowFreeInstanceIfAlreadyUsed} />
@@ -33,7 +33,7 @@ export function InstanceSection() {
   );
 }
 
-function SectionTitle() {
+function Summary() {
   const catalogInstanceId = useWatch<DatabaseServiceForm, 'instance'>({ name: 'instance' });
   const instance = databaseInstances.find(hasProperty('id', catalogInstanceId));
 
@@ -44,7 +44,7 @@ function SectionTitle() {
   const spec = (
     <Translate
       id="common.instanceSpec"
-      values={{ cpu: instance.vcpuShares, ram: instance.memory, disk: instance.disk }}
+      values={{ cpu: instance.vcpuShares, ram: instance.memory, disk: instance.disk ?? '∞' }}
     />
   );
 

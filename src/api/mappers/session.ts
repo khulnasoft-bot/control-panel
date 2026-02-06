@@ -1,10 +1,8 @@
+import omit from 'lodash-es/omit';
 import { z } from 'zod';
 
-import { createValidationGuard } from 'src/application/create-validation-guard';
 import { parseBytes } from 'src/application/memory';
-import { entries, requiredDeep, snakeToCamelDeep, toObject } from 'src/utils/object';
-
-import type { Api } from '../api-types';
+import { createValidationGuard } from 'src/application/validation';
 import {
   Organization,
   OrganizationInvitation,
@@ -12,19 +10,27 @@ import {
   OrganizationQuotas,
   OrganizationSummary,
   User,
-} from '../model';
+  UserSettings,
+} from 'src/model';
+import { entries, requiredDeep, snakeToCamelDeep, toObject } from 'src/utils/object';
 
-export function mapUser(user: Api.User): User {
+import type { API } from '../api-types';
+
+export function mapUser(user: API.User): User {
+  return omit(snakeToCamelDeep(requiredDeep(user)), ['createdAt', 'updatedAt']);
+}
+
+export function mapUserSettings(user: API.UserSettings): UserSettings {
   return snakeToCamelDeep(requiredDeep(user));
 }
 
-export function mapOrganization(organization: Api.Organization): Organization {
+export function mapOrganization(organization: API.Organization): Organization {
   return {
     ...snakeToCamelDeep(requiredDeep(organization)),
     plan: organization.plan! === 'hobby23' ? 'hobby' : organization.plan!,
-    hasSignupQualification: organization?.signup_qualification !== null,
-    currentSubscriptionId: organization?.current_subscription_id || undefined,
-    latestSubscriptionId: organization?.latest_subscription_id || undefined,
+    hasSignupQualification: Object.keys(organization.signup_qualification ?? {}).length > 0,
+    currentSubscriptionId: organization.current_subscription_id || undefined,
+    latestSubscriptionId: organization.latest_subscription_id || undefined,
     billing: mapOrganizationBilling(organization),
     trial: organization.trialing ? { endsAt: organization.trial_ends_at! } : undefined,
   };
@@ -41,7 +47,7 @@ export const addressSchema = z.object({
 
 const isAddress = createValidationGuard(addressSchema);
 
-function mapOrganizationBilling(organization: Api.Organization): Organization['billing'] {
+function mapOrganizationBilling(organization: API.Organization): Organization['billing'] {
   const address = {
     line1: organization.address1 || undefined,
     line2: organization.address2 || undefined,
@@ -60,15 +66,15 @@ function mapOrganizationBilling(organization: Api.Organization): Organization['b
   };
 }
 
-export function mapInvitation(invitation: Api.OrganizationInvitation): OrganizationInvitation {
+export function mapInvitation(invitation: API.OrganizationInvitation): OrganizationInvitation {
   return snakeToCamelDeep(requiredDeep(invitation));
 }
 
-export function mapOrganizationMember(membership: Api.OrganizationMember): OrganizationMember {
+export function mapOrganizationMember(membership: API.OrganizationMember): OrganizationMember {
   return snakeToCamelDeep(requiredDeep(membership));
 }
 
-export function mapOrganizationSummary(summary: Api.OrganizationSummary): OrganizationSummary {
+export function mapOrganizationSummary(summary: API.OrganizationSummary): OrganizationSummary {
   const freeInstances = Number(summary.instances!.by_type!['free']);
   const freeDatabases = Number(summary.neon_postgres!.by_instance_type!['free']);
 
@@ -83,11 +89,11 @@ export function mapOrganizationSummary(summary: Api.OrganizationSummary): Organi
   };
 }
 
-export function mapOrganizationQuotas(quotas: Api.Quotas): OrganizationQuotas {
+export function mapOrganizationQuotas(quotas: API.Quotas): OrganizationQuotas {
   return {
-    maxNumberOfApps: Number(quotas?.apps),
-    maxNumberOfServices: Number(quotas?.services),
-    maxOrganizationMembers: Number(quotas?.max_organization_members),
+    maxNumberOfApps: Number(quotas.apps),
+    maxNumberOfServices: Number(quotas.services),
+    maxOrganizationMembers: Number(quotas.max_organization_members),
     instanceTypes: quotas.instance_types!.length > 0 ? quotas.instance_types! : undefined,
     maxInstancesByType: toObject(
       Object.entries(quotas.max_instances_by_type!),
@@ -105,6 +111,8 @@ export function mapOrganizationQuotas(quotas: Api.Quotas): OrganizationQuotas {
     ),
     maxMemory: parseBytes(`${quotas.memory_mb}MiB`),
     maxDomains: Number(quotas.custom_domains),
-    logsRetention: Number(quotas.logs_retention),
+    logsRetention: quotas.logs_retention!,
+    scaleToZero: snakeToCamelDeep(requiredDeep(quotas.scale_to_zero!)),
+    lifeCycle: snakeToCamelDeep(requiredDeep(quotas.lifecycle!)),
   };
 }

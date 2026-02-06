@@ -1,14 +1,13 @@
-import { useFormContext, useWatch } from 'react-hook-form';
-
-import { useInstance } from 'src/api/hooks/catalog';
-import { ServiceType } from 'src/api/model';
+import { useCatalogInstance } from 'src/api';
 import { SvgComponent } from 'src/application/types';
-import { ControlledSelectBox } from 'src/components/controlled';
-import { IconSettings, IconGlobe } from 'src/components/icons';
+import { ControlledSelectBox } from 'src/components/forms';
+import { IconGlobe, IconSettings } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
+import { ServiceType } from 'src/model';
+import { assert } from 'src/utils/assert';
 
 import { ServiceFormSection } from '../../components/service-form-section';
-import { ServiceForm } from '../../service-form.types';
+import { useScalingRules } from '../../helpers/scaling-rules';
 import { useWatchServiceForm } from '../../use-service-form';
 
 import { ServiceTypeAlerts } from './service-type-alerts';
@@ -19,14 +18,14 @@ export function ServiceTypeSection() {
   return (
     <ServiceFormSection
       section="serviceType"
-      description={<T id="description" />}
-      title={<SectionTitle />}
-      expandedTitle={<T id="expandedTitle" />}
+      title={<T id="title" />}
+      action={<T id="action" />}
+      summary={<Summary />}
       className="col gap-6"
     >
       <ServiceTypeAlerts />
 
-      <div className="gaps grid grid-cols-1 md:grid-cols-2">
+      <div className="grid grid-cols-1 gaps md:grid-cols-2">
         <ServiceTypeOption
           type="web"
           Icon={IconGlobe}
@@ -45,17 +44,20 @@ export function ServiceTypeSection() {
   );
 }
 
-function SectionTitle() {
-  const serviceType = useWatch<ServiceForm, 'serviceType'>({ name: 'serviceType' });
+function Summary() {
+  const serviceType = useWatchServiceForm('serviceType');
 
-  const { Icon, title } =
-    serviceType === 'web'
-      ? { Icon: IconGlobe, title: <T id="webService" /> }
-      : { Icon: IconSettings, title: <T id="worker" /> };
+  assert(serviceType !== 'sandbox');
+  assert(serviceType !== 'database');
+
+  const { Icon, title } = {
+    web: { Icon: IconGlobe, title: <T id="webService" /> },
+    worker: { Icon: IconSettings, title: <T id="worker" /> },
+  }[serviceType];
 
   return (
     <div className="row items-center gap-2">
-      <Icon className="text-icon size-5" />
+      <Icon className="size-4 text-icon" />
       {title}
     </div>
   );
@@ -69,8 +71,8 @@ type ServiceTypeOptionProps = {
 };
 
 function ServiceTypeOption({ type, Icon, title, description }: ServiceTypeOptionProps) {
-  const { setValue, trigger } = useFormContext<ServiceForm>();
-  const instance = useInstance(useWatchServiceForm('instance'));
+  const { onServiceTypeChanged } = useScalingRules();
+  const instance = useCatalogInstance(useWatchServiceForm('instance'));
 
   const canSelect = () => {
     if (instance?.id === 'free') {
@@ -89,18 +91,7 @@ function ServiceTypeOption({ type, Icon, title, description }: ServiceTypeOption
       icon={<Icon className="icon" />}
       title={title}
       description={description}
-      onChangeEffect={() => {
-        if (type === 'worker') {
-          setValue('scaling.targets.requests.enabled', false);
-          setValue('scaling.targets.concurrentRequests.enabled', false);
-          setValue('scaling.targets.responseTime.enabled', false);
-          void trigger('scaling');
-        }
-
-        if (type === 'web') {
-          setValue('scaling.min', instance?.category === 'gpu' ? 0 : 1);
-        }
-      }}
+      onChangeEffect={() => onServiceTypeChanged(type)}
       className="flex-1"
     />
   );
