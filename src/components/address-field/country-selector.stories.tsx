@@ -1,4 +1,4 @@
-import { Meta, StoryFn } from '@storybook/react';
+import { Meta, StoryFn } from '@storybook/react-vite';
 import { useState } from 'react';
 
 import { CountrySelector } from './country-selector';
@@ -15,7 +15,7 @@ export default {
 } satisfies Meta;
 
 export const countrySelector: StoryFn = () => {
-  const [country, setCountry] = useState<string>();
+  const [country, setCountry] = useState('');
 
   return <CountrySelector value={country} onChange={setCountry} />;
 };

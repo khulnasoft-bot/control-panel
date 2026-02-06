@@ -1,11 +1,12 @@
-import { useFieldArray } from 'react-hook-form';
+import { Badge, Button } from '@design-system';
+import { useFieldArray, useFormContext } from 'react-hook-form';
 
-import { Button } from '@snipkit/design-system';
-import { IconPlus } from 'src/components/icons';
+import { IconPlus } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
 
 import { ServiceFormSection } from '../../components/service-form-section';
 import { defaultHealthCheck } from '../../helpers/initialize-service-form';
+import { ServiceForm } from '../../service-form.types';
 import { useWatchServiceForm } from '../../use-service-form';
 
 import { PortFields } from './port-fields';
@@ -13,75 +14,65 @@ import { PortFields } from './port-fields';
 const T = createTranslate('modules.serviceForm.ports');
 
 export function PortsSection() {
-  const { fields, append, remove } = useFieldArray({ name: 'ports' });
+  const { fields, append, remove } = useFieldArray<ServiceForm>({ name: 'ports' });
+  const { trigger } = useFormContext<ServiceForm>();
+
+  const onRemove = (index: number) => {
+    if (fields.length > 1) {
+      remove(index);
+      void trigger('ports');
+    }
+  };
 
   return (
     <ServiceFormSection
       section="ports"
-      title={<SectionTitle />}
-      description={<T id="description" />}
-      expandedTitle={<T id="expandedTitle" />}
-      className="col gaps"
+      title={<T id="title" />}
+      action={<T id="action" />}
+      summary={<Summary />}
+      className="col gap-6"
     >
-      <p>
-        <T id="info" />
-      </p>
+      {fields.map(({ id }, index) => (
+        <PortFields key={id} index={index} onRemove={() => onRemove(index)} />
+      ))}
 
-      <div className="col gap-4">
-        {fields.map((port, index) => (
-          <PortFields
-            key={port.id}
-            index={index}
-            canRemove={fields.length > 1}
-            onRemove={() => remove(index)}
-          />
-        ))}
-
-        {fields.length === 0 && (
-          <div className="rounded border px-3 py-4">
-            <T id="noPorts" />
-          </div>
-        )}
-      </div>
-
-      <div className="row gap-2">
-        <Button
-          variant="ghost"
-          color="gray"
-          onClick={() =>
-            append({
-              portNumber: '',
-              protocol: 'http',
-              path: '/',
-              public: true,
-              healthCheck: defaultHealthCheck(),
-            })
-          }
-        >
-          <IconPlus className="size-4" />
-          <T id="addPort" />
-        </Button>
-      </div>
+      <Button
+        color="gray"
+        onClick={() => {
+          append({
+            portNumber: NaN,
+            protocol: 'http',
+            path: '/',
+            public: true,
+            tcpProxy: false,
+            healthCheck: defaultHealthCheck(),
+          });
+        }}
+        className="self-start"
+      >
+        <IconPlus className="size-4" />
+        <T id="addPort" />
+      </Button>
     </ServiceFormSection>
   );
 }
 
-function SectionTitle() {
+function Summary() {
   const ports = useWatchServiceForm('ports').filter((port) => !Number.isNaN(port.portNumber));
-  const firstPort = ports[0];
 
-  if (ports.length === 1) {
-    return (
+  return (
+    <div className="row items-center gap-2">
       <T
-        id="titleSinglePort"
+        id="summary"
         values={{
-          portNumber: firstPort?.portNumber,
-          public: firstPort?.public,
-          path: firstPort?.path,
+          count: ports.length,
+          badge: (children) => (
+            <Badge size={1} color="green">
+              {children}
+            </Badge>
+          ),
         }}
       />
-    );
-  }
-
-  return <T id="titleMultiplePorts" values={{ count: ports.length }} />;
+    </div>
+  );
 }

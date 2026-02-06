@@ -1,66 +1,54 @@
-import { langNames, langs, LanguageName } from '@uiw/codemirror-extensions-langs';
 import { githubDark, githubLight } from '@uiw/codemirror-theme-github';
 import CodeMirror from '@uiw/react-codemirror';
 import clsx from 'clsx';
-import { useEffect, useState } from 'react';
 
-import { Autocomplete } from '@snipkit/design-system';
-import { ThemeMode, useThemeModeOrPreferred } from 'src/hooks/theme';
-import { identity } from 'src/utils/generic';
+import { useThemeModeOrPreferred } from 'src/hooks/theme';
 
-export type CodeEditorLanguage = LanguageName | 'plaintext';
+import { Combobox } from '../forms/combobox';
+
+import { type CodeEditor } from './use-code-editor';
 
 type CodeEditorProps = {
+  editor: CodeEditor;
+  id?: string;
   autoFocus?: boolean;
-  language?: CodeEditorLanguage;
   value: string;
   onChange: (value: string) => void;
   className?: string;
 };
 
-export function CodeEditor({ language, className, ...props }: CodeEditorProps) {
+export function CodeEditor({ editor, className, ...props }: CodeEditorProps) {
   const theme = useThemeModeOrPreferred();
 
   return (
     <CodeMirror
       {...props}
       height="200px"
-      theme={theme === ThemeMode.light ? githubLight : githubDark}
-      extensions={language && language !== 'plaintext' ? [langs[language]()] : []}
-      className={clsx('overflow-hidden rounded border', className)}
+      theme={theme === 'light' ? githubLight : githubDark}
+      extensions={editor.extensions}
+      className={clsx('overflow-hidden rounded-sm border', className)}
       minHeight="100%"
     />
   );
 }
 
 type CodeEditorLanguageSelectProps = {
+  codeEditor: CodeEditor;
   placeholder?: string;
-  value?: CodeEditorLanguage;
-  onChange: (value: CodeEditorLanguage) => void;
 };
 
-export function CodeEditorLanguageSelect({ placeholder, value, onChange }: CodeEditorLanguageSelectProps) {
-  const [filteredItems, setFilteredItems] = useState(langNames);
-
-  useEffect(() => {
-    setFilteredItems(langNames);
-  }, [value]);
-
+export function CodeEditorLanguageSelect({ codeEditor, placeholder }: CodeEditorLanguageSelectProps) {
   return (
-    <Autocomplete
+    <Combobox
+      items={codeEditor.filteredLanguages}
+      getKey={codeEditor.getLanguageName}
+      itemToString={codeEditor.getLanguageName}
+      renderItem={codeEditor.getLanguageName}
+      onInputValueChange={codeEditor.onSearch}
+      onClosed={codeEditor.onLanguageSelectorClosed}
+      value={codeEditor.selectedLanguage}
+      onChange={codeEditor.onLanguageSelected}
       placeholder={placeholder}
-      items={filteredItems}
-      getKey={identity}
-      itemToString={identity}
-      renderItem={identity}
-      onInputValueChange={(search, isItemSelected) => {
-        setFilteredItems(isItemSelected ? langNames : langNames.filter((lang) => lang.includes(search)));
-      }}
-      selectedItem={value ?? null}
-      onSelectedItemChange={(value) => {
-        onChange(value);
-        setFilteredItems(langNames);
-      }}
       size={1}
     />
   );

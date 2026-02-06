@@ -1,0 +1,58 @@
+import { Badge } from '@design-system';
+import { useFormContext } from 'react-hook-form';
+
+import { useCatalogInstance } from 'src/api';
+import { useFeatureFlag } from 'src/hooks/feature-flag';
+import { createTranslate } from 'src/intl/translate';
+
+import { useScalingRules } from '../../helpers/scaling-rules';
+import { ServiceForm } from '../../service-form.types';
+
+import { AutoscalingConfiguration } from './autoscaling';
+import { ScaleToZeroConfiguration } from './scale-to-zero';
+import { ScalingValues } from './scaling-values';
+
+const T = createTranslate('modules.serviceForm.scaling');
+
+export function ScalingConfiguration() {
+  const { watch } = useFormContext<ServiceForm>();
+  const instance = useCatalogInstance(watch('instance'));
+
+  const isFreeInstance = instance?.id === 'free';
+  const isEcoInstance = instance?.category === 'eco';
+  const hasVolumes = watch('volumes').map((volume) => volume.name !== '').length > 0;
+  const min = watch('scaling.min');
+  const max = watch('scaling.max');
+  const allowLightSleepOnNvidiaGpu = useFeatureFlag('allow-light-sleep-on-nvidia-gpu');
+
+  const { onScalingChanged } = useScalingRules();
+
+  return (
+    <>
+      {isFreeInstance && <FreeInstanceInfo />}
+
+      <ScalingValues
+        type={isEcoInstance && !isFreeInstance ? 'fixed' : 'autoscaling'}
+        disabled={isFreeInstance || hasVolumes}
+        onChanged={onScalingChanged}
+      />
+
+      <ScaleToZeroConfiguration
+        disabled={isFreeInstance || min > 0}
+        isEcoInstance={isEcoInstance}
+        hasVolumes={hasVolumes}
+        allowLightSleepOnNvidiaGpu={allowLightSleepOnNvidiaGpu}
+      />
+
+      <AutoscalingConfiguration disabled={min === max || max === 1} hasVolumes={hasVolumes} />
+    </>
+  );
+}
+
+function FreeInstanceInfo() {
+  return (
+    <Badge color="blue" className="text-start">
+      <T id="freeInstanceInfo" />
+    </Badge>
+  );
+}

@@ -1,20 +1,19 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button } from '@snipkit/design-system';
-import { useOrganization } from 'src/api/hooks/session';
-import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
+import { apiMutation, useInvalidateApiQuery, useOrganization } from 'src/api';
 import { notify } from 'src/application/notify';
-import { ControlledInput } from 'src/components/controlled';
+import { ControlledInput } from 'src/components/forms';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
-import { useZodResolver } from 'src/hooks/validation';
 import { createTranslate } from 'src/intl/translate';
 
 const T = createTranslate('pages.team.inviteMember');
 
 const schema = z.object({
-  email: z.string().email(),
+  email: z.email().trim().toLowerCase(),
 });
 
 export function InviteMemberForm() {
@@ -22,26 +21,26 @@ export function InviteMemberForm() {
   const invalidate = useInvalidateApiQuery();
   const t = T.useTranslate();
 
-  const form = useForm<z.infer<typeof schema>>({
+  const form = useForm({
     defaultValues: {
       email: '',
     },
-    resolver: useZodResolver(schema),
+    resolver: zodResolver(schema),
   });
 
   const mutation = useMutation({
-    ...useApiMutationFn('sendInvitation', ({ email }: FormValues<typeof form>) => ({
+    ...apiMutation('post /v1/organization_invitations', ({ email }: FormValues<typeof form>) => ({
       body: { email },
     })),
     async onSuccess(_, { email }) {
-      await invalidate('listInvitations');
+      await invalidate('get /v1/organization_invitations');
       notify.success(t('successNotification', { email }));
       form.reset();
     },
     onError: useFormErrorHandler(form),
   });
 
-  const disabled = organization.plan === 'hobby' || organization.plan === 'starter';
+  const disabled = organization?.plan === 'hobby' || organization?.plan === 'starter';
 
   return (
     <div className="col gap-4">
@@ -51,7 +50,7 @@ export function InviteMemberForm() {
         </div>
 
         <p className="text-dim">
-          <T id="description" values={{ organizationName: organization.name }} />
+          <T id="description" values={{ organizationName: organization?.name }} />
         </p>
       </div>
 

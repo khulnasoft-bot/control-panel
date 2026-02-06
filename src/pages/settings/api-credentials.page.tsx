@@ -1,22 +1,23 @@
+import { Button } from '@design-system';
 import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 
-import { Button } from '@snipkit/design-system';
-import { mapApiCredential } from 'src/api/mappers/api-credential';
-import { ApiCredentialType } from 'src/api/model';
-import { useApiQueryFn } from 'src/api/use-api';
+import { apiQuery, mapApiCredential } from 'src/api';
 import { ApiCredentials } from 'src/components/api-credentials/api-credentials';
-import { Dialog } from 'src/components/dialog';
+import { openDialog } from 'src/components/dialog';
 import { Title } from 'src/components/title';
 import { createTranslate } from 'src/intl/translate';
+import { ApiCredentialType } from 'src/model';
 import { upperCase } from 'src/utils/strings';
 
+const TO = createTranslate('pages.organizationSettings.apiCredential');
+const TU = createTranslate('pages.userSettings.apiCredential');
+
 export function BaseApiCredentialsPage({ type }: { type: ApiCredentialType }) {
-  const T = createTranslate(`pages.${type}Settings.apiCredential`);
-  const openDialog = Dialog.useOpen();
+  const T = type === 'organization' ? TO : TU;
 
   const query = useQuery({
-    ...useApiQueryFn('listApiCredentials', { query: { limit: '100', type: upperCase(type) } }),
+    ...apiQuery('get /v1/credentials', { query: { limit: '100', type: upperCase(type) } }),
     select: ({ credentials }) => credentials!.map(mapApiCredential),
   });
 

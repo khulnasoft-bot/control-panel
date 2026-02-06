@@ -1,8 +1,7 @@
+import { Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 
-import { Button } from '@snipkit/design-system';
-import { useOrganization } from 'src/api/hooks/session';
-import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
+import { apiMutation, useInvalidateApiQuery, useOrganization } from 'src/api';
 import { notify } from 'src/application/notify';
 import { SectionHeader } from 'src/components/section-header';
 import { createTranslate } from 'src/intl/translate';
@@ -15,12 +14,12 @@ export function ReactivateOrganization() {
   const t = T.useTranslate();
 
   const reactivate = useMutation({
-    ...useApiMutationFn('reactivateOrganization', {
-      path: { id: organization.id },
+    ...apiMutation('post /v1/organizations/{id}/reactivate', {
+      path: { id: organization?.id as string },
     }),
     async onSuccess() {
-      await invalidate('getCurrentOrganization');
-      notify.info(t('successNotification'));
+      await invalidate('get /v1/account/organization');
+      notify.info(t('success'));
     },
   });
 

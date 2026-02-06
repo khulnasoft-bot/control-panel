@@ -1,23 +1,22 @@
 import { useCallback, useRef } from 'react';
 import { FieldErrors } from 'react-hook-form';
 
-import { api } from 'src/api/api';
-import { EnvironmentVariable } from 'src/api/model';
-import { useToken } from 'src/application/token';
+import { useApi } from 'src/api';
 import { createTranslate } from 'src/intl/translate';
+import { EnvironmentVariable } from 'src/model';
 import { assert, defined } from 'src/utils/assert';
 import { wait } from 'src/utils/promises';
 
 import { File, ServiceForm } from '../service-form.types';
 
 import { serviceFormToDeploymentDefinition } from './service-form-to-deployment';
-import { mapServiceVariables, ServiceVariables } from './service-variables';
+import { ServiceVariables, mapServiceVariables } from './service-variables';
 
 const T = createTranslate('modules.serviceForm.errors');
 
 export function useUnknownInterpolationErrors() {
   const t = T.useTranslate();
-  const { token } = useToken();
+  const api = useApi();
 
   const ctrl = useRef<AbortController>(null);
 
@@ -31,8 +30,7 @@ export function useUnknownInterpolationErrors() {
       }
 
       const variables = mapServiceVariables(
-        await api.getServiceVariables({
-          token,
+        await api('post /v1/services-autocomplete', {
           body: { definition: serviceFormToDeploymentDefinition(values) },
         }),
       );
@@ -70,7 +68,7 @@ export function useUnknownInterpolationErrors() {
 
       return errors;
     },
-    [t, token],
+    [t, api],
   );
 }
 

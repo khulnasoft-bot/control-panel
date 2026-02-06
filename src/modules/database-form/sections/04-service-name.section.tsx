@@ -1,6 +1,6 @@
 import { useWatch } from 'react-hook-form';
 
-import { ControlledInput } from 'src/components/controlled';
+import { ControlledInput } from 'src/components/forms';
 import { createTranslate } from 'src/intl/translate';
 
 import { DatabaseServiceFormSection } from '../components/database-service-form-section';
@@ -18,10 +18,10 @@ export function ServiceNameSection() {
   return (
     <DatabaseServiceFormSection
       section="serviceName"
-      title={serviceName || <T id="serviceNameMissing" />}
-      expandedTitle={<T id="expandedTitle" />}
+      title={<T id="title" />}
+      action={<T id="action" />}
+      summary={serviceName || <T id="serviceNameMissing" />}
       shortcut={serviceId ? 2 : 4}
-      description={<T id="description" />}
     >
       <ControlledInput<DatabaseServiceForm, 'serviceName'>
         name="serviceName"

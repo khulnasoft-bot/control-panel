@@ -1,94 +1,79 @@
+import { Button, ButtonColor, ButtonSize, ButtonVariant, TabButton } from '@design-system';
+import { Link as BaseLink, LinkComponent, ValidateLinkOptions, createLink } from '@tanstack/react-router';
 import clsx from 'clsx';
-import { createElement } from 'react';
-// eslint-disable-next-line no-restricted-imports
-import { Link } from 'wouter';
 
-import {
-  buttonClassName,
-  ButtonColor,
-  ButtonSize,
-  ButtonVariant,
-  Spinner,
-  TabButton,
-} from '@snipkit/design-system';
 import { Extend } from 'src/utils/types';
 
-export { Link };
+export { type ValidateLinkOptions };
 
-type LinkButtonOwnProps = {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  color?: ButtonColor;
-  loading?: boolean;
-  component?: 'a' | typeof Link;
-  openInNewTab?: boolean;
-  disabled?: boolean;
-  state?: unknown;
-};
+export const Link = BaseLink;
 
-type LinkButtonProps = Extend<React.ComponentProps<'a'>, LinkButtonOwnProps>;
+type LinkButtonNativeProps = Extend<
+  React.ComponentProps<'a'>,
+  {
+    variant?: ButtonVariant;
+    size?: ButtonSize;
+    color?: ButtonColor;
+    openInNewTab?: boolean;
+  }
+>;
 
-export function LinkButton({
-  component = Link,
-  disabled,
+function LinkButtonNative({
+  variant,
+  size,
+  color,
   openInNewTab,
-  state,
-  href = '',
-  loading,
   className,
-  children,
-  ...rest
-}: LinkButtonProps) {
-  const props: React.ComponentProps<typeof Link> & { state?: unknown } = {
-    href,
-    'aria-disabled': disabled,
-    className: buttonClassName(rest, clsx(disabled && 'pointer-events-none opacity-50', className)),
-    ...rest,
-  };
+  ...props
+}: LinkButtonNativeProps) {
+  const disabled = props.href === undefined;
 
-  if (openInNewTab) {
-    props.target = '_blank';
-
-    if (component === 'a') {
-      props.rel = 'noopener noreferrer';
-    }
-  }
-
-  if (component === Link && state !== undefined) {
-    props.state = state;
-  }
-
-  return createElement(
-    component,
-    props,
-    <>
-      {loading && <Spinner className="size-4" />}
-      {children}
-    </>,
-  );
-}
-
-type TabButtonLinkProps = {
-  href: string;
-  selected: boolean;
-  panelId?: string;
-  className?: string;
-  children?: React.ReactNode;
-};
-
-export function TabButtonLink({ href, selected, panelId, className, children }: TabButtonLinkProps) {
   return (
-    <Link
-      href={href}
-      role="tab"
-      className={clsx(TabButton.class({ selected, className }))}
-      aria-selected={selected}
-      aria-controls={panelId}
-    >
-      {children}
-    </Link>
+    <a
+      role="button"
+      target={openInNewTab ? '_blank' : undefined}
+      aria-disabled={disabled}
+      className={Button.className(
+        { variant, size, color },
+        clsx(className, { 'pointer-events-none opacity-50': disabled }),
+      )}
+      {...props}
+    />
   );
 }
+
+export const LinkButton = createLink(LinkButtonNative);
+
+type TabButtonNativeProps = Extend<
+  React.ComponentProps<'a'>,
+  {
+    size?: 1 | 2;
+    disabled?: boolean;
+  }
+>;
+
+function TabButtonLinkNative({ size, disabled, className, ...props }: TabButtonNativeProps) {
+  return (
+    <a
+      role="tab"
+      aria-disabled={disabled}
+      className={clsx(TabButton.className({ size, className }))}
+      {...props}
+    />
+  );
+}
+
+const CreatedTabButtonLink = createLink(TabButtonLinkNative);
+
+export const TabButtonLink: LinkComponent<typeof TabButtonLinkNative> = (props) => {
+  return (
+    <CreatedTabButtonLink
+      activeOptions={{ exact: true, includeSearch: false }}
+      inactiveProps={{ 'data-status': 'inactive' }}
+      {...props}
+    />
+  );
+};
 
 type ExternalLinkProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
   openInNewTab?: boolean;
@@ -98,6 +83,30 @@ export function ExternalLink({ openInNewTab, ...props }: ExternalLinkProps) {
   return <a target={openInNewTab ? '_blank' : undefined} rel="noopener noreferrer" {...props} />;
 }
 
-export function ExternalLinkButton(props: LinkButtonProps) {
-  return <LinkButton component="a" rel="noopener noreferrer" {...props} />;
+type ExternalLinkButtonProps = Extend<
+  ExternalLinkProps,
+  {
+    variant?: ButtonVariant;
+    size?: ButtonSize;
+    color?: ButtonColor;
+    disabled?: boolean;
+  }
+>;
+
+export function ExternalLinkButton({
+  variant,
+  size,
+  color,
+  disabled,
+  className,
+  ...props
+}: ExternalLinkButtonProps) {
+  return (
+    <ExternalLink
+      role="button"
+      aria-disabled={disabled}
+      className={Button.className({ variant, size, color }, className)}
+      {...props}
+    />
+  );
 }

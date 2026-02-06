@@ -1,10 +1,11 @@
-import { CatalogInstance } from 'src/api/model';
-import { UpgradeDialog } from 'src/components/payment-form';
-import { createTranslate, TranslateEnum } from 'src/intl/translate';
+import { Collapse } from '@design-system';
+
+import { createTranslate } from 'src/intl/translate';
+import { CatalogInstance, CatalogRegion } from 'src/model';
 
 import { InstanceItem } from './instance-item';
 import { type InstanceSelector } from './instance-selector-state';
-import { RegionSelector } from './region-selector';
+import { RegionScopeTabs, RegionSelector } from './region-selector';
 
 export type InstanceSelectorBadge =
   | 'inUse'
@@ -18,6 +19,7 @@ export type InstanceSelectorBadge =
 const T = createTranslate('components.instanceSelector');
 
 type InstanceSelectorProps = InstanceSelector & {
+  canSelectRegion?: (region: CatalogRegion) => boolean;
   getBadges: (instance: CatalogInstance) => InstanceSelectorBadge[];
 };
 
@@ -27,47 +29,42 @@ export function InstanceSelector({
   regions,
   selectedInstance,
   selectedRegions,
+  singleRegion,
   onRegionScopeSelected,
   onInstanceSelected,
   onRegionSelected,
+  canSelectRegion,
   getBadges,
 }: InstanceSelectorProps) {
-  return (
-    <>
-      {instances.map((instance) => (
-        <InstanceItem
-          key={instance.id}
-          instance={instance}
-          badges={getBadges(instance)}
-          selected={instance.id === selectedInstance?.id}
-          onSelected={() => onInstanceSelected(instance)}
-          regionSelector={
-            <RegionSelector
-              expanded={instance.id === selectedInstance?.id}
-              regions={regions}
-              selected={selectedRegions}
-              onSelected={onRegionSelected}
-              scope={regionScope}
-              onScopeChanged={onRegionScopeSelected}
-              instance={instance}
-              type={selectedInstance?.id === 'free' ? 'radio' : 'checkbox'}
-            />
-          }
-        />
-      ))}
+  return instances.map((instance) => (
+    <InstanceItem
+      key={instance.id}
+      instance={instance}
+      badges={getBadges(instance)}
+      selected={instance.id === selectedInstance?.id}
+      onSelected={() => onInstanceSelected(instance)}
+      regionSelector={
+        <Collapse open={instance.id === selectedInstance?.id} className="@container">
+          <div className="mt-4 mb-3 col items-start justify-between gap-2 sm:row sm:items-center">
+            <div className="text-dim">
+              <T id="regions.label" />
+            </div>
 
-      <UpgradeDialog
-        id="UpgradeInstanceSelector"
-        plan="starter"
-        title={<T id="actions.upgradeDialog.title" />}
-        description={
-          <T
-            id="actions.upgradeDialog.description"
-            values={{ plan: <TranslateEnum enum="plans" value="starter" /> }}
+            <RegionScopeTabs scope={regionScope} onScopeChanged={onRegionScopeSelected} />
+          </div>
+
+          <RegionSelector
+            regions={regions}
+            selected={selectedRegions}
+            canSelect={canSelectRegion}
+            onSelected={onRegionSelected}
+            instance={instance}
+            type={singleRegion || selectedInstance?.id === 'free' ? 'radio' : 'checkbox'}
+            showAvailability
+            showLatency
           />
-        }
-        submit={<T id="actions.upgradeDialog.submitButton" />}
-      />
-    </>
-  );
+        </Collapse>
+      }
+    />
+  ));
 }

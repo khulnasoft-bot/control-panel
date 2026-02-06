@@ -7,26 +7,26 @@ import {
   useInteractions,
   useRole,
 } from '@floating-ui/react';
+import { AccordionSection, Badge, Button } from '@design-system';
 import clsx from 'clsx';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
 
-import { AccordionSection, Badge, Button, Checkbox, MultiSelect } from '@snipkit/design-system';
-import { useInstancesQuery, useRegionalDeployment } from 'src/api/hooks/service';
-import { ComputeDeployment, Instance, InstanceStatus, Replica } from 'src/api/model';
+import { useInstancesQuery, useRegionalDeployment } from 'src/api';
 import { isInstanceRunning } from 'src/application/service-functions';
-import { IconChevronRight } from 'src/components/icons';
+import { InstanceLogs } from 'src/components/logs';
 import { Metadata } from 'src/components/metadata';
 import { QueryGuard } from 'src/components/query-error';
 import { RegionFlag } from 'src/components/region-flag';
+import { StatusesSelector } from 'src/components/selectors/statuses-selector';
 import { InstanceStatusBadge } from 'src/components/status-badges';
+import { InstanceStatusDot } from 'src/components/status-dot';
+import { IconChevronRight } from 'src/icons';
 import { FormattedDistanceToNow } from 'src/intl/formatted';
-import { createTranslate, Translate, translateStatus, TranslateStatus } from 'src/intl/translate';
-import { identity } from 'src/utils/generic';
+import { Translate, createTranslate, translateStatus } from 'src/intl/translate';
+import { ComputeDeployment, Instance, InstanceStatus, Replica } from 'src/model';
 import { shortId } from 'src/utils/strings';
 
-import { InstanceLogs } from './instance-logs';
 import { ReplicaCpu, ReplicaMemory } from './replica-metadata';
 
 const T = createTranslate('modules.deployment.deploymentLogs.scaling.drawer');
@@ -109,6 +109,17 @@ function NoActiveInstance({ replica }: { replica: Replica }) {
   return null;
 }
 
+const allStatuses: InstanceStatus[] = [
+  'ALLOCATING',
+  'STARTING',
+  'HEALTHY',
+  'UNHEALTHY',
+  'STOPPING',
+  'STOPPED',
+  'ERROR',
+  'SLEEPING',
+];
+
 type InstanceHistoryProps = {
   deployment: ComputeDeployment;
   replica: Replica;
@@ -117,19 +128,14 @@ type InstanceHistoryProps = {
 function InstanceHistory({ deployment, replica }: InstanceHistoryProps) {
   const [expanded, setExpanded] = useState<Instance>();
 
-  const filters = useForm<{ statuses: InstanceStatus[] }>({
-    defaultValues: {
-      statuses: [],
-    },
-  });
-
+  const [statuses, setStatuses] = useState(allStatuses);
   const regionalDeployment = useRegionalDeployment(deployment.id, replica.region);
 
   const query = useInstancesQuery({
     deploymentId: deployment.id,
     replicaIndex: replica.index,
     regionalDeploymentId: regionalDeployment?.id,
-    statuses: filters.watch('statuses'),
+    statuses,
   });
 
   return (
@@ -138,70 +144,28 @@ function InstanceHistory({ deployment, replica }: InstanceHistoryProps) {
         <T id="instanceHistory.title" />
       </div>
 
-      <form>
-        <Controller
-          control={filters.control}
-          name="statuses"
-          render={({ field }) => <InstanceStatusMultiSelect {...field} />}
-        />
-      </form>
+      <StatusesSelector
+        value={statuses}
+        onChange={setStatuses}
+        label={<T id="instanceHistory.filters.status.placeholder" />}
+        statuses={allStatuses}
+        renderItem={translateStatus}
+        Dot={InstanceStatusDot}
+        field={() => ({ className: 'max-w-52' })}
+        dropdown={{ matchReferenceSize: true }}
+      />
 
       <QueryGuard query={query}>
         {({ instances }) => (
           <InstanceList
-            instances={instances}
+            instances={statuses.length === 0 ? [] : instances}
             expanded={expanded}
             setExpanded={setExpanded}
-            hasFilters={filters.watch('statuses').length > 0}
+            hasFilters={statuses.length < allStatuses.length}
           />
         )}
       </QueryGuard>
     </div>
-  );
-}
-
-type InstanceStatusMultiSelectProps = {
-  value: InstanceStatus[];
-  onChange: (status: InstanceStatus[]) => void;
-};
-
-function InstanceStatusMultiSelect({ value, onChange }: InstanceStatusMultiSelectProps) {
-  const statuses: InstanceStatus[] = [
-    'ALLOCATING',
-    'STARTING',
-    'HEALTHY',
-    'UNHEALTHY',
-    'STOPPING',
-    'STOPPED',
-    'ERROR',
-    'SLEEPING',
-  ];
-
-  const placeholder = (
-    <span className="text-placeholder">
-      <T id="instanceHistory.filters.status.placeholder" />
-    </span>
-  );
-
-  return (
-    <MultiSelect
-      items={statuses}
-      getKey={identity}
-      itemToString={translateStatus}
-      renderItem={(status, selected) => (
-        <div className="row items-center gap-2">
-          <Checkbox checked={selected} onChange={() => {}} />
-          <TranslateStatus status={status} />
-        </div>
-      )}
-      renderSelectedItems={(statuses) =>
-        statuses.length === 0 ? placeholder : <>{statuses.map(translateStatus).join(', ')}</>
-      }
-      selectedItems={value}
-      onItemsSelected={(status) => onChange([...value, status])}
-      onItemsUnselected={(status) => onChange(value.filter((s) => s !== status))}
-      className="max-w-xs"
-    />
   );
 }
 
@@ -331,7 +295,7 @@ function Drawer({ open, onClose, className, children }: DrawerProps) {
             exit={{ opacity: 0 }}
             transition={{ duration: duration / 1000 }}
             style={{ overflow: 'hidden' }}
-            className="col z-40 items-center justify-center bg-neutral/50 backdrop-blur"
+            className="z-40 col items-center justify-center bg-neutral/50 backdrop-blur-sm"
             lockScroll
           >
             <FloatingFocusManager context={drawer.floating.context}>

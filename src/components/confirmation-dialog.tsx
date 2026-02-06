@@ -1,15 +1,13 @@
+import { Button, ButtonColor } from '@design-system';
 import { useForm } from 'react-hook-form';
 
-import { Button, ButtonColor } from '@snipkit/design-system';
 import { handleSubmit } from 'src/hooks/form';
 import { Translate } from 'src/intl/translate';
 
-import { ControlledInput } from './controlled';
 import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from './dialog';
+import { ControlledInput } from './forms';
 
-type ConfirmationDialogProps = {
-  id: string;
-  resourceId?: string;
+export type ConfirmationDialogProps = {
   title: React.ReactNode;
   description: React.ReactNode;
   destructiveAction?: boolean;
@@ -21,16 +19,22 @@ type ConfirmationDialogProps = {
   onAutofill?: () => void;
 };
 
-export function ConfirmationDialog({
-  id,
-  resourceId,
+export function ConfirmationDialog() {
+  return (
+    <Dialog id="Confirmation" className="col w-full max-w-xl gap-4">
+      {(props) => <DialogContent {...props} />}
+    </Dialog>
+  );
+}
+
+function DialogContent({
   title,
   description,
   destructiveAction,
   destructiveActionMessage,
   confirmationText,
   submitText,
-  submitColor = 'red',
+  submitColor,
   onConfirm,
   onAutofill,
 }: ConfirmationDialogProps) {
@@ -41,19 +45,14 @@ export function ConfirmationDialog({
   });
 
   return (
-    <Dialog
-      id={id}
-      context={resourceId ? { resourceId } : undefined}
-      onClosed={form.reset}
-      className="col w-full max-w-xl gap-4"
-    >
+    <>
       <DialogHeader title={title} />
 
       <p className="text-dim">{description}</p>
 
       {destructiveAction && (
         <p className="font-medium text-red">
-          {destructiveAction && (destructiveActionMessage ?? <Translate id="common.destructiveAction" />)}
+          {destructiveActionMessage ?? <Translate id="common.destructiveAction" />}
         </p>
       )}
 
@@ -62,6 +61,9 @@ export function ConfirmationDialog({
           ref={(ref) => void (ref && setTimeout(() => ref.focus(), 0))}
           control={form.control}
           name="confirmationText"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
           label={
             <Translate
               id="common.confirmationDialogText"
@@ -94,6 +96,6 @@ export function ConfirmationDialog({
           </Button>
         </DialogFooter>
       </form>
-    </Dialog>
+    </>
   );
 }

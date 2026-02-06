@@ -1,9 +1,8 @@
-import { useController } from 'react-hook-form';
+import { useController, useFormContext } from 'react-hook-form';
 
-import { useRegions } from 'src/api/hooks/catalog';
-import { useOrganization, useOrganizationSummary } from 'src/api/hooks/session';
-import { CatalogInstance } from 'src/api/model';
+import { useOrganization, useOrganizationSummary, useRegionsCatalog } from 'src/api';
 import { InstanceAvailability } from 'src/application/instance-region-availability';
+import { CatalogInstance } from 'src/model';
 import { InstanceSelector, InstanceSelectorBadge } from 'src/modules/instance-selector/instance-selector';
 import { useInstanceSelector } from 'src/modules/instance-selector/instance-selector-state';
 import { inArray } from 'src/utils/arrays';
@@ -20,17 +19,20 @@ type DatabaseInstanceSelectorProps = {
 
 export function DatabaseInstanceSelector({ allowFreeInstanceIfAlreadyUsed }: DatabaseInstanceSelectorProps) {
   const organization = useOrganization();
-  const regions = useRegions(neonRegions);
+  const regions = useRegionsCatalog(neonRegions);
+
+  const { watch } = useFormContext<DatabaseServiceForm>();
+  const isCreation = watch('meta.databaseServiceId') === null;
 
   const instanceCtrl = useController<DatabaseServiceForm, 'instance'>({ name: 'instance' });
   const regionCtrl = useController<DatabaseServiceForm, 'region'>({ name: 'region' });
 
-  const instance = databaseInstances.find(hasProperty('id', instanceCtrl.field.value));
-  const region = regions.find(hasProperty('id', regionCtrl.field.value));
+  const selectedInstance = databaseInstances.find(hasProperty('id', instanceCtrl.field.value));
+  const selectedRegion = regions.find(hasProperty('id', regionCtrl.field.value));
   const summary = useOrganizationSummary();
 
   const checkAvailability = (instance: CatalogInstance): InstanceAvailability => {
-    if (instance.id === 'free' && summary?.freeDatabaseUsed && !allowFreeInstanceIfAlreadyUsed) {
+    if (instance.id === 'free' && summary.freeDatabaseUsed && !allowFreeInstanceIfAlreadyUsed) {
       return [false, 'freeAlreadyUsed'];
     }
 
@@ -38,7 +40,7 @@ export function DatabaseInstanceSelector({ allowFreeInstanceIfAlreadyUsed }: Dat
   };
 
   const getBadges = (instance: CatalogInstance): InstanceSelectorBadge[] => {
-    if (instance.plans && !inArray(organization.plan, instance.plans)) {
+    if (instance.plans && !inArray(organization?.plan, instance.plans)) {
       return ['requiresHigherQuota'];
     }
 
@@ -50,15 +52,19 @@ export function DatabaseInstanceSelector({ allowFreeInstanceIfAlreadyUsed }: Dat
     regions,
     singleRegion: true,
     availabilities: toObject(databaseInstances, (instance) => instance.id, checkAvailability),
-    selectedInstance: instance ?? null,
+    selectedInstance: selectedInstance ?? null,
     setSelectedInstance: (instance) => instance && instanceCtrl.field.onChange(instance.id),
-    selectedRegions: region ? [region] : [],
-    setSelectedRegions: (region) => regionCtrl.field.onChange(region[0]?.id),
+    selectedRegions: selectedRegion ? [selectedRegion] : [],
+    setSelectedRegions: (region) => regionCtrl.field.onChange(region[0]?.id ?? null),
   });
 
   return (
-    <div className="col scrollbar-green scrollbar-thin max-h-96 gap-3 overflow-auto pe-2">
-      <InstanceSelector {...selector} getBadges={getBadges} />
+    <div className="col max-h-96 scrollbar-thin gap-3 overflow-auto pe-2 scrollbar-green">
+      <InstanceSelector
+        {...selector}
+        canSelectRegion={(region) => isCreation || region.id === selectedRegion?.id}
+        getBadges={getBadges}
+      />
       <div />
     </div>
   );

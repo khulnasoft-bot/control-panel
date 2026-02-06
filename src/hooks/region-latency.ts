@@ -1,12 +1,9 @@
 import { useQueries } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import { useDatacenters } from 'src/api/hooks/catalog';
-import { CatalogRegion } from 'src/api/model';
-import { getConfig } from 'src/application/config';
+import { useDatacentersCatalog } from 'src/api';
 import { getUrlLatency } from 'src/application/url-latency';
-
-const { disablePolling } = getConfig();
+import { CatalogRegion } from 'src/model';
 
 export function useRegionLatency(region: CatalogRegion | undefined): undefined | null | number {
   const latenciesQuery = useDatacenterLatencies();
@@ -27,14 +24,14 @@ export function useRegionLatency(region: CatalogRegion | undefined): undefined |
 }
 
 function useDatacenterLatencies() {
-  const datacenters = useDatacenters().filter(({ id }) => !id.includes('aws'));
+  const datacenters = useDatacentersCatalog().filter(({ id }) => !id.includes('aws'));
 
   return useQueries({
     queries: datacenters.map((datacenter) => ({
       queryKey: ['datacenterLatency', datacenter.domain],
       queryFn: () => getUrlLatency(`https://${datacenter.domain}/health`),
       select: (latency: number | null) => [datacenter.id, latency] as const,
-      refetchInterval: disablePolling ? (false as const) : 10_000,
+      refetchInterval: 10_000,
       retry: false,
       refetchOnMount: false,
       refetchOnWindowFocus: false,

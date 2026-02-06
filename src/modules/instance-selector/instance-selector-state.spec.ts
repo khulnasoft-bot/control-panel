@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CatalogInstance, CatalogRegion, InstanceCategory, RegionScope } from 'src/api/model';
 import { InstanceAvailability } from 'src/application/instance-region-availability';
+import { CatalogInstance, CatalogRegion, InstanceCategory, RegionScope } from 'src/model';
 import { create } from 'src/utils/factories';
 
-import { InstanceSelector, instanceSelector, InstanceSelectorState } from './instance-selector-state';
+import { InstanceSelector, InstanceSelectorState, instanceSelector } from './instance-selector-state';
 
 describe('instance selector', () => {
   let free: CatalogInstance, ecoNano: CatalogInstance, ecoMicro: CatalogInstance;

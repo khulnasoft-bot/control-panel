@@ -1,9 +1,7 @@
+import { Alert } from '@design-system';
 import { useFormContext } from 'react-hook-form';
 
-import { Alert } from '@snipkit/design-system';
-import { useInstances } from 'src/api/hooks/catalog';
-import { useOrganization } from 'src/api/hooks/session';
-import { routes } from 'src/application/routes';
+import { useInstancesCatalog, useOrganization } from 'src/api';
 import { useFeatureFlag } from 'src/hooks/feature-flag';
 import { createTranslate } from 'src/intl/translate';
 import { hasProperty } from 'src/utils/object';
@@ -14,7 +12,7 @@ const T = createTranslate('modules.serviceForm');
 
 export function GpuAlert() {
   const organization = useOrganization();
-  const instances = useInstances();
+  const instances = useInstancesCatalog();
   const { setValue } = useFormContext<ServiceForm>();
 
   const expandGpu = () => {
@@ -28,14 +26,14 @@ export function GpuAlert() {
     return null;
   }
 
-  if (organization.plan === 'hobby') {
+  if (organization?.plan === 'hobby') {
     return (
       <div className="rounded-md border p-4">
         <T
           id="gpuAlertHobby"
           values={{
             upgrade: (children) => (
-              <a href={routes.organizationSettings.plans()} className="font-semibold">
+              <a href="/settings/plans" className="font-semibold">
                 {children}
               </a>
             ),

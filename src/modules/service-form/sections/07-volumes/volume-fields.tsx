@@ -1,18 +1,18 @@
+import { Dropdown, IconButton, Menu, MenuItem, useBreakpoint } from '@design-system';
+import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { useMemo } from 'react';
-import { useFormContext } from 'react-hook-form';
+import { useController, useFormContext } from 'react-hook-form';
 
-import { IconButton, useBreakpoint } from '@snipkit/design-system';
-import { useRegion } from 'src/api/hooks/catalog';
-import { useVolumes } from 'src/api/hooks/volume';
-import { Volume } from 'src/api/model';
+import { apiQuery, mapVolume, useCatalogRegion } from 'src/api';
 import { notify } from 'src/application/notify';
-import { ControlledInput, ControlledSelect } from 'src/components/controlled';
-import { IconUnlink } from 'src/components/icons';
+import { ControlledInput } from 'src/components/forms';
+import { Select } from 'src/components/forms/select';
+import { IconUnlink } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
-import { getName, hasProperty } from 'src/utils/object';
+import { hasProperty } from 'src/utils/object';
 
-import { ServiceForm, ServiceVolume } from '../../service-form.types';
+import { ServiceForm } from '../../service-form.types';
 import { useWatchServiceForm } from '../../use-service-form';
 
 const T = createTranslate('modules.serviceForm.volumes');
@@ -32,8 +32,7 @@ export function VolumeFields({ index, onRemove, onCreate }: VolumeFieldsProps) {
   const showLabel = isMobile || index === 0;
 
   return (
-    // eslint-disable-next-line tailwindcss/no-arbitrary-value
-    <div className="grid grid-cols-1 gap-4 rounded border px-6 py-5 md:grid-cols-[1fr_1fr_1fr_auto] md:border-none md:p-0">
+    <div className="grid grid-cols-1 gap-4 rounded-sm border px-6 py-5 md:grid-cols-[1fr_1fr_1fr_auto] md:border-none md:p-0">
       <VolumeField index={index} label={showLabel && <T id="volumeSelector.label" />} onCreate={onCreate} />
 
       <ControlledInput<ServiceForm, `volumes.${number}.mountPath`>
@@ -41,8 +40,7 @@ export function VolumeFields({ index, onRemove, onCreate }: VolumeFieldsProps) {
         label={showLabel && <T id="mountPathLabel" />}
       />
 
-      {/* eslint-disable-next-line tailwindcss/no-arbitrary-value */}
-      <div className={clsx(!isMobile && showLabel && 'mt-[1.625rem]')}>
+      <div className={clsx(!isMobile && showLabel && 'mt-6.5')}>
         <IconButton
           color="gray"
           Icon={IconUnlink}
@@ -70,33 +68,73 @@ function VolumeField({ index, label, onCreate }: VolumeFieldProps) {
   const form = useFormContext<ServiceForm>();
 
   const [regionId] = useWatchServiceForm('regions');
-  const region = useRegion(regionId);
+  const region = useCatalogRegion(regionId);
 
   const items = useVolumeItems();
 
+  const { field, fieldState } = useController<ServiceForm, `volumes.${number}.name`>({
+    name: `volumes.${index}.name`,
+  });
+
   return (
-    <ControlledSelect<ServiceForm, `volumes.${number}.name`, ServiceVolume | Volume | 'create'>
-      name={`volumes.${index}.name`}
-      label={label}
+    <Select
+      {...field}
       placeholder={t('volumeSelector.placeholder')}
-      items={items}
-      groups={[
-        { key: 'volumes', label: <T id="volumeSelector.volumesSection" />, items },
-        { key: 'create', label: <T id="volumeSelector.createSection" />, items: ['create'] },
-      ]}
-      readOnly={form.watch(`volumes.${index}`).mounted}
-      helperText={form.watch(`volumes.${index}`).mounted && <T id="volumeSelector.readOnly" />}
-      getKey={(item) => (item === 'create' ? 'create' : getName(item))}
-      itemToString={(item) => (item === 'create' ? 'create' : getName(item))}
-      itemToValue={(item) => (item === 'create' ? 'create' : getName(item))}
-      renderItem={(item) => (item === 'create' ? <T id="volumeSelector.createVolume" /> : getName(item))}
-      renderNoItems={() => <T id="volumeSelector.noVolumes" values={{ region: region?.name }} />}
-      onItemClick={(item) => item === 'create' && onCreate()}
-      onChangeEffect={(item) => {
-        if (item !== 'create' && 'id' in item) {
+      label={label}
+      invalid={fieldState.invalid}
+      helperText={fieldState.error?.message}
+      items={[...items, 'create' as const]}
+      value={items.find(hasProperty('name', field.value)) ?? null}
+      onChange={(item) => {
+        if (item === 'create') {
+          return onCreate();
+        }
+
+        field.onChange(item.name);
+
+        if ('id' in item) {
           form.setValue(`volumes.${index}.volumeId`, item.id);
         }
       }}
+      renderItem={(item) => item !== 'create' && item.name}
+      menu={({ select, dropdown }) => (
+        <Dropdown dropdown={dropdown}>
+          <Menu {...select.getMenuProps()}>
+            <li className="py-1 text-dim">
+              <T id="volumeSelector.volumesSection" />
+            </li>
+
+            {items.map((item, index) => (
+              <MenuItem
+                {...select.getItemProps({ item, index })}
+                key={index}
+                highlighted={index === select.highlightedIndex}
+              >
+                {item.name}
+              </MenuItem>
+            ))}
+
+            {items.length === 0 && (
+              <li className="p-1">
+                <T id="volumeSelector.noVolumes" values={{ region: region?.name }} />
+              </li>
+            )}
+
+            <li className="py-1 text-dim">
+              <T id="volumeSelector.createSection" />
+            </li>
+
+            <MenuItem
+              {...select.getItemProps({ item: 'create', index: items.length })}
+              key={index}
+              highlighted={select.highlightedIndex === items.length}
+            >
+              <T id="volumeSelector.createVolume" />
+            </MenuItem>
+          </Menu>
+        </Dropdown>
+      )}
+      className="min-w-64"
     />
   );
 }
@@ -106,15 +144,20 @@ function useVolumeItems() {
   const [region] = useWatchServiceForm('regions');
   const formVolumes = useWatchServiceForm('volumes');
 
-  const volumes = useVolumes(region)?.filter(
-    (volume) => volume.serviceId === undefined || volume.serviceId === serviceId,
-  );
+  const volumesQuery = useQuery({
+    ...apiQuery('get /v1/volumes', { query: { limit: '100', region } }),
+    select({ volumes }) {
+      return volumes!
+        .map(mapVolume)
+        .filter((volume) => volume.serviceId === undefined || volume.serviceId === serviceId);
+    },
+  });
 
   return useMemo(() => {
     const volumesToCreate = formVolumes.filter(
-      ({ name }) => name !== '' && !volumes?.some(hasProperty('name', name)),
+      ({ name }) => name !== '' && !volumesQuery.data?.some(hasProperty('name', name)),
     );
 
-    return [...(volumes ?? []), ...volumesToCreate];
-  }, [volumes, formVolumes]);
+    return [...(volumesQuery.data ?? []), ...volumesToCreate];
+  }, [volumesQuery.data, formVolumes]);
 }

@@ -1,19 +1,22 @@
+import { App, Service } from 'src/model';
 import { requiredDeep, snakeToCamelDeep } from 'src/utils/object';
 import { lowerCase } from 'src/utils/strings';
 
-import type { Api } from '../api-types';
-import { App, Service } from '../model';
+import type { API } from '../api-types';
 
-export function mapApp(app: Api.App): App {
+export function mapApp(app: API.App): App {
   return snakeToCamelDeep(requiredDeep(app));
 }
 
-export function mapService(service: Api.Service): Service {
+export function mapService(service: API.Service): Service {
   return {
     ...snakeToCamelDeep(requiredDeep(service)),
     activeDeploymentId: service.active_deployment_id || undefined,
     lastProvisionedDeploymentId: service.last_provisioned_deployment_id || undefined,
-    type: lowerCase(service.type as 'WEB' | 'WORKER' | 'DATABASE'),
-    upcomingDeploymentIds: service.state?.desired_deployment?.groups?.[0]?.deployment_ids,
+    type: lowerCase(service.type as 'WEB' | 'WORKER' | 'SANDBOX' | 'DATABASE'),
+    lifeCycle: {
+      deleteAfterCreate: service.life_cycle?.delete_after_create || undefined,
+      deleteAfterSleep: service.life_cycle?.delete_after_sleep || undefined,
+    },
   };
 }

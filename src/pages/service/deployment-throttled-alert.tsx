@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 
-import { useDeployments } from 'src/api/hooks/service';
-import { useOrganization } from 'src/api/hooks/session';
-import { OrganizationPlan, Service } from 'src/api/model';
+import { useDeploymentsQuery, useOrganization } from 'src/api';
 import { upcomingDeploymentStatuses } from 'src/application/service-functions';
-import { IconRocket } from 'src/components/icons';
+import { IconRocket } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
+import { OrganizationPlan, Service } from 'src/model';
 import { inArray, last } from 'src/utils/arrays';
 
 const T = createTranslate('pages.service.layout.deploymentThrottled');
@@ -16,12 +15,13 @@ type DeploymentThrottledAlertProps = {
 
 export function DeploymentThrottledAlert({ service }: DeploymentThrottledAlertProps) {
   const organization = useOrganization();
-  const upcomingDeployments = useDeployments(service.id, upcomingDeploymentStatuses);
-  const lastUpcoming = last(upcomingDeployments ?? []);
+  const upcomingDeployments = useDeploymentsQuery(service.id, upcomingDeploymentStatuses);
+  const lastUpcoming = last(upcomingDeployments.data?.deployments ?? []);
 
   const [throttled, setThrottled] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setThrottled(false);
   }, [lastUpcoming]);
 
@@ -35,7 +35,7 @@ export function DeploymentThrottledAlert({ service }: DeploymentThrottledAlertPr
     }
   }, [lastUpcoming]);
 
-  if (!throttled || !inArray<OrganizationPlan>(organization.plan, ['hobby', 'starter'])) {
+  if (!throttled || !inArray<OrganizationPlan>(organization?.plan, ['hobby', 'starter'])) {
     return null;
   }
 

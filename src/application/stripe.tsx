@@ -4,15 +4,16 @@ import { useMemo } from 'react';
 import { z } from 'zod';
 
 import { getConfig } from './config';
-import { createValidationGuard } from './create-validation-guard';
 import { notify } from './notify';
-import { reportError } from './report-error';
+import { reportError } from './sentry';
+import { createValidationGuard } from './validation';
 
-const { stripePublicKey } = getConfig();
 let retry = 0;
 
 export function StripeProvider({ children }: { children: React.ReactNode }) {
   const stripePromise = useMemo(async function loadStripeFn(): Promise<Stripe | null> {
+    const stripePublicKey = getConfig('stripePublicKey');
+
     if (stripePublicKey === undefined) {
       return null;
     }

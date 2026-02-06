@@ -9,10 +9,16 @@
     "import": "Import",
     "send": "Send",
     "override": "Override",
+    "configure": "Configure",
     "noValue": "--",
+    "notFound": "Not found",
     "notApplicable": "N/A",
+    "utc": "UTC{offset}",
     "new": "New",
     "plusCount": "+{count}",
+    "selectedCount": "{selected}/{total}",
+    "selectAll": "Select all",
+    "clearAll": "Clear all",
     "clickToCopy": "Click to copy",
     "dragFileHere": "Drag your file here",
     "instanceSpec": "{cpu} vCPU, {ram} RAM, {disk} Disk",
@@ -22,26 +28,31 @@
     "apiError": "API error",
     "failedPrecondition": "Failed precondition",
     "validationError": "Validation error",
+    "upgrade": "Upgrade",
     "upgradePlan": "Upgrade plan",
     "invalidGithubRepositoryFormat": "Invalid GitHub repository format",
     "githubRepositoryNotFound": "GitHub repository not found",
     "githubApiQuotaExceeded": "GitHub API quota exceeded, please try again later",
     "destructiveAction": "This can not be undone.",
-    "confirmationDialogText": "Type <value>{confirmationText}</value> to confirm",
-    "appServiceName": "{appName}/{serviceName}",
-    "serviceType": {
-      "web": "Web service",
-      "private": "Private service",
-      "worker": "Worker",
-      "database": "Database",
-      "model": "Model"
-    },
-    "deploymentStrategy": {
-      "invalid": "Invalid",
-      "canary": "Canary",
-      "rolling": "Rolling",
-      "blue_green": "Blue green",
-      "immediate": "Immediate"
+    "confirmationDialogText": "Type <value>{confirmationText}</value> to confirm"
+  },
+  "validation": {
+    "required": "Required",
+    "integer": "Must be an integer",
+    "min": "Must be at least {min}",
+    "max": "Must be lower than {max}",
+    "minLength": "Must be at least {min} {min, plural, =1 {character} other {characters}}",
+    "maxLength": "Must be at most {max} {max, plural, =1 {character} other {characters}}",
+    "email": "Must be a valid email address",
+    "startsWith": "Must start with \"{prefix}\"",
+    "slug": "Must only contain lowercase letters, numbers, dashes and dots"
+  },
+  "enums": {
+    "catalogAvailability": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "unknown": "Unknown"
     },
     "deploymentBuildStep": {
       "start-docker": "Start Docker",
@@ -53,19 +64,19 @@
       "build": "Build",
       "export": "Export docker image"
     },
-    "validation": {
-      "required": "Required",
-      "integer": "Must be an integer",
-      "min": "Must be at least {min}",
-      "max": "Must be lower than {max}",
-      "minLength": "Must be at least {min} {min, plural, =1 {character} other {characters}}",
-      "maxLength": "Must be at most {max} {max, plural, =1 {character} other {characters}}",
-      "email": "Must be a valid email address",
-      "startsWith": "Must start with \"{startsWith}\"",
-      "slug": "Must only contain lowercase letters, numbers, dashes and dots"
-    }
-  },
-  "enums": {
+    "deploymentStrategy": {
+      "invalid": "Invalid",
+      "default": "Default",
+      "canary": "Canary",
+      "rolling": "Rolling",
+      "blue_green": "Blue green",
+      "immediate": "Immediate"
+    },
+    "instanceCategory": {
+      "eco": "Eco",
+      "standard": "Standard",
+      "gpu": "GPU"
+    },
     "plans": {
       "no_plan": "No plan",
       "hobby": "Hobby",
@@ -80,11 +91,24 @@
       "partner_csp": "Partner CSP",
       "partner_csp_unit": "Partner CSP Unit"
     },
-    "catalogAvailability": {
-      "low": "Low",
-      "medium": "Medium",
-      "high": "High",
-      "unknown": "Unknown"
+    "portProtocol": {
+      "tcp": "TCP",
+      "http": "HTTP",
+      "http2": "HTTP/2"
+    },
+    "serviceType": {
+      "web": "Web service",
+      "private": "Private service",
+      "worker": "Worker",
+      "sandbox": "Sandbox",
+      "database": "Database",
+      "model": "Model"
+    },
+    "timeUnit": {
+      "seconds": "Seconds",
+      "minutes": "Minutes",
+      "hours": "Hours",
+      "days": "Days"
     }
   },
   "components": {
@@ -130,7 +154,7 @@
     "addressAutocomplete": {
       "searchAddress": "Type to search",
       "addressNotFound": "No address found",
-      "cantFindAddress": "Can't find your address?",
+      "cantFindAddress": "Can't find your address? <link>Try here</link>",
       "line1": "Address 1",
       "line2": "Address 2",
       "city": "City",
@@ -140,14 +164,19 @@
       "noCountry": "No matching country found"
     },
     "cliInfo": {
-      "cta": "Snipkit CLI {icon}",
-      "description": "Interact with your Snipkit resources without leaving the terminal",
-      "install": "Don't have Snipkit CLI installed yet? <link>Check out the installation instruction</link>",
-      "reference": "Read the Snipkit CLI <link>reference</link>"
+      "cta": "KhulnaSoft CLI {icon}",
+      "description": "Interact with your KhulnaSoft resources without leaving the terminal",
+      "install": "Don't have KhulnaSoft CLI installed yet? <link>Check out the installation instruction</link>",
+      "reference": "Read the KhulnaSoft CLI <link>reference</link>"
     },
-    "deployToSnipkitButton": {
-      "title": "Deploy to Snipkit button",
-      "tooltip": "The \"Deploy to Snipkit\" button allows you to deploy applications from a GitHub repository or Docker image with a single click. It offers a fast deployment option to share your services with your team and users."
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "pageSize": "Show {select} per page"
+    },
+    "deployToKhulnaSoftButton": {
+      "title": "Deploy to KhulnaSoft button",
+      "tooltip": "The \"Deploy to KhulnaSoft\" button allows you to deploy applications from a GitHub repository or Docker image with a single click. It offers a fast deployment option to share your services with your team and users."
     },
     "dockerImageInput": {
       "pending": "Validating the provided path",
@@ -155,20 +184,7 @@
       "error": "{error} <dim><retry>Click here to retry.</retry></dim>"
     },
     "documentTitle": {
-      "title": "{prefix, select, undefined {Snipkit} other {{prefix} - Snipkit}}"
-    },
-    "errorBoundary": {
-      "unhandledError": {
-        "title": "Whoops!",
-        "httpStatus": "{httpStatus} - ERROR",
-        "statusLink": "If this keeps happening, check out <link>status.snipkit.com</link>.",
-        "code": "Code: {code}",
-        "button": "Back to home"
-      }
-    },
-    "featureUnavailable": {
-      "technicalPreview": "Technical preview",
-      "publicPreview": "Public preview"
+      "title": "{prefix, select, undefined {KhulnaSoft} other {{prefix} - KhulnaSoft}}"
     },
     "instanceSelector": {
       "instanceType": {
@@ -213,27 +229,20 @@
         "upgradeDialog": {
           "title": "Add credit card",
           "description": "To extend your usage quota, upgrade your account to a paid plan and give us an indication of your usage",
-          "submitButton": "Add credit card"
+          "submit": "Add credit card"
         },
         "requestAccess": "Request access",
-        "requestQuotaIncrease": "Request increase",
-        "requestQuotaIncreaseDialog": {
-          "title": "Quota increase request",
-          "line1": "It looks like you're ready to deploy on a {instance} instance, but we'll need to increase your organization quota first.",
-          "line2": "Let's <link>chat</link> to learn more about your needs and get started.",
-          "cta": "Book a call"
-        }
+        "requestQuotaIncrease": "Request increase"
       }
     },
     "invitation": {
-      "title": "You have been invited to join the <organization>{organizationName} organization</organization>",
-      "description": "You were invited by {name} ({email})",
-      "accept": "Join organization",
-      "decline": "Decline",
+      "title": "You've been invited {hasInviter, select, true {by} other {}}",
+      "description": "{email} to join:",
+      "accept": "Join",
+      "decline": "<dim>Unknown invite?</dim> <link>Decline</link>",
       "alreadyAccepted": "This invitation was already accepted",
-      "alreadyDeclined": "this invitation was declined",
-      "expired": "this invitation has expired",
-      "acceptSuccess": "The invitation was accepted",
+      "alreadyDeclined": "This invitation was declined",
+      "expired": "This invitation has expired",
       "declineSuccess": "The invitation was declined"
     },
     "logs": {
@@ -245,7 +254,8 @@
         "stream": "Show stream",
         "instance": "Show instance",
         "date": "Show timestamp",
-        "wordWrap": "Word wrap"
+        "wordWrap": "Word wrap",
+        "interpretAnsi": "Show colors"
       }
     },
     "organizationNameField": {
@@ -257,16 +267,24 @@
       "noConsecutiveDashes": "No consecutive dashes"
     },
     "upgradeDialog": {
+      "title": "Upgrade plan",
+      "submit": "Upgrade",
       "loadingStripe": "Loading stripe...",
       "cardNumberLabel": "Card number",
       "expirationLabel": "Expiration",
       "cvcLabel": "CVC",
       "addressLabel": "Address",
       "addressPlaceholder": "Street address",
-      "temporaryHoldMessage": "A temporary hold of USD $1 will be placed on the card and then refunded immediately",
+      "temporaryHoldMessage": "A temporary hold will be placed on the card of $1 and refunded immediately",
       "proratedChargeMessage": "Your card will be charged a prorated amount for the remaining days of the month",
       "paymentMethodTimeoutTitle": "We could not register your payment method",
-      "paymentMethodTimeoutDescription": "Please try again later or {contactUs} if the problem persists"
+      "paymentMethodTimeoutDescription": "Please try again later or {contactUs} if the problem persists",
+      "billingAlert": {
+        "label": "Billing alert",
+        "description": "Receive email notifications when your monthly usage gets close to the spending limit",
+        "inputStart": "$",
+        "inputEnd": "/month"
+      }
     },
     "platformStatus": {
       "up": "All systems operational",
@@ -279,6 +297,13 @@
       "latency": "{ms, number, :: precision-integer}ms latency",
       "checkingLatency": "Checking latency...",
       "unavailable": "Unavailable"
+    },
+    "requestQuotaIncrease": {
+      "title": "Quota increase request",
+      "description": "Need more quota?",
+      "descriptionForInstance": "It looks like you're ready to deploy on a {instance} instance, but we'll need to increase your organization quota first.",
+      "chat": "Let's <link>chat</link> to learn more about your needs and get started.",
+      "cta": "Book a call"
     },
     "serviceEstimatedCost": {
       "title": "Estimated Cost",
@@ -297,23 +322,40 @@
       "total": "Total cost",
       "pricePerMonth": "{price}/mo",
       "pricePerHour": "{price}/hr"
+    },
+    "serviceLifecycle": {
+      "afterCreate": "Service will be deleted in {afterCreate}",
+      "afterSleep": "Service will be deleted {afterSleep} after scale to zero",
+      "both": "Service will be deleted {afterSleep} after scale to zero or in {afterCreate}",
+      "update": "Update",
+      "afterCreateTooltip": {
+        "title": "Service will be deleted",
+        "relativeTime": "In {value}",
+        "relativeTimeSeconds": "{seconds}s",
+        "date": "On {badge} {date}"
+      },
+      "afterSleepTooltip": {
+        "title": "Service will be deleted",
+        "relativeTime": "{value} after inactivity",
+        "relativeTimeSeconds": "{seconds}s"
+      }
     }
   },
   "modules": {
     "account": {
       "accountLocked": {
-        "title": "We cannot offer you access to Snipkit",
+        "title": "We cannot offer you access to KhulnaSoft",
         "line1": "Your account matches patterns often associated with violations of our <terms>Terms of Service</terms>",
-        "line2": "While we cannot provide details about the reason(s) triggering this behavior, we have determined that providing access to Snipkit is not possible",
+        "line2": "While we cannot provide details about the reason(s) triggering this behavior, we have determined that providing access to KhulnaSoft is not possible",
         "line3": "If you believe this is a bug, you can <link>verify your identity</link>"
       },
       "deleteAccount": {
         "label": "Delete account",
         "description": "Once this operation is performed, your account will be permanently deleted",
         "mustLeaveOrganizations": "You must leave or delete all your organizations before you can delete your account",
-        "cta": "Delete",
-        "successNotification": "Your Snipkit account was deleted",
-        "confirmationDialog": {
+        "delete": "Delete",
+        "success": "Your KhulnaSoft account was deleted",
+        "confirmation": {
           "title": "Delete account",
           "description": "Your user account will be deleted. Are you sure?",
           "confirm": "Delete account"
@@ -323,102 +365,162 @@
         "title": "Deactivate the organization",
         "description": "When you deactivate an organization, all associated resources will be deleted: Apps, Services, Secrets, Domains, GitHub app and API credentials. You can reactivate an organization at any time.",
         "deactivate": "Deactivate",
-        "deactivationRequestSuccessNotification": "We've sent you an email to confirm the deactivation of your organization",
-        "deactivationSuccessNotification": "Your organization is being deactivated",
+        "success": "We've sent you an email to confirm the deactivation of your organization",
         "deactivating": "Your organization is being deactivated..."
       },
       "reactivateOrganization": {
         "title": "Reactivate the organization",
-        "description": "Activate the organization to start using this Snipkit organization again.",
+        "description": "Activate the organization to start using this KhulnaSoft organization again.",
         "reactivate": "Reactivate",
-        "successNotification": "Your organization was reactivated"
+        "success": "Your organization was reactivated"
       },
       "deleteOrganization": {
         "title": "Delete the organization",
         "description": "Permanently delete the organization and the associated payment information",
         "delete": "Delete",
-        "successNotification": "Your organization {organizationName} was deleted",
         "unpaidInvoicesPending": "Checking for unpaid invoices...",
-        "deactivating": "Your organization is being deactivated...",
         "hasUnpaidInvoices": "Your organization has unpaid invoices. Settle the outstanding payment to be able to delete the organization.",
         "mustBeDeactivated": "The organization must first be deactivated before it can be deleted"
       }
     },
-    "createServiceDialog": {
-      "searchPlaceholder": "Search",
-      "shortcuts": {
-        "navigate": "to navigate",
-        "select": "to select",
-        "close": "to close",
-        "return": "to return"
+    "commandPalette": {
+      "placeholder": "Type a command...",
+      "noResults": "No results for \"{search}\"",
+      "footer": {
+        "escape": "Esc",
+        "up": "Up",
+        "down": "Down",
+        "left": "Left",
+        "right": "Right"
       },
-      "navigation": {
-        "create": "Create",
-        "webService": "Web service",
-        "worker": "Worker",
-        "database": "Database",
-        "oneClickApps": "one-click apps",
-        "source": "Source",
-        "github": "GitHub",
-        "docker": "Docker",
-        "yourRepository": "Your repository",
-        "publicRepository": "Public repository",
-        "settings": "Settings",
-        "dockerImage": "Docker image",
-        "registryConfiguration": "Registry configuration"
+      "contexts": {
+        "learn": "Learn",
+        "organization": "Organization",
+        "services": "Services",
+        "settings": "Settings"
       },
-      "webService": "Web service",
-      "webServiceDescription": "A web service accessible from the Internet and the service mesh",
-      "worker": "Worker",
-      "workerDescription": "Runs in the background and is not internet accessible",
-      "database": "Database",
-      "databaseDescription": "Fully managed, serverless Postgres database",
-      "createService": "Create {serviceType}",
-      "github": "GitHub",
-      "githubDescription": "Connect, build and deploy your code from a GitHub repository",
-      "installGithubApp": "Install GitHub app",
-      "docker": "Docker",
-      "dockerDescription": "Deploy docker images from any public or private registries",
-      "deployOneClickApp": "Deploy {name}",
-      "deployWith": "Deploy with {type}",
-      "publicRepositoryLabel": "Public repository URL",
-      "publicRepositoryPlaceholder": "e.g. https://github.com/snipkit/example-golang",
-      "deployRepository": "Deploy repository",
-      "invalidGithubRepositoryUrl": "Please provide a GitHub repository URL",
-      "repositories": "Repositories",
-      "githubAppLinks": "Missing Git repository? <resynchronizeLink>Re-synchronize</resynchronizeLink> repositories or <githubAppLink>edit GitHub app permissions</githubAppLink>.",
-      "repositoriesSynchronized": "Repositories synchronized",
-      "dockerImagePath": "Docker image path",
-      "deployImage": "Deploy image",
-      "privateImage": "Private",
-      "registryConfigurationLabel": "Registry configuration",
-      "noRegistrySecrets": "No registry configuration secret found",
-      "createRegistrySecret": "Missing registry configuration secret? <link>Create secret</link>"
+      "commands": {
+        "learn:community": {
+          "label": "Go to KhulnaSoft community platform",
+          "description": "Open community.khulnasoft.com"
+        },
+        "learn:khulnasoft.com": {
+          "label": "Go to KhulnaSoft website",
+          "description": "Open www.khulnasoft.com"
+        },
+        "organization:switch": {
+          "label": "Switch organization",
+          "description": "Access resources within another organization",
+          "placeholder": "Select an organizaton"
+        },
+        "organization:create": {
+          "label": "Create organization",
+          "description": "Create a new organization"
+        },
+        "services:create": {
+          "label": "Create service",
+          "description": "Create a new service",
+          "placeholders": {
+            "serviceType": "Select service type",
+            "deploymentSource": "Select deployment source"
+          },
+          "options": {
+            "web": {
+              "label": "Web",
+              "description": "Can be accessed accessible from the internet or the private network"
+            },
+            "private": {
+              "label": "Private",
+              "description": "Only exposed to your other services via the internal private network"
+            },
+            "worker": {
+              "label": "Worker",
+              "description": "For long running processes like background processing and task execution"
+            },
+            "database": {
+              "label": "Database",
+              "description": "A fully managed, serverless Postgres database"
+            },
+            "github": {
+              "label": "GitHub",
+              "description": "Connect, build and deploy your code from GitHub repository"
+            },
+            "docker": {
+              "label": "Docker",
+              "description": "Deployer docker images from any public or private registries"
+            }
+          }
+        },
+        "redeployService": {
+          "label": "Redeploy service",
+          "description": "Redeploy {name}'s latest deployment",
+          "success": "Service {name} is being redeployed"
+        },
+        "pauseService": {
+          "label": "Pause service",
+          "description": "Pause service {name}",
+          "success": "Service {name} is being paused"
+        },
+        "resumeService": {
+          "label": "Resume service",
+          "description": "Resume service {name}"
+        },
+        "copyPublicUrl": {
+          "label": "Copy public URL",
+          "description": "Copy service {name}'s public URL to clipboard"
+        },
+        "copyPrivateDomain": {
+          "label": "Copy private domain",
+          "description": "Copy service {name}'s private (internal) domain to clipboard"
+        },
+        "copyDeploymentId": {
+          "label": "Copy deployment ID",
+          "description": "Copy the selected deployment's identifier"
+        },
+        "listDeployments": {
+          "label": "View deployments",
+          "description": "List the last deployments of service {name}",
+          "placeholder": "Select a deployment",
+          "deploymentLabel": "{deploymentId} ({date})",
+          "trigger": {
+            "initial": "This is your first deployment",
+            "resume": "Triggered because service has been resumed",
+            "redeploy": "Triggered because service has been updated or redeployed"
+          }
+        },
+        "settings:changeThemeMode": {
+          "label": "Change theme mode",
+          "description": "Change the theme mode of the interface"
+        },
+        "settings:logout": {
+          "label": "Log out",
+          "description": "Sign out from the KhulnaSoft control panel"
+        }
+      }
     },
     "databaseForm": {
       "engine": {
-        "description": "Engine",
-        "title": "Postgres",
-        "titleVersion": "(v{version})",
-        "expandedTitle": "Select database engine",
+        "title": "Engine",
+        "summary": "Postgres (v{version})",
+        "action": "Select database engine",
         "engineLabel": "Engine",
         "engineItem": "Postgres (v{version})"
       },
       "instance": {
-        "description": "Instance",
-        "expandedTitle": "Select instance",
+        "title": "Instance",
+        "action": "Select instance",
         "instanceSpec": "<dim>({spec})</dim>"
       },
       "defaultRole": {
-        "description": "Default role",
+        "title": "Default role",
+        "action": "Configure default role",
         "defaultRoleMissing": "The default role is missing",
-        "expandedTitle": "Configure default role",
         "defaultRoleLabel": "Default role"
       },
       "serviceName": {
-        "expandedTitle": "Edit service name",
+        "title": "Service name",
+        "action": "Edit service name",
         "serviceNameMissing": "The service name is missing",
-        "description": "Service name",
         "serviceNameLabel": "Service name"
       },
       "estimatedCost": {
@@ -429,9 +531,8 @@
         "pricePerMonth": "{price}/month"
       },
       "upgradeDialog": {
-        "title": "Upgrade plan",
         "description": "The current selected instance is available on the {plan} plan at $0/mo. Add a payment method to upgrade and deploy.",
-        "submitButton": "Upgrade and deploy"
+        "submit": "Upgrade and deploy"
       }
     },
     "deployment": {
@@ -467,11 +568,21 @@
           }
         }
       },
-      "deploymentInfo": {
+      "deploymentOverview": {
         "overview": "Overview",
         "externalUrlLabel": "Public URL",
         "externalUrlValueForwardedPort": "(forwarded to port {portNumber})",
         "internalUrlLabel": "Private Address",
+        "tcpProxyUrl": {
+          "label": "TCP proxy",
+          "forwardedPort": "(forwarded to port {portNumber})",
+          "pending": "Initializing TCP proxy. This may take a few seconds...",
+          "unavailable": "TCP proxy is unavailable on inactive deployments",
+          "deploymentSleeping": "TCP proxy is unavailable because this deployment is currently sleeping (scaled to zero)"
+        },
+        "deploymentDefinition": "Deployment definition"
+      },
+      "deploymentDefinition": {
         "repositoryLabel": "Repository",
         "branchLabel": "Branch",
         "commitLabel": "Commit",
@@ -482,71 +593,66 @@
         "privilegedLabel": "Privileged",
         "true": "True",
         "false": "False",
-        "instanceTypeLabel": "Instance type",
-        "scalingLabel": "Scaling",
-        "fixedScalingValue": "{instances} {instances, plural, one {instance} other {instances}}",
-        "autoScalingValue": "{min}-{max} instances",
-        "regionsLabel": "Regions",
         "environmentLabel": "Environment",
         "environmentValue": "{variables} {variables, plural, one {variable} other {variables}}{files, plural, =0 {} =1 {, 1 file} other {, {files} files}}",
         "volumesLabel": "Volumes",
         "volumesValue": "{count} {count, plural, one {volume} other {volumes}} attached",
         "attachedVolume": "{volumeName} mounted at {mountPath}",
-        "viewMore": "View more",
-        "definitionDialog": {
-          "title": "Deployment definition",
-          "json": "JSON",
-          "parsed": "Parsed",
-          "general": {
-            "title": "General",
-            "nameLabel": "Name:",
-            "typeLabel": "Type:",
-            "strategyLabel": "Deployment strategy:"
+        "viewMore": "View more"
+      },
+      "deploymentDefinitionDialog": {
+        "title": "Deployment definition",
+        "json": "JSON",
+        "parsed": "Parsed",
+        "general": {
+          "title": "General",
+          "nameLabel": "Name:",
+          "typeLabel": "Type:",
+          "strategyLabel": "Deployment strategy:"
+        },
+        "source": {
+          "title": "Deployment Source",
+          "git": {
+            "repositoryLabel": "Repository:",
+            "branchLabel": "Branch:",
+            "autodeployLabel": "Autodeploy:",
+            "privilegedLabel": "Privileged:",
+            "builderTypeLabel": "Builder type:",
+            "buildpack": "Buildpack",
+            "dockerfileLabel": "Dockerfile",
+            "buildCommandLabel": "Build command:",
+            "runCommandLabel": "Run command:",
+            "entrypointLabel": "Entrypoint:",
+            "commandLabel": "Command:",
+            "argumentsLabel": "Args:",
+            "targetLabel": "Target:"
           },
-          "source": {
-            "title": "Deployment Source",
-            "git": {
-              "repositoryLabel": "Repository:",
-              "branchLabel": "Branch:",
-              "autodeployLabel": "Autodeploy:",
-              "privilegedLabel": "Privileged:",
-              "builderTypeLabel": "Builder type:",
-              "buildpack": "Buildpack",
-              "dockerfileLabel": "Dockerfile",
-              "buildCommandLabel": "Build command:",
-              "runCommandLabel": "Run command:",
-              "entrypointLabel": "Entrypoint:",
-              "commandLabel": "Command:",
-              "argumentsLabel": "Args:",
-              "targetLabel": "Target:"
-            },
-            "docker": {
-              "imageLabel": "Image:",
-              "entrypointLabel": "Entrypoint:",
-              "commandLabel": "Command:",
-              "argumentsLabel": "Args:",
-              "privilegedLabel": "Privileged:"
-            }
-          },
-          "instances": {
-            "title": "Instances",
-            "typeLabel": "Type:",
-            "scalingLabel": "Scaling:",
-            "regionsLabel": "Regions:",
-            "autoscaling": "Between {min} and {max}"
-          },
-          "ports": {
-            "title": "Ports",
-            "http": "HTTP",
-            "http2": "HTTP/2",
-            "tcp": "TCP",
-            "publicPort": "{portNumber}, mapped to {path} expecting {protocol} traffic",
-            "privatePort": "{portNumber}, exposed on the service mesh"
-          },
-          "environmentVariables": {
-            "title": "Environment variables",
-            "noVariables": "No variables configured"
+          "docker": {
+            "imageLabel": "Image:",
+            "entrypointLabel": "Entrypoint:",
+            "commandLabel": "Command:",
+            "argumentsLabel": "Args:",
+            "privilegedLabel": "Privileged:"
           }
+        },
+        "instances": {
+          "title": "Instances",
+          "typeLabel": "Type:",
+          "scalingLabel": "Scaling:",
+          "regionsLabel": "Regions:",
+          "autoscaling": "Between {min} and {max}"
+        },
+        "ports": {
+          "title": "Ports",
+          "http": "HTTP",
+          "http2": "HTTP/2",
+          "tcp": "TCP",
+          "publicPort": "{portNumber}, mapped to {path} expecting {protocol} traffic",
+          "privatePort": "{portNumber}, exposed on the service mesh"
+        },
+        "environmentVariables": {
+          "title": "Environment variables",
+          "noVariables": "No variables configured"
         }
       },
       "deploymentLogs": {
@@ -587,8 +693,9 @@
             "allInstances": "All instances",
             "search": "Search...",
             "fullScreen": "Toggle full screen",
-            "logs": "Logs",
-            "events": "Events"
+            "stdout": "stdout",
+            "stderr": "stderr",
+            "khulnasoft": "event"
           },
           "waitingForLogs": {
             "title": "Booting up the magic",
@@ -607,8 +714,8 @@
           "details": "Details",
           "noInstances": "There is no instance currently running in this replica",
           "filters": {
-            "allRegions": "All regions",
-            "allStatuses": "All statuses"
+            "regions": "Regions",
+            "status": "Status"
           },
           "metadata": {
             "cpu": "CPU",
@@ -640,38 +747,40 @@
               "logs": {
                 "title": "Logs",
                 "filters": {
-                  "logs": "Logs",
-                  "events": "Events"
+                  "stdout": "stdout",
+                  "stderr": "stderr",
+                  "khulnasoft": "events"
                 }
               }
             }
           }
-        },
-        "replicas": {
-          "title": "Scaling",
-          "helpTooltip": "Instances scaling",
-          "replicaIndex": "#{index}",
-          "noInstances": "No active instances",
-          "viewDetails": "View details",
-          "cpu": "CPU",
-          "memory": "Memory",
-          "regionLabel": "Region",
-          "instanceTypeLabel": "Type",
-          "creationDateLabel": "Creation date",
-          "filters": {
-            "allRegions": "All regions",
-            "allStatuses": "All statuses"
+        }
+      },
+      "metadata": {
+        "instance": {
+          "label": "Instance",
+          "tooltip": {
+            "title": "{category} instance",
+            "cpu": "{value} vCPU",
+            "ram": "{value} RAM",
+            "vram": "{value} VRAM",
+            "disk": "{value} Disk"
           }
         },
-        "replicaHistory": {
-          "title": "Scaling history",
-          "subtitle": "Scaling details of replica #{replicaIndex} in {region}",
-          "noInstancesYet": "This replica has no instances yet",
-          "noInstances": "No instances found for this replica",
-          "id": "ID",
-          "status": "Status",
-          "createdAt": "Created at",
-          "messages": "Messages"
+        "regions": {
+          "label": "Regions",
+          "tooltip": {
+            "title": "Regions"
+          }
+        },
+        "scaling": {
+          "label": "Scaling",
+          "value": "{running} <dim>of</dim> {total} <dim>running</dim>",
+          "tooltip": {
+            "title": "Scaling",
+            "description": "The number of instances currently running for your service",
+            "count": "{running}/{total}"
+          }
         }
       }
     },
@@ -751,6 +860,7 @@
       "stepper": {
         "deploymentSource": "Select deployment source",
         "importProject": "Import project",
+        "builder": "Build options",
         "instanceRegions": "Choose instance and regions",
         "review": "Review and deploy 🚀"
       },
@@ -769,6 +879,11 @@
         "private": {
           "title": "Create private service",
           "description": "Only exposed to your other services via the internal private network"
+        },
+        "sandbox": {
+          "title": "Create a sandbox",
+          "description": "Sandboxes allow you to create fully isolated, secure, lightweight virtual machines designed to safely execute AI-generated or untrusted code",
+          "button": "Create a sandbox"
         },
         "worker": {
           "title": "Create worker service",
@@ -797,7 +912,8 @@
       },
       "importProject": {
         "title": "Create a new service",
-        "description": "Import the GitHub repository you want to deploy or use an existing public repository",
+        "description.git": "Import the GitHub repository you want to deploy or use an existing public repository",
+        "description.docker": "Deploy a Docker image from a container registry",
         "github": {
           "refresh": "Refresh",
           "import": "Import",
@@ -806,18 +922,18 @@
           "missingRepositoryLink": "Missing a GitHub repository? <link>Edit GitHub app permissions</link>",
           "noRepository": {
             "title": "No repositories found",
-            "description": "This can happen when Snipkit doesn't have access to the repositories in your organization.",
+            "description": "This can happen when KhulnaSoft doesn't have access to the repositories in your organization.",
             "searchEmptyResults": "Your search for \"{search}\" did not return any results."
           },
           "publicRepository": {
             "title": "Public GitHub repository",
             "description": "Use a public repository by entering the URL below. Features like auto-deploy are not available when using a public repository.",
-            "placeholder": "https://github.com/snipkit/example-golang",
+            "placeholder": "https://github.com/khulnasoft/example-golang",
             "invalidGithubRepositoryUrl": "Please provide a GitHub repository URL"
           },
           "installGithubApp": {
             "title": "Connect to GitHub",
-            "description": "Install the GitHub app to allow Snipkit access and deploy your GitHub repositories",
+            "description": "Install the GitHub app to allow KhulnaSoft access and deploy your GitHub repositories",
             "requested": "An admin of your GitHub organization must approve the request to complete the installation",
             "button": "Install GitHub app"
           }
@@ -826,15 +942,75 @@
           "title": "Deploy a Docker image",
           "imageFieldLabel": "Image",
           "imageFieldDescription": "The Docker image and tag you want to deploy",
-          "imagePlaceholder": "docker.io/snipkit/demo:latest",
+          "imagePlaceholder": "docker.io/khulnasoft/demo:latest",
           "registryFieldLabel": "Registry",
-          "registryFieldDescription": "If your image is private, create or select the registry configuration secret to allow Snipkit to pull your image",
+          "registryFieldDescription": "If your image is private, create or select the registry configuration secret to allow KhulnaSoft to pull your image",
           "registryFieldPlaceholder": "No credential (optional)",
           "noRegistrySecret": "No credential",
           "createRegistrySecret": "Create new registry secret",
           "imageVerification": {
             "pending": "Validating the provided path",
             "validated": "The image is accessible"
+          }
+        }
+      },
+      "builder": {
+        "title": "Create a new service",
+        "description": "Choose whether to build your code with a Dockerfile or a Buildpack",
+        "buildpack": {
+          "title": "Buildpack",
+          "description": "Detect your project's language, install dependencies, and package the environment into a runnable image",
+          "configuration": {
+            "title": "Customize Buildpack settings",
+            "description": "Override the default deployment configuration to meet your application's needs",
+            "buildCommand": {
+              "label": "Build command",
+              "tooltip": "The command to build your application during the build phase. If your application does not require a build command, leave this field empty."
+            },
+            "runCommand": {
+              "label": "Run command",
+              "tooltip": "The command to run your application once the build is completed"
+            },
+            "workDirectory": {
+              "label": "Work directory",
+              "tooltip": "The directory where your source code is located. If not set, the work directory defaults to the root of the repository."
+            },
+            "privileged": {
+              "label": "Privileged",
+              "tooltip": "When enabled, the service container will run in privileged mode. This advanced feature is useful to get advanced system privileges, for example to start a docker daemon."
+            }
+          }
+        },
+        "dockerfile": {
+          "title": "Dockerfile",
+          "description": "Build a runnable container image for your project. Requires your repository to contain a Dockerfile.",
+          "configuration": {
+            "title": "Customize Dockerfile settings",
+            "description": "Override the default deployment configuration to meet your application's needs",
+            "dockerfileLocation": {
+              "label": "Dockerfile location",
+              "tooltip": "The location of your Dockerfile relative to the work directory. If not set, the work directory defaults to the root of the repository."
+            },
+            "entrypoint": {
+              "label": "Entrypoint",
+              "tooltip": "Override the default entrypoint to execute on the container"
+            },
+            "command": {
+              "label": "Command",
+              "tooltip": "Override the command to execute on the container. To pass build-time variables similar to the ARG instruction, use environment variables."
+            },
+            "target": {
+              "label": "Target",
+              "tooltip": "Target build stage: If your Dockerfile contains multi-stage builds, you can choose the target stage to build and deploy by entering its name"
+            },
+            "workDirectory": {
+              "label": "Work directory",
+              "tooltip": "The directory where your source code is located. If not set, the work directory defaults to the root of the repository."
+            },
+            "privileged": {
+              "label": "Privileged",
+              "tooltip": "When enabled, the service container will run in privileged mode. This advanced feature is useful to get advanced system privileges, for example to start a docker daemon."
+            }
           }
         }
       },
@@ -855,7 +1031,7 @@
         "description": "Go with the recommended settings or adjust them according to your needs",
         "tips": {
           "title": "Did you know?",
-          "fallback": "Snipkit natively supports real-time protocols, including WebSocket, gRPC, and HTTP/2"
+          "fallback": "KhulnaSoft natively supports real-time protocols, including WebSocket, gRPC, and HTTP/2"
         }
       },
       "initialDeployment": {
@@ -884,7 +1060,7 @@
           },
           "serviceReady": {
             "title": "Your service is ready",
-            "details": "Your just deployed a new service to Snipkit. Check out the next steps.",
+            "details": "Your just deployed a new service to KhulnaSoft. Check out the next steps.",
             "inspectService": "Inspect and manage your service",
             "accessService": "Visit your service public domain"
           },
@@ -892,7 +1068,7 @@
         },
         "nextSteps": {
           "title": "Your service is ready",
-          "description": "Your just deployed a new service to Snipkit. Check out the next steps.",
+          "description": "Your just deployed a new service to KhulnaSoft. Check out the next steps.",
           "serviceDetails": {
             "title": "View service details",
             "description": "Inspect and manage your service",
@@ -933,11 +1109,29 @@
         "submitButton": "Deploy"
       },
       "oneClickAppForm": {
-        "overview": "Overview",
-        "instance": "Choose instance",
-        "region": "Select region",
-        "environmentVariables": "Environment variables",
-        "submitButton": "Deploy"
+        "singleRegionWithVolumes": "Multi-region deployment is unavailable when volumes are attached to the service",
+        "submitButton": "Deploy",
+        "metadata": {
+          "title": "Overview",
+          "scaling": {
+            "label": "Scaling",
+            "valueFixed": "{instances} {instances, plural, one {instance} other {instances}}",
+            "valueAutoscaling": "{min}-{max} instances"
+          }
+        },
+        "environmentVariables": {
+          "title": "Environment variables",
+          "advanced": "{count} advanced {count, plural, =1 {variable} other {variables}}"
+        },
+        "instance": {
+          "title": "Instance"
+        },
+        "volumes": {
+          "title": "Volumes",
+          "name": "Name",
+          "mountPath": "Mount path",
+          "size": "Size"
+        }
       },
       "submitButton": {
         "deploy": "Deploy",
@@ -960,9 +1154,8 @@
         "cta": "Book a call"
       },
       "upgradeDialog": {
-        "title": "Upgrade plan",
         "description": "The current selected instance is available on the {plan} plan at $0/mo. Add a payment method to upgrade and deploy.",
-        "submitButton": "Upgrade and deploy"
+        "submit": "Upgrade and deploy"
       },
       "errors": {
         "noRepositorySelected": "Please select a repository",
@@ -978,8 +1171,8 @@
         "portPathHasWhiteSpaces": "Path must not contain any white space"
       },
       "serviceType": {
-        "description": "Service type",
-        "expandedTitle": "Change service type",
+        "title": "Service type",
+        "action": "Change service type",
         "webService": "Web service",
         "webServiceDescription": "A web service accessible from the Internet and the service mesh",
         "worker": "Worker",
@@ -990,34 +1183,34 @@
         }
       },
       "source": {
-        "description": "Source",
+        "title": "Source",
+        "action": "Configure deployment source",
         "noRepositorySelected": "No repository selected",
         "noDockerImageSelected": "No docker image selected",
-        "expandedTitle": "Configure deployment source",
         "archiveSourceLabel": "Archive",
-        "archiveSourceTooltip": "Build and deploy your code using the <code>snipkit deploy</code> or <code>snipkit archive</code> command",
+        "archiveSourceTooltip": "Build and deploy your code using the <code>khulnasoft deploy</code> or <code>khulnasoft archive</code> command",
         "githubSourceLabel": "GitHub",
         "githubSourceTooltip": "Connect, build and deploy your code from a GitHub repository",
         "dockerSourceLabel": "Docker",
         "dockerSourceTooltip": "Deploy Docker images from any public or private registries",
         "archive": {
           "title": "Archive",
-          "description": "Your service is managed using the <code>snipkit deploy</code> or <code>snipkit archive</code> command",
+          "description": "Your service is managed using the <code>khulnasoft deploy</code> or <code>khulnasoft archive</code> command",
           "documentationLink": "Learn more about deploying a directory"
         },
         "git": {
           "repositoryTypeLabel": "Private or public repository",
           "repositoryLabel": "Select repository",
-          "repositoryTooltip": "Choose the repository you want to deploy on Snipkit",
+          "repositoryTooltip": "Choose the repository you want to deploy on KhulnaSoft",
           "organizationRepository": "Your repository",
           "organizationRepositoryPlaceholder": "Select a repository",
           "organizationRepositoryNoResults": "No repository found",
           "publicRepository": "Public repository",
           "publicRepositoryLabel": "Public repository URL",
           "publicRepositoryTooltip": "Use a public repository by entering the URL below. Features like auto-deploy are not available when using a public repository.",
-          "publicRepositoryPlaceholder": "e.g. https://github.com/snipkit/example-golang",
+          "publicRepositoryPlaceholder": "e.g. https://github.com/khulnasoft/example-golang",
           "branchLabel": "Select branch",
-          "branchTooltip": "Select the repository branch you want to deploy on Snipkit",
+          "branchTooltip": "Select the repository branch you want to deploy on KhulnaSoft",
           "branchNoResults": "No branch found",
           "autoDeploy": "Autodeploy",
           "autoDeployTooltip": "When enabled, every time an update is made to this branch, your application will be re-deployed",
@@ -1026,19 +1219,19 @@
           "repositoriesSynchronized": "Repositories synchronized",
           "installGithubApp": {
             "title": "GitHub app not installed",
-            "description": "You haven't connected any GitHub account to Snipkit. To continue deployment using the repository, install the application.",
+            "description": "You haven't connected any GitHub account to KhulnaSoft. To continue deployment using the repository, install the application.",
             "requested": "An admin of your GitHub organization must approve the request to complete the installation",
             "button": "Install GitHub app"
           }
         },
         "docker": {
           "imageLabel": "Image path",
-          "imagePlaceholder": "docker.io/snipkit/demo:latest",
-          "imageTooltip": "Add the url of the Docker image you want to deploy on Snipkit",
+          "imagePlaceholder": "docker.io/khulnasoft/demo:latest",
+          "imageTooltip": "Add the url of the Docker image you want to deploy on KhulnaSoft",
           "privateLabel": "Private",
           "registrySecretLabel": "Registry credential (optional)",
           "registrySecretPlaceholder": "No registry credential selected",
-          "registrySecretTooltip": "If your image is private, create or select the registry configuration secret to allow Snipkit to pull your image",
+          "registrySecretTooltip": "If your image is private, create or select the registry configuration secret to allow KhulnaSoft to pull your image",
           "noRegistrySecret": "No credential",
           "createRegistrySecret": "Create new registry secret",
           "imageVerification": {
@@ -1048,47 +1241,64 @@
         }
       },
       "builder": {
-        "description": "Builder",
-        "expandedTitle": "Configure builder",
+        "title": "Builder",
+        "action": "Configure builder",
         "buildpack": "Buildpack",
         "buildpackDescription": "Uses buildpacks to detect your project's language, install dependencies, and package the environment into a runnable image",
         "dockerfile": "Dockerfile",
-        "dockerfileDescription": "If your repository contains a Dockerfile, Snipkit can use it to build a runnable container image for your project",
+        "dockerfileDescription": "If your repository contains a Dockerfile, KhulnaSoft can use it to build a runnable container image for your project",
         "buildpackConfiguration": {
           "title": "Configure Buildpack",
           "description": "Customize Buildpack configuration to meet the needs of your repository",
-          "buildCommandLabel": "Build command",
-          "buildCommandTooltip": "The command to build your application during the build phase. If your application does not require a build command, leave this field empty.",
-          "runCommandLabel": "Run command",
-          "runCommandTooltip": "The command to run your application once the build is completed",
-          "workDirectoryLabel": "Work directory",
-          "workDirectoryTooltip": "The directory where your source code is located. If not set, the work directory defaults to the root of the repository.",
-          "workDirectoryPlaceholder": "./api",
-          "privilegedLabel": "Privileged",
-          "privilegedTooltip": "When enabled, the service container will run in privileged mode. This advanced feature is useful to get advanced system privileges, for example to start a docker daemon."
+          "buildCommand": {
+            "label": "Build command",
+            "tooltip": "The command to build your application during the build phase. If your application does not require a build command, leave this field empty."
+          },
+          "runCommand": {
+            "label": "Run command",
+            "tooltip": "The command to run your application once the build is completed"
+          },
+          "workDirectory": {
+            "label": "Work directory",
+            "tooltip": "The directory where your source code is located. If not set, the work directory defaults to the root of the repository."
+          },
+          "privileged": {
+            "label": "Privileged",
+            "tooltip": "When enabled, the service container will run in privileged mode. This advanced feature is useful to get advanced system privileges, for example to start a docker daemon."
+          }
         },
         "dockerfileConfiguration": {
           "title": "Configure Dockerfile",
           "description": "Customize Dockerfile configuration to meet the needs of your repository",
-          "dockerfileLocationLabel": "Dockerfile location",
-          "dockerfileLocationTooltip": "The location of your Dockerfile relative to the work directory. If not set, the work directory defaults to the root of the repository.",
-          "dockerfileLocationPlaceholder": "./Dockerfile",
-          "entrypointLabel": "Entrypoint",
-          "entrypointTooltip": "Override the default entrypoint to execute on the container",
-          "commandLabel": "Command",
-          "commandTooltip": "Override the command to execute on the container. To pass build-time variables similar to the ARG instruction, use environment variables.",
-          "targetLabel": "Target",
-          "targetTooltip": "Target build stage: If your Dockerfile contains multi-stage builds, you can choose the target stage to build and deploy by entering its name",
-          "workDirectoryLabel": "Work directory",
-          "workDirectoryTooltip": "The directory where your source code is located. If not set, the work directory defaults to the root of the repository.",
-          "workDirectoryPlaceholder": "./api",
-          "privilegedLabel": "Privileged",
-          "privilegedTooltip": "When enabled, the service container will run in privileged mode. This advanced feature is useful to get advanced system privileges, for example to start a docker daemon."
+          "dockerfileLocation": {
+            "label": "Dockerfile location",
+            "tooltip": "The location of your Dockerfile relative to the work directory. If not set, the work directory defaults to the root of the repository."
+          },
+          "entrypoint": {
+            "label": "Entrypoint",
+            "tooltip": "Override the default entrypoint to execute on the container"
+          },
+          "command": {
+            "label": "Command",
+            "tooltip": "Override the command to execute on the container. To pass build-time variables similar to the ARG instruction, use environment variables."
+          },
+          "target": {
+            "label": "Target",
+            "tooltip": "Target build stage: If your Dockerfile contains multi-stage builds, you can choose the target stage to build and deploy by entering its name"
+          },
+          "workDirectory": {
+            "label": "Work directory",
+            "tooltip": "The directory where your source code is located. If not set, the work directory defaults to the root of the repository."
+          },
+          "privileged": {
+            "label": "Privileged",
+            "tooltip": "When enabled, the service container will run in privileged mode. This advanced feature is useful to get advanced system privileges, for example to start a docker daemon."
+          }
         }
       },
       "deployment": {
-        "description": "Deployment",
-        "expandedTitle": "Configure deployment",
+        "title": "Deployment",
+        "action": "Configure deployment",
         "defaultConfiguration": "Default configuration",
         "customConfiguration": "Custom configuration",
         "entrypointLabel": "Entrypoint",
@@ -1101,10 +1311,10 @@
         "privilegedTooltip": "When enabled, the service container will run in privileged mode. This advanced feature is useful to get advanced system privileges, for example to start a docker daemon."
       },
       "regions": {
+        "title": "Regions",
+        "action": "Select regions",
         "noRegions": "No region selected",
         "plus": "+{count}",
-        "description": "Regions",
-        "expandedTitle": "Select regions",
         "alerts": {
           "freeInstanceTitle": "The {instanceName} instance can be deployed to either {fra} or {was}",
           "freeInstanceDescription": "Choose a different instance type for other deployment options",
@@ -1117,15 +1327,10 @@
         }
       },
       "instance": {
-        "description": "Instance",
-        "expandedTitle": "Select instances",
+        "title": "Instance",
+        "action": "Select instances",
         "noInstanceSelected": "No instance selected",
         "instanceSpec": "<dim>({spec})</dim>",
-        "category": {
-          "eco": "Eco",
-          "standard": "Standard",
-          "gpu": "GPU"
-        },
         "alerts": {
           "noRegionSelectedTitle": "At least, one region must be selected",
           "noRegionSelectedDescription": "Select one or more regions to deploy your service",
@@ -1150,59 +1355,78 @@
         }
       },
       "scaling": {
-        "description": "Scaling",
-        "expandedTitle": "Configure scaling",
-        "instancePerRegion": "({value} instance/region)",
-        "instancesPerRegion": "({min}-{max} instances/region)",
-        "fixed": "Fixed",
-        "fixedDescription": "Fixed number of instances in a region regardless of load level",
-        "autoscaling": "Autoscaling",
-        "autoscalingDescription": "Automatically adjusted number of instances in the region depending on the load",
-        "scalingLabel": "Number of instances per region",
-        "autoscalingSettings": {
-          "description": "Keep one or more instances running to prevent your service from going idle. To maintain a fixed number of instances in a region, set both the minimum and maximum instances per region to the same value.",
-          "scaleToZeroPreview": "Scale to zero is currently in preview, check out the <announcement>announcement</announcement>. <feedback>Give feedback?</feedback>",
-          "freeInstanceMessage": "Free instances are scaled to zero when they are inactive",
-          "enableAutoscaling": "To enable autoscaling and set scaling criteria, the maximum instances per region must be greater than one",
-          "min": "Min",
-          "max": "Max",
-          "cpuLabel": "Target CPU usage",
-          "cpuDescription": "Autoscale to target {value, number, :: percent} CPU usage on average, per instance",
-          "cpuUnit": "%",
-          "memoryLabel": "Target memory usage",
-          "memoryDescription": "Autoscale to target {value, number, :: percent} memory usage on average, per instance",
-          "memoryUnit": "%",
-          "requestsLabel": "Target number of requests per second",
-          "requestsDescription": "Autoscale to target {value} requests per second on average, per instance",
-          "requestsUnit": "#",
-          "concurrentRequestsLabel": "Target number of concurrent requests",
-          "concurrentRequestsDescription": "Autoscale to target {value} concurrent connections, per instance",
-          "concurrentRequestsUnit": "#",
-          "responseTimeLabel": "Target P95 response time",
-          "responseTimeDescription": "Autoscale to target a P95 response time of {value}ms or less, per instance",
-          "responseTimeUnit": "ms",
-          "sleepIdleDelayLabel": "Scale to zero idle time",
-          "sleepIdleDelayDescription": "Number of seconds to wait before sleeping the instance if it receives no traffic",
-          "sleepIdleDelayUnit": "s",
-          "criteriaNotAvailableWithFixedScaling": "Scaling criteria are not available with fixed scaling",
-          "criteriaNotAvailableWhenMax1": "Scaling criteria are not available when the maximum scaling is set to 1",
-          "criterionNotAvailableWorker": "This criterion is not available for workers"
+        "title": "Scaling",
+        "action": "Configure scaling",
+        "summaryFixedScaling": "Fixed ({value} instance/region)",
+        "summaryAutoScaling": "Autoscaling ({min}-{max} instances/region)",
+        "freeInstanceInfo": "The free instance scales down to zero after periods of inactivity. Select any paid instance type to configure scaling.",
+        "fixedLabel": "Instance per region",
+        "min": "Minimum",
+        "max": "Maximum",
+        "scaleToZero": {
+          "title": "Scale to zero configuration",
+          "idlePeriod": {
+            "label": "Idle period",
+            "description": "Number of seconds to wait before sleeping the instance if it receives no traffic",
+            "unit": "s"
+          },
+          "lightSleep": {
+            "label": "Enable light sleep",
+            "description": "Light Sleep reduces cold starts to ~200ms. After scaling to zero, the service stays in Light Sleep for {value}s before going into Deep Sleep.",
+            "disabledGpu": "Light sleep is only supported on Standard CPU instances",
+            "unit": "s"
+          },
+          "disabled": {
+            "ecoInstance": {
+              "text": "Scale to zero requires a Standard or GPU instance type",
+              "cta": "Change instance"
+            },
+            "hasVolumes": {
+              "text": "Scale to zero can't be enabled when volumes are attached to the service"
+            },
+            "starterPlan": {
+              "text": "Idle period and light to deep sleep transition customization is available starting the Pro plan",
+              "cta": "Upgrade plan"
+            }
+          }
         },
-        "alerts": {
-          "freeInstanceAlertTitle": "Upgrade to another instance type to configure scaling",
-          "freeInstanceAlertDescription": "The {instanceName} instance scales down to zero after periods of inactivity. Select any paid instance type to configure scaling.",
-          "ecoInstanceAlertTitle": "Services with the {instanceName} instance type cannot be scaled automatically",
-          "ecoInstanceAlertDescription": "Select a Standard instance type if you need to set up autoscaling",
-          "noTargetAlertTitle": "One scaling criteria must be set",
-          "noTargetAlertDescription": "Choose at least 1 criteria and set the value to meet your requirements",
-          "hasVolumesTitle": "Scaling settings can't be changed when volumes are attached",
-          "hasVolumesDescription": "Detach all the <volumesLink>volumes</volumesLink> from your service if you need to scale. <documentationLink>Learn more</documentationLink>"
+        "autoscaling": {
+          "title": "Autoscaling targets",
+          "description": "Configure one or more autoscaling target to automatically adjust the number of required instances",
+          "noTargetSelected": "One scaling criteria must be set",
+          "disabled": "Autoscaling can only be configured if the maximum number of instances is greater than one and the minimum and maximum instance counts are not equal",
+          "hasVolumes": "Autoscaling can't be configured when volumes are attached to the service",
+          "requests": {
+            "label": "Request per second",
+            "description": "Autoscale to target {value} requests per second on average, per instance",
+            "unit": "#"
+          },
+          "concurrentRequests": {
+            "label": "Concurrent requests",
+            "description": "Autoscale to target {value} concurrent connections, per instance",
+            "unit": "#"
+          },
+          "responseTime": {
+            "label": "P95 response time",
+            "description": "Autoscale to target a P95 response time of {value}ms or less, per instance",
+            "unit": "ms"
+          },
+          "cpu": {
+            "label": "CPU usage",
+            "description": "When enabled, scale the service to keep the CPU usage as close as possible to {value}%",
+            "unit": "%"
+          },
+          "memory": {
+            "label": "Memory usage",
+            "description": "When enabled, scale the service to keep the memory usage as close as possible to {value}%",
+            "unit": "%"
+          }
         }
       },
       "environmentVariables": {
-        "title": "{variables, plural, =0 {No variables} =1 {{variables} variable} other {{variables} variables}}, {files, plural, =0 {no files} =1 {{files} file} other {{files} files}}",
-        "description": "Environment variables and files",
-        "expandedTitle": "Edit variables and files",
+        "title": "Environment variables and files",
+        "action": "Edit variables and files",
+        "summary": "{variables, plural, =0 {No variables} =1 {{variables} variable} other {{variables} variables}}, {files, plural, =0 {no files} =1 {{files} file} other {{files} files}}",
         "tabs": {
           "environmentVariables": "Environment variables",
           "files": "Files"
@@ -1210,8 +1434,8 @@
         "info": "Configure manually or drag and drop file with multiple variables",
         "nameLabel": "Name",
         "valueLabel": "Value",
-        "valueTooltip": "You can reference secrets or environment variables (including Snipkit variables) using <documentationLink>interpolation</documentationLink>",
-        "valuePlaceholder": "https://'{{ 'SNIPKIT_PUBLIC_DOMAIN '}}'/",
+        "valueTooltip": "You can reference secrets or environment variables (including KhulnaSoft variables) using <documentationLink>interpolation</documentationLink>",
+        "valuePlaceholder": "https://'{{ 'KHULNASOFT_PUBLIC_DOMAIN '}}'/",
         "secretLabel": "Secret",
         "addVariable": "Add another",
         "deleteVariable": "Delete variable",
@@ -1238,6 +1462,10 @@
           "label": "Path",
           "placeholder": "/path/to/file.conf"
         },
+        "permissions": {
+          "label": "Permissions",
+          "placeholder": "0644"
+        },
         "content": {
           "label": "File content",
           "placeholder": "Add content, like secrets and variables",
@@ -1249,32 +1477,88 @@
         "add": "Add file",
         "remove": "Remove"
       },
-      "ports": {
+      "ports.old": {
         "titleSinglePort": "Port {portNumber} exposed {public, select, true {on {path}} other {to the service mesh}}",
         "titleMultiplePorts": "{count, plural, =0 {No ports exposed} other {{count} ports exposed}}",
         "description": "Exposed ports",
         "expandedTitle": "Configure ports",
         "info": "Configure the ports and protocols required by your services",
         "noPorts": "No ports configured",
-        "portLabel": "Port",
-        "protocolLabel": "Protocol",
-        "tcp": "TCP",
-        "http": "HTTP",
-        "http2": "HTTP/2",
-        "pathLabel": "Path",
-        "pathTooltip": "Your service will be publicly accessible at https://[subdomain].snipkit.app{path}. Requests will be sent to the port you selected and load-balanced between your instances.",
-        "publicLabel": "Public",
-        "publicTooltip": "If public, the port will be accessible from the Internet. If private, the port will only be accessible to other services running on Snipkit's service mesh.",
+        "close": "Close",
+        "publicTcp": {
+          "enabled": "Public TCP access enabled",
+          "disabled": "Public TCP access disabled"
+        },
+        "publicHttp": {
+          "enabled": "Public HTTPS enabled",
+          "disabled": "Public HTTPS disabled"
+        },
+        "port": {
+          "label": "Port"
+        },
+        "protocol": {
+          "label": "Protocol",
+          "values": {
+            "http": "HTTP",
+            "http2": "HTTP/2",
+            "tcp": "TCP"
+          }
+        },
+        "path": {
+          "label": "Path",
+          "tooltip": "Your service will be publicly accessible at https://[subdomain].khulnasoft.app{path}. Requests will be sent to the port you selected and load-balanced between your instances."
+        },
+        "public": {
+          "title": "HTTPS",
+          "description": "Expose the HTTP port to the Internet with TLS, anti-DDoS protection, and custom domain support",
+          "label": "Enable",
+          "helperText": "Will be publicly accessible at: {url}",
+          "disabledTcp": "Public HTTPS can only be enabled for HTTP ports"
+        },
+        "tcpProxy": {
+          "title": "Public TCP access",
+          "description": "Expose the TCP port through proxy",
+          "label": "Enable",
+          "helperText": "KhulnaSoft will create a proxy domain and port (domain:port) to forward traffic to your service's TCP port"
+        },
         "addPort": "Add another",
         "deletePort": "Delete port"
       },
+      "ports": {
+        "title": "Ports",
+        "action": "Configure ports",
+        "summary": "Ports <badge>{count} configured</badge>",
+        "addPort": "Add port",
+        "badges": {
+          "public": "Public HTTPS access",
+          "tcpProxy": "Proxy TCP access"
+        },
+        "portNumber": {
+          "label": "Port"
+        },
+        "protocol": {
+          "label": "Protocol"
+        },
+        "http": {
+          "label": "Public HTTPS access",
+          "description": "Expose the HTTP port to the Internet on a specific path",
+          "disabled": "Public HTTPS can only enabled for HTTP ports"
+        },
+        "tcpProxy": {
+          "label": "Proxy TCP access",
+          "description": "Expose the TCP port through proxy",
+          "info": "KhulnaSoft will create a proxy domain and port (domain:port) to forward traffic to your service's TCP port"
+        },
+        "path": {
+          "label": "Path",
+          "helperText": "Will be publicly accessible at: {url}"
+        }
+      },
       "healthChecks": {
-        "titleSingleHealthCheck": "{protocol} health check configured on port {portNumber}",
-        "titleMultipleHealthChecks": "{count, plural, =0 {No health checks configured} other {{count} health checks configured}}",
-        "description": "Health checks",
-        "expandedTitle": "Configure health checks for exposed ports",
-        "tcp": "TCP",
-        "http": "HTTP",
+        "title": "Health checks",
+        "action": "Configure health checks for exposed ports",
+        "summarySingleHealthCheck": "{protocol} health check configured on port {portNumber}",
+        "summaryMultipleHealthChecks": "{count, plural, =0 {No health checks configured} other {{count} health checks configured}}",
         "healthCheck": {
           "portNumberLabel": "Port",
           "protocolLabel": "Protocol",
@@ -1301,9 +1585,9 @@
         }
       },
       "volumes": {
-        "title": "{count, plural, =0 {No volumes} =1 {{count} volume} other {{count} volumes}} configured",
-        "titleExpanded": "Edit volumes",
-        "description": "Volumes",
+        "action": "Edit volumes",
+        "title": "Volumes",
+        "summary": "{count, plural, =0 {No volumes} =1 {{count} volume} other {{count} volumes}} configured",
         "noDowntimeAlert": "Attaching volumes to your service will prevent zero-downtime deployments. <documentationLink>Learn more</documentationLink>",
         "noVolumesAttached": "Attach and mount a volume to your service to persist data",
         "addVolume": "Add volume",
@@ -1341,9 +1625,9 @@
         }
       },
       "serviceName": {
-        "titleExpanded": "Edit service name",
-        "titleServiceNameMissing": "The service name is missing",
-        "description": "Service name",
+        "title": "Service name",
+        "action": "Edit service name",
+        "summaryServiceNameMissing": "The service name is missing",
         "editServiceNameWarningWeb": "If you change the service name, your service will be assigned a new private address on the service mesh. The public URL will remain identical.",
         "editServiceNameWarningWorker": "If you change the service name, your service will be assigned a new private address on the service mesh.",
         "serviceNameLabel": "Name",
@@ -1353,13 +1637,13 @@
     "trial": {
       "welcomeDialog": {
         "title": "Your 7-day Pro trial just started!",
-        "description": "Try the Snipkit Pro plan free for 7 days and access advanced platform and collaboration features",
+        "description": "Try the KhulnaSoft Pro plan free for 7 days and access advanced platform and collaboration features",
         "features": {
           "gpu": "Deploy intensive applications across GPUs, CPUs, and Accelerators in minutes",
           "scaling": "Deploy production-grade containers with zero configuration and automatic scaling",
           "cpu": "Deploy APIs, distributed systems, or blazing-fast inference endpoints worldwide"
         },
-        "footer": "Once the trial period ends for your Snipkit organization, you can continue with the Pro plan or choose another plan that best fits your needs",
+        "footer": "Once the trial period ends for your KhulnaSoft organization, you can continue with the Pro plan or choose another plan that best fits your needs",
         "cta": "Deploy now"
       },
       "banner": {
@@ -1408,13 +1692,13 @@
           }
         },
         "selectPlan": {
-          "title": "Your Snipkit Pro trial has expired",
+          "title": "Your KhulnaSoft Pro trial has expired",
           "description": "You can easily reactivate your organization by upgrading to a plan",
           "footer": "Need more time? <reachOut>Let's chat</reachOut>. You can also continue using our limited Free plan by <downgrade>creating a new organization</downgrade>.",
           "manageAccount": "Manage account"
         },
         "upgrade": {
-          "title": "Your Snipkit Pro trial has expired",
+          "title": "Your KhulnaSoft Pro trial has expired",
           "description": "You can easily reactivate your organization by upgrading to a plan",
           "submit": "Upgrade",
           "successNotification": "Welcome to your {plan} Plan"
@@ -1440,9 +1724,13 @@
       "filtered": "Showing {count} of {total}",
       "createOrganization": "Create organization"
     },
+    "onboarding": {
+      "userSettings": "Settings",
+      "logout": "Log out"
+    },
     "main": {
+      "impersonating": "You are impersonating <strong>{email}</strong>",
       "accountUnderReview": "We need more information to approve your account. Please <link>verify your identity</link> to prevent account suspension.",
-      "sessionTokenWarning": "You are currently seeing the organization {organizationName}",
       "paymentFailure": "We tried to charge your card, but the payment has failed. Please <stripe>update your payment method</stripe> and pay your past due invoices.",
       "subscriptionHasPendingUpdate": "The provided payment details could not be processed. Please check your payment information in the <stripe>billing portal</stripe> to resolve the issue.",
       "createService": "Create service",
@@ -1452,6 +1740,7 @@
         "services": "Services",
         "volumes": "Volumes",
         "domains": "Domains",
+        "sandboxes": "Sandboxes",
         "secrets": "Secrets",
         "activity": "Activity",
         "team": "Team",
@@ -1487,8 +1776,8 @@
         },
         "upsell": {
           "title": "Get the full experience",
-          "description": "Upgrade to the Starter plan and get $20 of credit on your first invoice to try the full Snipkit experience",
-          "description.new": "Upgrade to the Starter pay-as-you-go plan to access the full Snipkit experience",
+          "description": "Upgrade to the Starter plan and get $20 of credit on your first invoice to try the full KhulnaSoft experience",
+          "description.new": "Upgrade to the Starter pay-as-you-go plan to access the full KhulnaSoft experience",
           "cta": "Upgrade"
         }
       },
@@ -1498,6 +1787,10 @@
         "usage": "Usage",
         "estimatedCost": "Estimated cost",
         "viewBilling": "View billing"
+      },
+      "creatingAccount": {
+        "title": "Your account is being created",
+        "description": "This will only take a moment, thanks for your patience!"
       },
       "featureFlags": {
         "title": "Feature flags",
@@ -1509,37 +1802,37 @@
         "default": "default"
       },
       "breadcrumbs": {
-        "services": "Services",
-        "volumes": "Volumes",
-        "volumeSnapshots": "Snapshots",
-        "domains": "Domains",
-        "secrets": "Secrets",
-        "activity": "Activity",
-        "deploy": "Deploy",
-        "team": "Team",
-        "organizationSettings": {
-          "index": "Settings",
-          "billing": "Usage and billing",
-          "plans": "Plans",
-          "api": "API"
-        },
-        "userSettings": {
-          "index": "User settings",
-          "organizations": "Organizations",
-          "api": "Personal access tokens"
-        },
-        "createService": "Create new service",
-        "service": {
-          "metrics": "Metrics",
-          "console": "Console",
-          "deployments": "Deployments",
-          "settings": "Settings"
-        },
-        "database": {
-          "databases": "Databases",
-          "roles": "Roles",
-          "settings": "Settings"
-        }
+        "/services/": "Services",
+        "/volumes": "Volumes",
+        "/volumes/new": "Create volume",
+        "/volumes/snapshots": "Snapshots",
+        "/domains": "Domains",
+        "/secrets": "Secrets",
+        "/activity": "Activity",
+        "/services/deploy": "Deploy",
+        "/team": "Team",
+        "/one-clicks": "One clicks",
+        "/one-clicks/$slug/deploy": "Deploy",
+        "/settings": "Settings",
+        "/settings/billing": "Usage and billing",
+        "/settings/plans": "Plans",
+        "/settings/api": "API",
+        "/settings/registry-configuration": "Registry configuration",
+        "/user/settings": "User settings",
+        "/user/settings/organizations": "Organizations",
+        "/user/settings/api": "Personal access tokens",
+        "/services/new": "Create new service",
+        "/database-services/new": "Create new service",
+        "/services/$serviceId/metrics": "Metrics",
+        "/services/$serviceId/console": "Console",
+        "/services/$serviceId/deployments": "Deployments",
+        "/services/$serviceId/settings": "Settings",
+        "/database-services/$databaseServiceId/databases": "Databases",
+        "/database-services/$databaseServiceId/roles": "Roles",
+        "/database-services/$databaseServiceId/settings": "Settings",
+        "/sandboxes": "Sandboxes",
+        "/sandboxes/$serviceId/metrics": "Metrics",
+        "/sandboxes/$serviceId/console": "Console"
       }
     },
     "secondary": {
@@ -1569,30 +1862,6 @@
         "title": "Native autoscaling",
         "description": "Enjoy autoscaling with high-end performance thanks to high-frequency CPUs and secure Firecracker microVMs"
       }
-    },
-    "authentication": {
-      "zeroConfig": {
-        "line1": "Zero config",
-        "line2": "infrastructure",
-        "feature1": "Smart and fast autoscaling on GPU and CPU",
-        "feature2": "Zero-downtime deployments",
-        "feature3": "Built-in observability"
-      },
-      "seamlessDeployment": {
-        "line1": "Seamless",
-        "line2": "deployment",
-        "feature1": "Instant API endpoint",
-        "feature2": "Build and deploy anything from web apps to inference",
-        "feature3": "Native HTTP/2, WebSocket, and gRPC support"
-      },
-      "anyHardware": {
-        "line1": "Any hardware",
-        "line2": "anywhere",
-        "feature1": "High-performance CPUs, GPUs, and accelerators",
-        "feature2": "Available globally across 10 regions and 3 continents",
-        "feature3": "Ultra-fast NVME storage"
-      },
-      "argumentumAdPopulum": "Trusted by the most ambitious teams"
     }
   },
   "pages": {
@@ -1604,20 +1873,17 @@
         "successNotification": "Your password was updated successfully"
       },
       "githubOAuthCallback": {
-        "accountNotFound": {
-          "title": "No Snipkit account is linked to this GitHub profile",
-          "link": "Do you want to <link>sign up</link>?"
-        },
-        "accountAlreadyExists": {
-          "title": "A Snipkit account is already linked to this GitHub profile",
-          "link": "Do you want to <link>sign in</link>?"
-        },
         "githubAppInstalled": {
           "title": "GitHub app installation successful",
-          "description": "You've approved the Snipkit GitHub app installation request. You can now close this tab."
+          "description": "You've approved the KhulnaSoft GitHub app installation request. You can now close this tab."
         }
       },
       "invitation": {
+        "unauthenticated": {
+          "title": "You are not authenticated",
+          "description": "You need to sign in to accept the invitation. Make sure you authenticate with the email the invitation was sent to.",
+          "cta": "Go to sign in"
+        },
         "notFound": {
           "title": "Invitation not found",
           "description": "Make sure you are authenticated with the account to which the invitation was sent to"
@@ -1628,45 +1894,6 @@
       "documentTitle": "Activity",
       "title": "Recent activity",
       "loadMore": "Load more"
-    },
-    "authentication": {
-      "or": "or",
-      "signIn": {
-        "title": "Sign in to Snipkit",
-        "subtitle": "Welcome back! To continue, sign in to your account",
-        "githubSignIn": "Sign in with GitHub",
-        "emailPlaceholder": "Email",
-        "passwordPlaceholder": "Password",
-        "submit": "Sign in",
-        "invalidCredential": "Incorrect email or password",
-        "signUpLink": "Don't have an account? <link>Sign up</link>",
-        "forgotPasswordLink": "Forgot password? <link>Reset it</link>"
-      },
-      "signUp": {
-        "title": "Sign up for Snipkit",
-        "subtitle": "Get started deploying for free",
-        "githubSignUp": "Continue with GitHub",
-        "emailSignUp": "Continue with email",
-        "namePlaceholder": "Full name",
-        "emailPlaceholder": "Email",
-        "passwordPlaceholder": "Password",
-        "submit": "Continue",
-        "reCAPTCHA": "Protected by reCAPTCHA, <terms>Terms of Services</terms> and <privacy>Privacy Policy</privacy>",
-        "signInLink": "Already have an account? <link>Sign in</link>",
-        "agreements": "By signing up, you agree to the <tos>Terms of Services</tos> and <privacy>Privacy Policy</privacy>"
-      },
-      "resetPassword": {
-        "title": "Reset password",
-        "subtitle": "Enter the email associated with your account, and we will send you a password reset link",
-        "emailPlaceholder": "Email",
-        "submit": "Send password reset email",
-        "successNotification": "We've sent you an email with a password reset link",
-        "signInLink": "Go back to <link>sign in</link>"
-      },
-      "sso": {
-        "cannyError": "Error: failed to sign in to canny",
-        "discourseError": "Error: failed to sign in to discourse"
-      }
     },
     "createDatabaseService": {
       "documentTitle": "Create database service",
@@ -1682,10 +1909,6 @@
     },
     "database": {
       "layout": {
-        "banner": {
-          "title": "Database billing starts on July 1st",
-          "description": "Starting <strong>July 1st</strong>, we will begin billing for your June usage. <link>Learn more</link> about the Database General Availability and the new pricing."
-        },
         "alerts": {
           "databasePaused": {
             "description": "Your database is currently paused. Resume it to list your connection details, databases, and roles.",
@@ -1738,8 +1961,6 @@
         "info": {
           "title": "Database information",
           "status": "Status",
-          "activeTime": "Active time",
-          "activeTimeValue": "{used} h {max, select, null {} other {/ {max} h}}",
           "computeTime": "Compute time",
           "computeTimeValue": "{used} h {max, select, null {} other {/ {max} h}}",
           "instance": "Instance type",
@@ -1780,18 +2001,18 @@
           "description": "Create the first database to use this database service",
           "cta": "Create database"
         },
-        "createDialog": {
+        "create": {
           "title": "Create database",
           "nameLabel": "Name",
           "ownerLabel": "Owner",
           "noRoles": "No roles found, create a database role first",
-          "successNotification": "Database <strong>{name}</strong> created"
+          "success": "Database <strong>{name}</strong> created"
         },
-        "deleteDialog": {
+        "delete": {
           "title": "Delete database",
           "description": "Your database will be permanently deleted. Are you sure you want to continue?",
           "confirm": "Delete database",
-          "successNotification": "Your database <strong>{name}</strong> has been deleted"
+          "success": "Your database <strong>{name}</strong> has been deleted"
         }
       },
       "roles": {
@@ -1809,16 +2030,16 @@
           "description": "Create your first role to use this database service",
           "cta": "Create role"
         },
-        "createDialog": {
+        "create": {
           "title": "Create role",
           "nameLabel": "Role name",
-          "successNotification": "Role <strong>{name}</strong> created"
+          "success": "Role <strong>{name}</strong> created"
         },
-        "deleteDialog": {
+        "delete": {
           "title": "Delete role",
           "description": "Your database role will be permanently deleted. Are you sure you want to continue?",
           "confirm": "Delete role",
-          "successNotification": "Your role <strong>{name}</strong> has been deleted"
+          "success": "Your role <strong>{name}</strong> has been deleted"
         }
       },
       "settings": {
@@ -1826,23 +2047,18 @@
           "title": "Delete database service",
           "description": "This action will permanently delete your database service. This means that you will not be able to use it.",
           "delete": "Delete",
-          "successNotification": "Your database service <strong>{serviceName}</strong> is being deleted",
-          "confirmationDialog": {
+          "confirmation": {
             "title": "Delete database service",
             "description": "Your database service and all the data it contains will be permanently deleted. Are you sure you want to continue?",
-            "confirm": "Delete database"
+            "confirm": "Delete database",
+            "success": "Your database service <strong>{serviceName}</strong> is being deleted"
           }
         }
       }
     },
     "deploy": {
       "documentTitle": "Deploy",
-      "title": "Deploy on Snipkit",
-      "oneClickApp": {
-        "documentTitle": "Deploy {appName}",
-        "title": "Deploy {appName}",
-        "pricing": "Pricing"
-      },
+      "title": "Deploy on KhulnaSoft",
       "model": {
         "documentTitle": "One-Click models",
         "documentTitleModel": "Deploy {modelName}",
@@ -1852,35 +2068,43 @@
         "pricing": "Pricing"
       }
     },
+    "oneClickApps": {
+      "list": {
+        "title": "One-Click Apps",
+        "description": "Deploy apps with a click, get started with KhulnaSoft in seconds",
+        "search": {
+          "placeholder": "What would you like to deploy today?"
+        },
+        "noResults": "No results",
+        "seeAll": "See all",
+        "deploy": "Deploy",
+        "officialModels": "Official models",
+        "models": "Models",
+        "others": "All others"
+      },
+      "details": {
+        "deploy": "Deploy",
+        "website": "Website",
+        "repository": "Repository",
+        "related": "Related apps",
+        "notFound": {
+          "title": "Error 404",
+          "description": "This app doesn't exist. Please return to <link>One-click Apps</link>."
+        }
+      },
+      "deploy": {
+        "submitButton": "Deploy"
+      },
+      "card": {
+        "deploy": "Deploy "
+      }
+    },
     "domains": {
       "documentTitle": "Domains",
       "title": "Domains",
       "deleteDomains": "Delete selected ({count})",
       "createDomain": "Add domain",
-      "createDialog": {
-        "title": "Create domain",
-        "description": "Create a custom domain and assign it to one of your Snipkit app",
-        "domainNameLabel": "Domain name",
-        "domainNamePlaceholder": "e.g. domain.tld",
-        "appLabel": "Assign to Snipkit app",
-        "noApps": "No apps found",
-        "submitButton": "Create domain",
-        "successNotification": "Domain <strong>{domainName}</strong> created"
-      },
-      "bulkDelete": {
-        "title": "Delete domains",
-        "description": "Are you sure you want to delete these {count} {count, plural, =1 {domain} other {domains}}?",
-        "successNotification": "{count} {count, plural, =1 {domain} other {domains}} are being deleted",
-        "confirmationText": "delete",
-        "cta": "Delete"
-      },
-      "deleteDialog": {
-        "title": "Delete domain",
-        "description": "Are you sure you want to delete the <strong>{domainName}</strong> domain?",
-        "confirm": "Delete domain",
-        "successNotification": "Domain <strong>{domainName}</strong> is being deleted"
-      },
-      "domainsList": {
+      "list": {
         "name": "Name",
         "status": "Status",
         "assignedTo": "Assigned to",
@@ -1919,7 +2143,30 @@
           "cta": "Add domain"
         }
       },
-      "domainsLocked": {
+      "createDialog": {
+        "title": "Create domain",
+        "description": "Create a custom domain and assign it to one of your KhulnaSoft app",
+        "domainNameLabel": "Domain name",
+        "domainNamePlaceholder": "e.g. domain.tld",
+        "appLabel": "Assign to KhulnaSoft app",
+        "noApps": "No apps found",
+        "submitButton": "Create domain",
+        "successNotification": "Domain <strong>{domainName}</strong> created"
+      },
+      "bulkDelete": {
+        "title": "Delete domains",
+        "description": "Are you sure you want to delete these {count} {count, plural, =1 {domain} other {domains}}?",
+        "successNotification": "{count} {count, plural, =1 {domain} other {domains}} are being deleted",
+        "confirmationText": "delete",
+        "confirm": "Delete"
+      },
+      "delete": {
+        "title": "Delete domain",
+        "description": "Are you sure you want to delete the <strong>{domainName}</strong> domain?",
+        "confirm": "Delete domain",
+        "successNotification": "Domain <strong>{domainName}</strong> is being deleted"
+      },
+      "locked": {
         "title": "Enable domains",
         "subTitle": "Domains allow you to access your apps using your own domains",
         "description": "Domains make your apps accessible via your own domain names like www.mydomain.tld or api.example.io.<br></br>Upgrade your plan and get started adding your first domain.",
@@ -1929,42 +2176,49 @@
     },
     "home": {
       "title": "Overview",
-      "services": "Services",
-      "servicesSummary": "{web} {web, plural, one {web service} other {web services}}, {worker} {worker, plural, one {worker} other {workers}}, {database} {database, plural, one {database} other {databases}}",
-      "serviceType": {
-        "all": "All services",
-        "web": "Web services",
-        "worker": "Workers",
-        "database": "Database services",
-        "model": "Models"
-      },
+      "copyServiceUrlSuccess": "Service URL copied to clipboard",
+      "postgresVersion": "Postgres (v{version})",
+      "noServices": "This app has no services",
       "appTooltip": "Apps allow you to group your services together and provide a gateway to expose web services under the same domain",
-      "appActions": {
-        "label": "App Actions",
-        "addService": "Add service",
-        "addDomain": "Add domain",
-        "edit": "Edit app",
-        "editAppNameWarning": "If you change the app name, your app's services will be assigned a new private address on the service mesh. The public URL will not be changed.",
-        "pauseServices": "Pause all services",
-        "deleteApp": "Delete app"
+      "apps": {
+        "actions": {
+          "label": "App Actions",
+          "addService": "Add service",
+          "addDomain": "Add domain",
+          "edit": "Edit app",
+          "pauseServices": "Pause all services",
+          "deleteApp": "Delete app"
+        },
+        "edit": {
+          "title": "Edit app",
+          "appNameLabel": "App name",
+          "appDomainLabel": "KhulnaSoft subdomain",
+          "warning": "If you change the app name, your app's services will be assigned a new private address on the service mesh. The public URL will not be changed.",
+          "success": "Your app was edited"
+        },
+        "pause": {
+          "title": "Pause app services",
+          "description": "Your app's services will be paused and all their deployments stopped. Are you sure you want to continue?",
+          "confirm": "Pause services",
+          "success": "Your app's service are being paused"
+        },
+        "delete": {
+          "title": "Delete app",
+          "description": "Your app and all its associated services will be permanently deleted. Are you sure you want to continue?",
+          "confirm": "Delete app",
+          "success": "Your app is being deleted"
+        }
       },
-      "editAppDialog": {
-        "title": "Edit app",
-        "appNameLabel": "App name",
-        "appDomainLabel": "Snipkit subdomain",
-        "successNotification": "Your app was edited"
-      },
-      "pauseAppConfirmationDialog": {
-        "title": "Pause app services",
-        "description": "Your app's services will be paused and all their deployments stopped. Are you sure you want to continue?",
-        "confirm": "Pause services",
-        "successNotification": "Your app's service are being paused"
-      },
-      "deleteAppConfirmationDialog": {
-        "title": "Delete app",
-        "description": "Your app and all its associated services will be permanently deleted. Are you sure you want to continue?",
-        "confirm": "Delete app",
-        "successNotification": "Your app is being deleted"
+      "service": {
+        "status": "Status",
+        "postgresVersion": "Postgres (v{version})",
+        "latestDeployment": "Latest deployment",
+        "deploymentTrigger": {
+          "initial": "This is your first deployment",
+          "redeploy": "Triggered by a manual action on the service",
+          "resume": "Triggered because you resumed this service",
+          "git": "<dim>on</dim> {branch} <dim>by</dim> {author}"
+        }
       },
       "deploymentSource": {
         "archive": "Archive"
@@ -1975,15 +2229,10 @@
         "resume": "Triggered because you resumed this service",
         "git": "{commit} {branch} <by>by</by> {author}"
       },
-      "copyServiceUrlSuccess": "Service URL copied to clipboard",
-      "postgresVersion": "Postgres (v{version})",
-      "noServices": "This app has no services",
-      "deleteApp": "Delete app",
-      "deletingApp": "App <strong>{name}</strong> is being deleted",
       "activity": {
         "title": "Activity",
         "viewAll": "View all",
-        "systemUser": "Snipkit"
+        "systemUser": "KhulnaSoft"
       },
       "news": {
         "title": "News",
@@ -1994,119 +2243,154 @@
     "onboarding": {
       "emailValidation": {
         "title": "Confirm your email address",
-        "line1": "We sent an email to <green>{email}</green>",
-        "line2": "Please confirm your email address by clicking the link we just sent to your inbox",
-        "resendValidationEmail": "Resend verification email",
+        "line1": "We've sent a confirmation email to <strong>{email}</strong>. Please check your inbox and click the link to verify your email to continue setting up your account.",
+        "line2": "If you don't see the email,<br></br>check your spam folder or resend it below.",
+        "resendValidationEmail": "Resend email",
+        "wrongEmail": "Used wrong email? <logout>Go back to sign up</logout>",
         "resendEmailSuccessNotification": "A verification email was sent again to <strong>{email}</strong>",
         "emailAddressValidated": "Your email address was validated"
       },
+      "setUserName": {
+        "sidebar": "With KhulnaSoft, run all your models and apps on high-performance CPUs, GPUs, and accelerators from AMD, Intel, and Nvidia",
+        "title": "What is your full name?",
+        "description": "You can always change it later if you need to",
+        "name": {
+          "label": "Name",
+          "placeholder": "Your full name"
+        },
+        "submit": "Continue",
+        "timeout": "Your name couldn't be updated in time. Please try again by clicking <strong>Continue</strong>."
+      },
       "joinOrganization": {
+        "sidebar": "With KhulnaSoft, run all your models and apps on high-performance CPUs, GPUs, and accelerators from AMD, Intel, and Nvidia",
         "title": "What is your organization's name?",
-        "canBeChanged": "You can always change it later if you need to",
-        "tooltip": "An organization is a space containing all your Snipkit resources that you can use for your own projects or to collaborate as a team. The organization name must be unique and is used to compose your apps public URL. You can change it at any time.",
-        "organizationNameLabel": "Organization's name"
+        "description": "You can always change it later if you need to",
+        "tooltip": "An organization is a space containing all your KhulnaSoft resources that you can use for your own projects or to collaborate as a team. The organization name must be unique and is used to compose your apps public URL. You can change it at any time.",
+        "organizationNameLabel": "Organization's name",
+        "submit": "Continue",
+        "creatingOrganization": "Creating organization..."
       },
       "qualification": {
-        "title": "Tell us a bit about you",
-        "line1": "Your answers will help us improve your experience",
-        "fullName": {
-          "label": "What is your full name?"
-        },
+        "skip": "Skip",
+        "continue": "Continue",
         "usage": {
-          "label": "I'm using Snipkit for",
+          "sidebar": "With <strong>KhulnaSoft</strong>, run all your models and apps on high-performance <strong>CPUs</strong>, <strong>GPUs</strong>, and <strong>accelerators</strong> from AMD, Intel, and Nvidia",
+          "title": "How do you plan to use KhulnaSoft?",
           "personal": "Myself",
           "education": "School",
-          "professional": "Work",
-          "required": "This information is required"
-        },
-        "companyName": {
-          "label": "What is your company name?"
+          "professional": "Work"
         },
         "occupation": {
-          "label": "What is your role?",
+          "sidebar": "With <strong>KhulnaSoft</strong>, run all your models and apps on high-performance <strong>CPUs</strong>, <strong>GPUs</strong>, and <strong>accelerators</strong> from AMD, Intel, and Nvidia",
+          "title": "What best describes your role?",
+          "description": "Chose one that best applies",
           "founder": "Founder",
           "cto": "CTO/VP Engineering",
           "devops": "DevOps Engineer",
-          "software": "Software Engineer",
-          "engineering": "Engineering Manager",
-          "freelancer": "Freelancer or Consultant",
+          "softwareEngineer": "Software Engineer",
+          "engineeringManager": "Engineering Manager",
+          "freelancer": "Freelancer / Consultant",
+          "aiEngineer": "AI Engineer",
+          "mlEngineer": "ML Engineer",
+          "dataEngineer": "Data Engineer",
+          "dataScientist": "Data Scientist",
+          "researchEngineer": "Research Engineer",
           "hobbyist": "Hobbyist",
           "student": "Student",
           "teacher": "Teacher",
           "other": "Other"
         },
+        "primaryUseCase": {
+          "sidebar": "KhulnaSoft lets you deploy production-grade containers with zero configuration — scale to hundreds of servers and back to zero in seconds",
+          "title": "What's your primary use case?",
+          "description": "Choose all that may apply",
+          "ai": "AI agents",
+          "rag": "RAG applications",
+          "embeddingService": "Embedding services",
+          "computerVision": "Computer vision applications",
+          "audioProcessing": "Audio processing applications",
+          "deployCustomModel": "Deploy custom models",
+          "llmInference": "LLM inference",
+          "diffusion": "Diffusion models (Image, Video, Audio)",
+          "training": "Training and fine-tuning models",
+          "video": "Video or live-streaming platform",
+          "web": "Web and mobile applications",
+          "api": "APIs",
+          "nlp": "NLP applications",
+          "company": "Company website",
+          "blog": "Blog",
+          "personal": "Personal project",
+          "school": "School project",
+          "bot": "Bot for Discord or Telegram",
+          "other": "Other"
+        },
         "currentSpending": {
-          "label": "How much do you spend on cloud infrastructure monthly?",
+          "sidebar": "Use KhulnaSoft to improve availability and get sub-100ms latency worldwide with over 50 locations. Pick between one and all locations.",
+          "title": "What is your monthly spend on cloud infrastructure?",
           "lessThan500": "< $500",
           "500To2000": "$500 - $2,000",
           "2000To10000": "$2,001 - $10,000",
           "moreThan10000": "> $10,000"
         },
-        "primaryUseCase": {
-          "label": "What do you plan to build on Snipkit?",
-          "ai": "AI agents",
-          "training": "Training and fine-tuning",
-          "inference": "Inference workloads",
-          "video": "Video or live-streaming platform",
-          "web": "Web & mobile applications",
-          "api": "APIs",
-          "company": "Company website",
-          "blog": "Blog",
-          "personal": "Personal project",
-          "school": "School project",
-          "bot": "Bot (Discord/Telegram)",
-          "other": "Other"
-        },
-        "primaryLanguage": {
-          "label": "Which language do you use for the project you intend to deploy?",
-          "ruby": "Ruby",
-          "php": "PHP",
-          "python": "Python",
-          "golang": "Golang",
-          "node": "Node.js",
-          "java": "Java",
-          "rust": "Rust",
-          "elixir": "Elixir",
-          "scala": "Scala",
-          "clojure": "Clojure",
-          "docker": "Docker",
-          "other": "I use another language",
-          "notDeveloper": "I'm not a developer"
-        },
         "referralSource": {
-          "label": "How did you hear about Snipkit?",
+          "sidebar": "With KhulnaSoft, Build APIs, distributed systems, or blazing-fast inference endpoints. Deploy your code, containers, or models with a Git push or CLI call",
+          "title": "How did you hear about KhulnaSoft?",
           "searchEngine": "Search engine",
-          "recommendation": "Recommendation from a friend or colleague",
-          "socialMedia": "Social Media",
-          "hackerNews": "Hacker News",
+          "recommendation": "Recommendation",
+          "socialMedia": "Social media",
+          "hackerNews": "Hacker news",
           "reddit": "Reddit",
           "podcast": "Podcast",
-          "meetup": "Conferences and meetups",
+          "meetup": "Meetup",
           "other": "Other"
-        }
-      },
-      "ai": {
-        "title": "What do you want to deploy?",
-        "github": {
-          "title": "GitHub",
-          "description": "Connect, build and deploy your code from a GitHub repository"
         },
-        "docker": {
-          "title": "Docker",
-          "description": "Deploy docker images from any public or private registries"
-        },
-        "model": {
-          "title": "Model",
-          "description": "Run inference model on high performance GPU"
+        "sendInvites": {
+          "sidebar": "Experience collaborative development on high-performance cloud infrastructure with KhulnaSoft",
+          "title": "Invite your teammates",
+          "description": "Add multiple emails",
+          "placeholder": "email@server.com,",
+          "submit": "Send invites"
         }
       },
       "paymentMethod": {
-        "title": "Get started for free",
-        "line1": "To prevent abuse, we need additional credit card verification",
-        "submit": "Get started"
+        "sidebar": "Start for free. Only pay for what you use, by the second. Scale with your team and stay in control with autoscaling limits.",
+        "creditCard": {
+          "title": "Verify your credit card",
+          "description": "Starter plan is $0 per month and pay as you go with flexible spending limits",
+          "addressLabel": "Address",
+          "addressPlaceholder": "Street address",
+          "temporaryHoldMessage": "A temporary hold will be placed on the card of $1 and refunded immediately"
+        },
+        "billingAlert": {
+          "title": "Set billing alert",
+          "description": "Receive email notifications when your monthly usage gets close to the spending limit",
+          "inputStart": "$",
+          "inputEnd": "/month"
+        },
+        "submit": "Verify my card and account"
       },
       "automaticReview": {
         "pending": "Your account is being validated"
+      }
+    },
+    "services": {
+      "title": "Services",
+      "servicesCount": "{web} {web, plural, =1 {Web service} other {Web Services}}, {workers} {workers, plural, =1 {Worker} other {Workers}}, {databases} {databases, plural, =1 {Database} other {Databases}}",
+      "noResults": {
+        "title": "No results",
+        "description": "No deployments match the current filters",
+        "removeFilters": "Remove filters"
+      },
+      "filters": {
+        "search": {
+          "placeholder": "Search"
+        },
+        "type": {
+          "label": "Type"
+        },
+        "status": {
+          "label": "Status"
+        }
       }
     },
     "secrets": {
@@ -2119,7 +2403,7 @@
         "description": "Secrets enable you to secure your code by removing hardcoded credentials and let you pass environment variables securely to your applications",
         "cta": "Create secret"
       },
-      "secretsList": {
+      "list": {
         "name": "Name",
         "value": "Value",
         "updated": "Last updated",
@@ -2129,42 +2413,46 @@
           "delete": "Remove"
         }
       },
-      "bulkDelete": {
-        "title": "Delete secrets",
-        "description": "Are you sure you want to delete these {count} {count, plural, =1 {secret} other {secrets}}?",
-        "successNotification": "{count} {count, plural, =1 {secret} other {secrets}} deleted",
-        "confirmationText": "delete",
-        "cta": "Delete"
+      "edit": {
+        "title": "Edit secret",
+        "description": "All Secret values are automatically encrypted server-side to ensure secure storage",
+        "confirm": "Edit secret",
+        "successNotification": "Secret <strong>{name}</strong> updated"
       },
-      "bulkCreateSecretsDialog": {
+      "delete": {
+        "title": "Delete secret",
+        "description": "Are you sure you want to delete the <strong>{name}</strong> secret?",
+        "confirm": "Delete secret",
+        "successNotification": "Secret {name} deleted"
+      },
+      "bulkCreate": {
         "title": "Import secrets",
         "description": "Enter up to 30 secrets using the format <code>key=value</code>. Creating multi-line secrets is possible by wrapping the value between quotes.",
         "tooManySecrets": "Too many secrets",
         "successNotification": "{created} {created, plural, =1 {secret} other {secrets}} created",
         "errorNotification": "Failed to create {names}"
       },
-      "editSecretDialog": {
-        "title": "Edit secret",
-        "description": "All Secret values are automatically encrypted server-side to ensure secure storage",
-        "confirm": "Edit secret",
-        "successNotification": "Secret <strong>{name}</strong> updated"
-      },
-      "deleteSecretDialog": {
-        "title": "Delete secret",
-        "description": "Are you sure you want to delete the <strong>{name}</strong> secret?",
-        "confirm": "Delete secret",
-        "successNotification": "Secret {name} deleted"
+      "bulkDelete": {
+        "title": "Delete secrets",
+        "description": "Are you sure you want to delete these {count} {count, plural, =1 {secret} other {secrets}}?",
+        "successNotification": "{count} {count, plural, =1 {secret} other {secrets}} deleted",
+        "confirmationText": "delete",
+        "cta": "Delete"
       }
     },
     "service": {
       "layout": {
+        "serviceNotFound": {
+          "title": "Service not found",
+          "description": "This service was not found, it may have been deleted or is not accessible within your current organization.",
+          "cta": "Back to home"
+        },
         "redeploy": "Redeploy",
-        "redeploying": "Your service's latest deployment is being redeployed",
         "redeployCli": {
-          "title": "Redeploy service using the Snipkit CLI",
+          "title": "Redeploy service using the KhulnaSoft CLI",
           "description": "Run the command above right from your terminal to redeploy this service"
         },
-        "redeployDialog": {
+        "redeployServiceDialog": {
           "title": "Redeploy service",
           "descriptionWithoutBuild": "You are about to create a new deployment of your service",
           "descriptionWithBuild": "Before redeploying service, chose between those two options",
@@ -2184,13 +2472,36 @@
             "useCache": "Use build cache",
             "cta": "Trigger build"
           },
-          "submitButton": "Redeploy service"
+          "submitButton": "Redeploy service",
+          "redeploying": "Your service's latest deployment is being redeployed"
         },
         "servicePaused": {
           "title": "Service paused",
           "description": "Your service is currently paused, deployments are stopped, and no traffic will be handled by the service",
           "descriptionWorker": "Your service is currently paused, deployments are stopped",
-          "resume": "Resume",
+          "resume": "Resume"
+        },
+        "resumeServiceDialog": {
+          "title": "Resume service",
+          "descriptionWithoutBuild": "You are about to create a new deployment of your service",
+          "descriptionWithBuild": "Before resumeing service, chose between those two options",
+          "lowCapacity": {
+            "title": "Limited availability for {instance} instances",
+            "description": "The capacity for this instance type is currently limited, which may affect service resumement. To guarantee a successful resume, consider switching to a different instance type or region."
+          },
+          "skipBuild": {
+            "title": "Use previous build",
+            "description": "Reuse the previous build for faster deployment if unchanged build process",
+            "latestStashed": "Your latest deployment is stashed, which requires to trigger a build",
+            "cta": "Skip build"
+          },
+          "triggerBuild": {
+            "title": "Create build",
+            "description": "If you wish to rebuild your service, use the build cache for faster deployment",
+            "useCache": "Use build cache",
+            "cta": "Trigger build"
+          },
+          "submitButton": "Resume service",
           "resuming": "Your service is being resumed"
         },
         "pendingChanges": {
@@ -2299,7 +2610,10 @@
           "title": "No running instances",
           "description": "You don't have any instances running, check your service's status"
         },
-        "instanceLabel": "Instance",
+        "instanceSelector": {
+          "label": "Instance",
+          "noInstances": "No healthy instances"
+        },
         "prompt": "Customize your command, then hit `return` to run. $ ",
         "restart": "Press any key to restart",
         "commandExited": "Command exited with code ",
@@ -2310,36 +2624,142 @@
         "title": "Service settings",
         "description": "Updating your service settings will create a new deployment.",
         "saved": "Service settings saved",
-        "duplicateService": {
+        "duplicate": {
           "title": "Duplicate service",
           "description": "Create a new service from this configuration.",
           "duplicate": "Duplicate"
         },
-        "pauseService": {
+        "lifecycle": {
+          "title": "Automatic service deletion",
+          "description": "Configure the delay before the service is deleted, either starting now or after it scales down to zero",
+          "deleteAfterCreate": {
+            "label": "Scheduled deletion",
+            "description": "Automatically delete the service after a period of time",
+            "placeholder": "21 600"
+          },
+          "deleteAfterSleep": {
+            "label": "Delete after inactivity",
+            "description": "Automatically delete the service once it has scaled to zero and remains inactive for the specified duration",
+            "placeholder": "300"
+          },
+          "footer": {
+            "afterCreate": "Deletion will occur in {value}",
+            "afterSleep": "Deletion will occur {value} after scale to zero",
+            "both": "Deletion will occur {afterSleep} after scale to zero or in {afterCreate}",
+            "none": "No auto deletion configured"
+          },
+          "saved": "Automatic service deletion settings saved"
+        },
+        "pause": {
           "title": "Pause service",
           "description": "Once this operation is performed, your service will be paused and all active deployments stopped. You can wake-up your service by clicking the \"Resume\" button below.",
           "pause": "Pause",
           "resume": "Resume",
           "pausing": "Your service is being paused",
           "resuming": "Your service is being resumed",
-          "confirmationDialog": {
+          "confirmation": {
             "title": "Pause service",
             "description": "Your service will be paused and all its deployments stopped. Are you sure you want to continue?",
             "confirm": "Pause service"
           }
         },
-        "deleteService": {
+        "delete": {
           "title": "Delete service",
           "description": "Once this operation is performed, your service will be permanently deleted.",
           "delete": "Delete",
           "deleting": "Your service is being deleted",
-          "confirmationDialog": {
+          "confirmation": {
             "title": "Delete service",
             "description": "Your service will be permanently deleted. Are you sure you want to continue?",
             "confirm": "Delete service"
           }
         }
       }
+    },
+    "sandbox": {
+      "list": {
+        "title": "Sandboxes",
+        "search": "Search",
+        "status": "Status",
+        "cpu": "CPU",
+        "memory": "Memory",
+        "noSandboxes": {
+          "languages": {
+            "python": "Python",
+            "javascript": "JavaScript"
+          },
+          "intro": {
+            "sentence": "Sandboxes allow you to create fully isolated, secure, lightweight virtual machines designed to safely execute AI-generated or untrusted code"
+          },
+          "step1": {
+            "title": "Install the KhulnaSoft {language} SDK",
+            "line1": "KhulnaSoft offers a {language} SDK to create and control Sandboxes. Run the following command to install the SDK on your machine:",
+            "line2": "Check out the <link>Sandboxes documentation</link> for more information on how to get started."
+          },
+          "step2": {
+            "title": "Create a sandbox",
+            "line1": "Write a minimal example that creates a sandbox and executes a command:",
+            "line2": "Generate an <link>API access token</link> to authenticate requests to the KhulnaSoft API when using the KhulnaSoft {language} SDK, and export it as an environment variable:",
+            "line3": "Run the following code example using this command:",
+            "generateToken": "Generate token"
+          },
+          "end": {
+            "sentence": "Congratulations! You've created your first sandbox."
+          }
+        },
+        "noResults": {
+          "title": "No results",
+          "description": "No sandboxes match the current filters",
+          "removeFilters": "Remove filters"
+        },
+        "unavailable": {
+          "title": "Start using Sandboxes",
+          "line1": "Sandboxes allow you to create fully isolated, secure, lightweight virtual machines designed to safely execute AI-generated or untrusted code",
+          "line2": "To get started, upgrade your plan to any of our pay-as-you-go plans, from Starter to Enterprise plans. Check out the <link>documentation</link> to learn more about Sandboxes.",
+          "upgrade": "Upgrade to unlock"
+        }
+      },
+      "details": {
+        "notFound": "Sandbox not found",
+        "more": "View more",
+        "navigation": {
+          "overview": "Overview",
+          "metrics": "Metrics",
+          "console": "Console",
+          "actions": {
+            "pause": {
+              "button": "Pause",
+              "title": "Your sandbox will be paused",
+              "description": "Do you want to continue?",
+              "confirm": "Pause sandbox",
+              "success": "Your sandbox is being paused"
+            },
+            "resume": {
+              "button": "Resume",
+              "success": "Your sandbox is being resumed"
+            },
+            "delete": {
+              "button": "Delete",
+              "title": "Your sandbox will be deleted",
+              "description": "Do you want to continue?",
+              "confirm": "Delete",
+              "success": "Your sandbox is being deleted"
+            }
+          }
+        },
+        "metadata": {
+          "id": "ID",
+          "status": "Status",
+          "cpu": "CPU",
+          "memory": "Memory usage",
+          "dockerImage": "Docker image",
+          "date": "Creation date"
+        }
+      }
+    },
+    "sso": {
+      "cannyError": "Error: failed to sign in to canny",
+      "discourseError": "Error: failed to sign in to discourse"
     },
     "organizationSettings": {
       "layout": {
@@ -2356,13 +2776,13 @@
       "general": {
         "organizationName": {
           "title": "Organization name",
-          "description": "This is your organization's visible name within Snipkit"
+          "description": "This is your organization's visible name within KhulnaSoft"
         },
         "organizationQuotas": {
           "title": "Organization limits",
           "description": "This is your organization's current limit",
           "resource": "Resource",
-          "snipkitInstanceType": "Snipkit instance",
+          "khulnasoftInstanceType": "KhulnaSoft instance",
           "awsInstanceType": "AWS instance",
           "gpuInstanceType": "GPU instance",
           "volumes": "Volumes",
@@ -2382,7 +2802,7 @@
           "infinity": "∞",
           "requestIncrease": "Request increase",
           "hobbyPlanAlert": {
-            "description": "You're on the Hobby plan which let you run one Web Service and Database for free. Upgrade to Starter to get the full Snipkit experience.",
+            "description": "You're on the Hobby plan which let you run one Web Service and Database for free. Upgrade to Starter to get the full KhulnaSoft experience.",
             "cta": "Upgrade plan"
           }
         }
@@ -2396,8 +2816,10 @@
           "noUsage": "You have not used any resources this month",
           "startEnd": "{start} - {end}",
           "hoursMinutesSeconds": "{hours}h {minutes}m {seconds}s",
+          "usageData": "{data} × h",
           "usageSeconds": "{seconds} seconds",
           "pricePerHour": "{price} / h (billed per second)",
+          "pricePerGbPerHour": "{price} / h / GB",
           "subtotal": "Subtotal",
           "total": "Estimated cost (excluding taxes)",
           "downloadUsage": "Download usage",
@@ -2429,6 +2851,7 @@
           "addressLabel": "Address",
           "companyLabel": "For business",
           "vatNumberLabel": "VAT Number",
+          "vatNumberHelperText": "This information can be changed from <link>the billing portal</link>",
           "successNotification": "Your organization's billing information were updated"
         },
         "billingAlerts": {
@@ -2527,25 +2950,27 @@
           },
           "noApiCredentials": {
             "title": "You don't have any API tokens yet",
-            "description": "Generate Snipkit API access tokens to interact with your organization's resources programmatically or use the Snipkit CLI",
+            "description": "Generate KhulnaSoft API access tokens to interact with your organization's resources programmatically or use the KhulnaSoft CLI",
             "cta": "Create API token"
           }
         },
-        "createDialog": {
+        "create": {
           "title": "Create API token",
-          "description": "Create an API token to access Snipkit programmatically. Those API access tokens will only be able to perform actions within the organization <strong>{organizationName}</strong>.",
+          "description": "Create an API token to access KhulnaSoft programmatically. Those API access tokens will only be able to perform actions within the organization <strong>{organizationName}</strong>.",
           "nameLabel": "Name",
           "descriptionLabel": "Description",
           "submitButton": "Create API token",
-          "successNotification": "API token <strong>{name}</strong> created",
-          "createdTitle": "API token created",
-          "createdDescription": "Your API token was created. Make sure you keep it stored it in a secure place, you won't be able to see it again."
+          "success": "API token <strong>{name}</strong> created"
         },
-        "deleteDialog": {
+        "created": {
+          "title": "API token created",
+          "description": "Your API token was created. Make sure you keep it stored it in a secure place, you won't be able to see it again."
+        },
+        "delete": {
           "title": "Delete API token",
           "description": "Are you sure you want to delete the <strong>{name}</strong> API token?",
           "confirm": "Delete token",
-          "successNotification": "The API token <strong>{name}</strong> was deleted"
+          "success": "The API token <strong>{name}</strong> was deleted"
         }
       },
       "registrySecrets": {
@@ -2593,16 +3018,21 @@
           "footer": "The full name of the person owning this account",
           "successNotification": "Your name was successfully changed to {name}"
         },
+        "notificationSettings": {
+          "title": "Deployment failure notifications",
+          "description": "Receive an email when a deployment fails to complete successfully",
+          "successNotification": "Deployment failure notifications {enabled, select, true {enabled} false {disabled} other {}}"
+        },
         "githubAccount": {
           "label": "Your GitHub account",
-          "noGithubAccountRegistered": "You didn't link a GitHub account to Snipkit yet",
+          "noGithubAccountRegistered": "You didn't link a GitHub account to KhulnaSoft yet",
           "registerAccount": "Link GitHub account",
-          "accountRegistered": "Your GitHub account <strong>{githubUser}</strong> is linked to this Snipkit account",
-          "footer": "Log in on Snipkit with your GitHub account"
+          "accountRegistered": "Your GitHub account <strong>{githubUser}</strong> is linked to this KhulnaSoft account",
+          "footer": "Log in on KhulnaSoft with your GitHub account"
         },
         "email": {
           "label": "Your email",
-          "footer": "The email address associated to this account and use to log in with Snipkit",
+          "footer": "The email address associated to this account and use to log in with KhulnaSoft",
           "successNotification": "We've sent you a confirmation email to {email}"
         },
         "password": {
@@ -2619,11 +3049,11 @@
         "manage": "Manage",
         "switch": "Switch",
         "createOrganization": "Create organization",
-        "createOrganizationDialog": {
+        "create": {
           "title": "Create organization",
-          "description": "Create a new organization to collaborate with others. To get started, name your new Snipkit organization.",
+          "description": "Create a new organization to collaborate with others. To get started, name your new KhulnaSoft organization.",
           "organizationNameLabel": "Organization name",
-          "successNotification": "The organization {organizationName} was created"
+          "success": "The organization {organizationName} was created"
         }
       },
       "apiCredential": {
@@ -2638,25 +3068,27 @@
           },
           "noApiCredentials": {
             "title": "You don't have any personal access tokens yet",
-            "description": "Generate Snipkit personal access tokens to interact with your account and resources programmatically or use the Snipkit CLI",
+            "description": "Generate KhulnaSoft personal access tokens to interact with your account and resources programmatically or use the KhulnaSoft CLI",
             "cta": "Create access token"
           }
         },
-        "createDialog": {
+        "create": {
           "title": "Create personal access token",
-          "description": "Create a personal token to access Snipkit programmatically. Those access tokens will be able to perform actions on behalf of your user <strong>{userName}</strong>.",
+          "description": "Create a personal token to access KhulnaSoft programmatically. Those access tokens will be able to perform actions on behalf of your user <strong>{userName}</strong>.",
           "nameLabel": "Name",
           "descriptionLabel": "Description",
           "submitButton": "Create access token",
-          "successNotification": "Personal access token <strong>{name}</strong> created",
-          "createdTitle": "Access token created",
-          "createdDescription": "Your personal access token was created. Make sure you keep it stored it in a secure place, you won't be able to see it again."
+          "success": "Personal access token <strong>{name}</strong> created"
         },
-        "deleteDialog": {
+        "created": {
+          "title": "Access token created",
+          "description": "Your personal access token was created. Make sure you keep it stored it in a secure place, you won't be able to see it again."
+        },
+        "delete": {
           "title": "Delete personal access token",
           "description": "Are you sure you want to delete the <strong>{name}</strong> personal access token?",
           "confirm": "Delete token",
-          "successNotification": "The personal access token <strong>{name}</strong> was deleted"
+          "success": "The personal access token <strong>{name}</strong> was deleted"
         }
       }
     },
@@ -2677,8 +3109,7 @@
           "resendInvitationSuccessNotification": "The invitation was sent again to <strong>{email}</strong>",
           "removeMember": "Remove",
           "removeMemberSuccessNotification": "<strong>{memberName}</strong> was removed from the organization <strong>{organizationName}</strong>",
-          "leave": "Leave",
-          "leaveSuccessNotification": "You left the organization <strong>{organizationName}</strong>"
+          "leave": "Leave"
         },
         "removeMember": {
           "title": "Remove member",
@@ -2702,75 +3133,98 @@
     },
     "volumes": {
       "documentTitle": "Volumes",
-      "header": {
-        "title": "Volumes",
-        "createVolume": "Create volume"
-      },
-      "volumesList": {
-        "name": "Name",
-        "parentSnapshot": "Created from snapshot {name}",
-        "created": "Created",
-        "region": "Region",
-        "size": "Size",
-        "status": "Status",
-        "attachedTo": "Attached to",
-        "actions": {
-          "edit": "Edit",
-          "createSnapshot": "Create snapshot",
-          "delete": "Delete"
-        },
-        "noVolumes": {
-          "title": "You don't have any volumes yet",
-          "description": "Volumes provide additional, persistent, storage capacity for your services",
-          "cta": "Create volume"
-        }
-      },
-      "createSnapshotDialog": {
-        "title": "Create snapshot",
-        "description": "Choose a name for your snapshot",
-        "nameLabel": "Name",
-        "namePlaceholder": "my-snapshot",
-        "successNotification": "Snapshot <strong>{name}</strong> created"
-      },
-      "deleteVolume": {
-        "title": "Delete volume",
-        "description": "Are you sure you want to delete the {name} volume?",
-        "destructiveActionWarning": "All the data will be permanently deleted. This action cannot be undone.",
-        "confirm": "Delete volume",
-        "deleteSuccess": "Volume <strong>{name}</strong> is being deleted"
-      },
       "unavailable": {
+        "publicPreview": "Public preview",
         "title": "Volumes",
         "subTitle": "Blazing-fast NVMe SSD for your data",
         "description": "Volumes provide additional, persistent, storage capacity for your services and come in addition to your instances provided ephemeral disk. The Starter plan is required to access the volumes public preview.",
         "cta": "Upgrade to unlock",
         "learnMore": "Learn more about volumes"
       },
-      "createDialog": {
+      "tabs": {
+        "volumes": "Volumes",
+        "snapshots": "Snapshots"
+      },
+      "list": {
+        "noVolumes": {
+          "title": "You don't have any volumes yet",
+          "description": "Volumes provide additional, persistent, storage capacity for your services",
+          "cta": "Create volume"
+        },
+        "header": {
+          "search": "Search",
+          "createVolume": "Create volume"
+        },
+        "name": "Name",
+        "parentSnapshot": "Created from snapshot {name}",
+        "status": "Status",
+        "region": "Region",
+        "size": "Size",
+        "created": "Created",
+        "attachedTo": "Attached to",
+        "attach": {
+          "label": "Attach volume to",
+          "placeholder": "Search",
+          "noServices": "No service found in region {region}",
+          "alreadyMounted": "This volume has already been attached to a service and cannot be attached again."
+        },
+        "actions": {
+          "edit": "Edit",
+          "createSnapshot": "Create snapshot",
+          "delete": "Delete"
+        }
+      },
+      "create": {
         "title": "Create volume",
-        "description": "Set the name, region and size of your volume"
+        "description": "Set the name, region and size of your volume",
+        "name": {
+          "label": "Volume name",
+          "placeholder": "my-volume"
+        },
+        "regions": {
+          "label": "Select a region",
+          "boundedToSnapshot": "The volume must be created in the snapshot's region",
+          "warning": "Warning, you will not be able to change the region",
+          "scopeDescriptions": {
+            "metropolitan": "Deploy in a metropolitan region for fine-grained placement control and optimized latency",
+            "continental": "Deploy across multiple regions within a continent for maximum availability and resilience"
+          }
+        },
+        "size": {
+          "label": "Size",
+          "placeholder": "Enter a size",
+          "unit": "GB"
+        },
+        "submit": "Create volume",
+        "created": "Volume <strong>{name}</strong> created"
       },
-      "editDialog": {
+      "edit": {
         "title": "Edit volume",
-        "description": "Change the name of your volume"
+        "description": "Change the name of your volume",
+        "name": {
+          "label": "Volume name",
+          "placeholder": "my-volume"
+        },
+        "updated": "Volume <strong>{name}</strong> updated"
       },
-      "volumeForm": {
+      "delete": {
+        "title": "Delete volume",
+        "description": "Are you sure you want to delete the <strong>{name}</strong> volume?",
+        "destructiveActionWarning": "All the data will be permanently deleted. This action cannot be undone.",
+        "confirm": "Delete volume",
+        "success": "Volume <strong>{name}</strong> is being deleted"
+      },
+      "createSnapshot": {
+        "title": "Create snapshot",
+        "description": "Choose a name for your snapshot",
         "nameLabel": "Name",
-        "namePlaceholder": "my-volume",
-        "regionLabel": "Region",
-        "regionPlaceholder": "Select a region",
-        "regionBoundedToSnapshot": "The volume must be created in the snapshot's region",
-        "sizeLabel": "Size",
-        "sizePlaceholder": "Select a size",
-        "sizeUnit": "GB",
-        "createSuccess": "Volume <strong>{name}</strong> created",
-        "editSuccess": "Volume <strong>{name}</strong> edited"
+        "namePlaceholder": "my-snapshot",
+        "success": "Snapshot <strong>{name}</strong> created"
       }
     },
-    "volumeSnapshots": {
-      "documentTitle": "Snapshots",
-      "title": "Snapshots",
+    "snapshots": {
       "list": {
+        "title": "Snapshots",
         "name": "Name",
         "volumeName": "Parent volume",
         "created": "Created",
@@ -2797,24 +3251,31 @@
       "createVolume": {
         "title": "Create volume from snapshot"
       },
-      "updateSnapshot": {
+      "edit": {
         "title": "Edit snapshot",
         "nameLabel": "Name",
         "namePlaceholder": "my-snapshot",
-        "successNotification": "Snapshot <strong>{name}</strong> edited"
+        "success": "Snapshot <strong>{name}</strong> edited"
       },
-      "deleteSnapshot": {
+      "delete": {
         "title": "Delete snapshot",
-        "description": "Are you sure you want to delete the {name} snapshot?",
+        "description": "Are you sure you want to delete the <strong>{name}</strong> snapshot?",
         "destructiveActionWarning": "All the data will be permanently deleted. This action cannot be undone.",
         "confirm": "Delete snapshot",
-        "deleteSuccess": "Snapshot <strong>{name}</strong> is being deleted"
+        "success": "Snapshot <strong>{name}</strong> is being deleted"
       }
     },
     "notFound": {
       "title": "That page is gone!",
-      "line1": "Maybe this page used to exist or you just spelled something wrong",
+      "message": "Maybe this page used to exist or you just spelled something wrong",
       "back": "Back to home"
+    },
+    "error": {
+      "title": "Whoops!",
+      "httpStatus": "{httpStatus} - ERROR",
+      "statusLink": "If this keeps happening, check out <link>status.khulnasoft.com</link>.",
+      "code": "Code: {code}",
+      "button": "Back to home"
     }
   }
 }

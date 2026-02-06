@@ -1,16 +1,16 @@
+import { Button, Table, useBreakpoint } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { parse } from 'tldts';
 
-import { Button, Table, useBreakpoint } from '@snipkit/design-system';
-import { Domain } from 'src/api/model';
-import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
+import { apiMutation, useInvalidateApiQuery } from 'src/api';
 import { notify } from 'src/application/notify';
-import { LinkButton } from 'src/components/link';
+import { ExternalLinkButton } from 'src/components/link';
 import { FormattedDistanceToNow } from 'src/intl/formatted';
 import { createTranslate } from 'src/intl/translate';
+import { Domain } from 'src/model';
 
-const T = createTranslate('pages.domains.domainsList.dnsConfiguration');
+const T = createTranslate('pages.domains.list.dnsConfiguration');
 
 export function DnsConfiguration({ domain }: { domain: Domain }) {
   const t = T.useTranslate();
@@ -20,11 +20,11 @@ export function DnsConfiguration({ domain }: { domain: Domain }) {
   const invalidate = useInvalidateApiQuery();
 
   const { mutate, isPending } = useMutation({
-    ...useApiMutationFn('refreshDomain', {
+    ...apiMutation('post /v1/domains/{id}/refresh', {
       path: { id: domain.id },
     }),
     onSuccess() {
-      void invalidate('listDomains');
+      void invalidate('get /v1/domains');
       notify.info(t('refreshSuccess', { domainName: domain.name }));
     },
   });
@@ -51,16 +51,14 @@ export function DnsConfiguration({ domain }: { domain: Domain }) {
       <DnsEntryTable domain={domain} />
 
       <div className="row gap-4">
-        <LinkButton
-          component="a"
+        <ExternalLinkButton
+          openInNewTab
           variant="outline"
           color="gray"
           href={getDocumentationLink(subdomain === '')}
-          target="_blank"
-          rel="noopener noreferrer"
         >
           <T id="docs" />
-        </LinkButton>
+        </ExternalLinkButton>
 
         <Button color="gray" loading={isPending} onClick={() => mutate()} className="self-start">
           <T id="refresh" />
@@ -71,7 +69,7 @@ export function DnsConfiguration({ domain }: { domain: Domain }) {
 }
 
 function getDocumentationLink(isApex: boolean) {
-  const link = 'https://www.snipkit.com/docs/run-and-scale/domains';
+  const link = 'https://www.khulnasoft.com/docs/run-and-scale/domains';
   const anchor = isApex ? '#for-an-apex-domain' : '#for-a-subdomain';
 
   return `${link}${anchor}`;

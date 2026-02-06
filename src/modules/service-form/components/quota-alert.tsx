@@ -1,11 +1,8 @@
+import { Alert } from '@design-system';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
-import { Alert } from '@snipkit/design-system';
-import { api } from 'src/api/api';
-import { isApiValidationError } from 'src/api/api-errors';
-import { routes } from 'src/application/routes';
-import { useToken } from 'src/application/token';
-import { LinkButton } from 'src/components/link';
+import { ApiError, useApi } from 'src/api';
+import { ExternalLinkButton } from 'src/components/link';
 import { Translate } from 'src/intl/translate';
 import { wait } from 'src/utils/promises';
 
@@ -23,12 +20,12 @@ type QuotaAlertProps = {
 export function QuotaAlert(props: QuotaAlertProps) {
   const serviceId = props.serviceId;
   const values = getValues(props);
-  const { token } = useToken();
+
+  const api = useApi();
 
   const { data: message } = useQuery({
     placeholderData: keepPreviousData,
-    queryKey: [serviceId ? 'updateService' : 'createService', { serviceId, dryRun: true }, values],
-    refetchInterval: false,
+    queryKey: ['quotaAlert', { serviceId, dryRun: true, values }],
     async queryFn({ signal }) {
       if (!(await wait(500, signal))) {
         return null;
@@ -38,15 +35,13 @@ export function QuotaAlert(props: QuotaAlertProps) {
 
       try {
         if (serviceId) {
-          await api.updateService({
-            token,
+          await api('put /v1/services/{id}', {
             path: { id: serviceId },
             query: { dry_run: true },
             body: { definition },
           });
         } else {
-          await api.createService({
-            token,
+          await api('post /v1/services', {
             query: { dry_run: true },
             body: { app_id: values.meta.appId ?? '15c6a049-6594-4df0-99c3-a5c262e69624', definition },
           });
@@ -65,15 +60,9 @@ export function QuotaAlert(props: QuotaAlertProps) {
 
   return (
     <Alert variant="info" description={message}>
-      <LinkButton
-        color="blue"
-        component="a"
-        href={routes.organizationSettings.plans()}
-        target="_blank"
-        className="ml-auto"
-      >
+      <ExternalLinkButton openInNewTab color="blue" href="/settings/plans" className="ml-auto">
         <Translate id="common.upgradePlan" />
-      </LinkButton>
+      </ExternalLinkButton>
     </Alert>
   );
 }
@@ -114,8 +103,8 @@ function getMessage(error: unknown): string | null {
     return error.message;
   }
 
-  if (isApiValidationError(error)) {
-    for (const field of error.fields) {
+  if (ApiError.isValidationError(error)) {
+    for (const field of error.body.fields) {
       if (field.description.match('not available with current plan') !== null) {
         return field.description;
       }

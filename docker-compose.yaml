@@ -1,10 +1,10 @@
 services:
-  snipkit-console:
+  khulnasoft-console:
     build:
       context: .
       dockerfile: Dockerfile
-    # image: snipkit-console:latest
-    container_name: snipkit-console
+    # image: khulnasoft-console:latest
+    container_name: khulnasoft-console
     restart: unless-stopped
     ports:
       - "3000:3000"

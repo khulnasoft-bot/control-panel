@@ -1,13 +1,13 @@
 import clsx from 'clsx';
 import { createElement } from 'react';
 
-import { Activity, ServiceType } from 'src/api/model';
-import { routes } from 'src/application/routes';
-import { IconFolders } from 'src/components/icons';
 import { Link } from 'src/components/link';
 import { RegionFlag } from 'src/components/region-flag';
 import { ServiceTypeIcon } from 'src/components/service-type-icon';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { IconFolders } from 'src/icons';
+import { TranslateEnum, createTranslate } from 'src/intl/translate';
+import { Activity, ServiceType } from 'src/model';
+import { lowerCase } from 'src/utils/strings';
 
 import {
   isAutoscalingActivity,
@@ -31,7 +31,7 @@ export function ActivityResources({ activity }: { activity: Activity }) {
   if (isAutoscalingActivity(activity)) {
     const { deleted } = activity.object;
     const { region } = activity.metadata;
-    const { appName, serviceId, serviceName } = activity.object.metadata;
+    const { appName, serviceId, serviceName, definition } = activity.object.metadata;
 
     return (
       <div className="row max-w-full flex-wrap gap-x-4 gap-y-2">
@@ -39,6 +39,7 @@ export function ActivityResources({ activity }: { activity: Activity }) {
           appName={appName}
           serviceName={serviceName}
           serviceId={serviceId}
+          serviceType={definition?.type ? lowerCase(definition.type) : undefined}
           deleted={deleted}
         />
 
@@ -64,14 +65,13 @@ export function ActivityResources({ activity }: { activity: Activity }) {
 
   if (isDeploymentObject(object)) {
     const { id: deploymentId, deleted } = object;
-    const { appName } = object.metadata;
-    const { serviceId, serviceName, serviceType } = object.metadata;
+    const { appName, serviceId, serviceName, definition } = object.metadata;
 
     return (
       <ServiceResource
         appName={appName}
         serviceName={serviceName}
-        serviceType={serviceType}
+        serviceType={definition?.type ? lowerCase(definition.type) : undefined}
         serviceId={serviceId}
         deploymentId={deploymentId}
         deleted={deleted}
@@ -129,24 +129,28 @@ function ServiceResource({
     props.component = Link;
     props.className = 'hover:bg-muted/50';
 
-    if (serviceType === 'database') {
-      props.href = routes.database.overview(serviceId);
+    if (serviceType === 'sandbox') {
+      props.to = '/sandboxes/$serviceId';
+      props.params = { serviceId };
+    } else if (serviceType === 'database') {
+      props.to = '/database-services/$databaseServiceId';
+      props.params = { databaseServiceId: serviceId };
     } else {
-      props.href = routes.service.overview(serviceId, deploymentId);
+      props.to = '/services/$serviceId';
+      props.params = { serviceId };
+      props.search = { deploymentId };
     }
   }
 
   return (
     <ActivityResource {...props}>
-      {serviceType && <ServiceTypeIcon size="small" type={serviceType} />}
+      {serviceType && <ServiceTypeIcon size={2} type={serviceType} />}
 
-      <span className="direction-rtl truncate">
-        <Translate id="common.appServiceName" values={{ appName, serviceName }} />
-      </span>
+      <span className="truncate direction-rtl">{`${appName}/${serviceName}`}</span>
 
       {serviceType && (
         <div className="font-normal text-dim">
-          <Translate id={`common.serviceType.${serviceType}`} />
+          <TranslateEnum enum="serviceType" value={serviceType} />
         </div>
       )}
     </ActivityResource>
@@ -165,17 +169,17 @@ function RegionResource({ regionId }: { regionId: string }) {
 function VolumeResource({ name, deleted }: { name: string; deleted: boolean }) {
   const [component, props] = deleted
     ? [undefined, {}]
-    : [Link, { href: routes.volumes.index(), className: 'hover:bg-muted/50' }];
+    : [Link, { to: '/volumes', className: 'hover:bg-muted/50' }];
 
   return (
     <ActivityResource component={component} {...props}>
-      <span className="rounded bg-green p-0.5">
+      <span className="rounded-sm bg-green p-0.5">
         <IconFolders className="size-3 text-white" />
       </span>
 
       {name}
 
-      <div className="font-normal capitalize text-dim">
+      <div className="font-normal text-dim capitalize">
         <T id="volume" />
       </div>
     </ActivityResource>
@@ -195,7 +199,7 @@ function ActivityResource({ component = 'div', className, children, ...props }: 
     component,
     {
       className: clsx(
-        'row min-w-0 max-w-full items-center gap-2 whitespace-nowrap rounded border px-2 py-1 text-xs font-medium',
+        'row max-w-full min-w-0 items-center gap-2 rounded-sm border px-2 py-1 text-xs font-medium whitespace-nowrap',
         className,
       ),
       ...props,

@@ -1,5 +1,6 @@
-import { Spinner } from '@snipkit/design-system';
-import { useGithubApp } from 'src/api/hooks/git';
+import { Spinner } from '@design-system';
+
+import { useGithubApp } from 'src/api';
 import { createTranslate } from 'src/intl/translate';
 
 const T = createTranslate('modules.serviceForm.source');
@@ -10,7 +11,7 @@ export function RepositoriesIndexing() {
   useGithubApp(githubApp?.indexing ? 500 : undefined);
 
   return (
-    <div className="row my-4 items-center gap-4">
+    <div className="my-4 row items-center gap-4">
       <Spinner progress={githubApp?.indexingPercent ?? undefined} className="size-6" />
       <p className="text-dim">
         <T id="git.synchronizingRepositories" />

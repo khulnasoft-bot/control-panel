@@ -1,23 +1,18 @@
+import { Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { useEffect, useMemo, useRef } from 'react';
+import { useRef } from 'react';
 import { FormProvider, UseFormReturn } from 'react-hook-form';
 
-import { useInstance, useInstancesQuery, useRegionsQuery } from 'src/api/hooks/catalog';
-import { useGithubAppQuery } from 'src/api/hooks/git';
-import { useOrganizationQuery, useOrganizationSummaryQuery, useUserQuery } from 'src/api/hooks/session';
-import { useInvalidateApiQuery } from 'src/api/use-api';
+import { useApi, useCatalogInstance, useInvalidateApiQuery } from 'src/api';
 import { notify } from 'src/application/notify';
-import { handleSubmit, useFormErrorHandler, useFormValues } from 'src/hooks/form';
+import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
+import { Translate } from 'src/intl/translate';
 
 import { GpuAlert } from './components/gpu-alert';
 import { QuotaAlert } from './components/quota-alert';
-import { QuotaIncreaseRequestDialog } from './components/quota-increase-request-dialog';
 import { ServiceFormSkeleton } from './components/service-form-skeleton';
-import { ServiceFormUpgradeDialog } from './components/service-form-upgrade-dialog';
 import { SubmitButton } from './components/submit-button';
-import { ServiceCost, useEstimatedCost } from './helpers/estimated-cost';
-import { getDeployParams } from './helpers/get-deploy-params';
 import { mapServiceFormApiValidationError } from './helpers/map-service-form-api-validation-error';
 import { usePreSubmitServiceForm } from './helpers/pre-submit-service-form';
 import { getServiceFormSections } from './helpers/service-form-sections';
@@ -27,53 +22,41 @@ import { ServiceTypeSection } from './sections/01-service-type/service-type.sect
 import { SourceSection } from './sections/02-source/source.section';
 import { BuilderSection } from './sections/03-builder/builder.section';
 import { DeploymentSection } from './sections/03-deployment/deployment.section';
+import { BulkEnvironmentVariablesEditionDialog } from './sections/04-environment-variables/bulk-environment-variables-edition';
 import { EnvironmentVariablesSection } from './sections/04-environment-variables/environment-variables.section';
 import { InstanceSection } from './sections/05-instance/instance.section';
 import { ScalingSection } from './sections/06-scaling/scaling.section';
+import { CreateVolumeDialog } from './sections/07-volumes/create-volume-dialog';
 import { VolumesSection } from './sections/07-volumes/volumes.section';
 import { PortsSection } from './sections/08-ports/ports.section';
 import { HealthChecksSection } from './sections/09-health-checks/health-checks.section';
-import { ServiceFormSection, type ServiceForm } from './service-form.types';
-import { useServiceForm } from './use-service-form';
+import { type ServiceForm, ServiceFormSection } from './service-form.types';
 
 type ServiceFormProps = {
-  serviceId?: string;
+  form: UseFormReturn<ServiceForm>;
   className?: string;
   onDeployed: (appId: string, serviceId: string, deploymentId: string) => void;
   onSaved?: () => void;
-  onCostChanged?: (cost: ServiceCost | undefined) => void;
-  onDeployUrlChanged?: (url: string) => void;
+  onBack?: () => void;
 };
 
-export function ServiceForm(props: ServiceFormProps) {
-  return (
-    <FetchServiceFormResources className={props.className}>
-      <ServiceForm_ {...props} />
-    </FetchServiceFormResources>
-  );
-}
-
-function ServiceForm_({
-  serviceId,
-  className,
-  onDeployed,
-  onSaved,
-  onCostChanged,
-  onDeployUrlChanged,
-}: ServiceFormProps) {
+export function ServiceForm({ form, className, onDeployed, onSaved, onBack }: ServiceFormProps) {
+  const api = useApi();
   const invalidate = useInvalidateApiQuery();
 
-  const form = useServiceForm(serviceId);
+  const instance = useCatalogInstance(form.watch('instance'));
+
   const formRef = useRef<HTMLFormElement>(null);
+  const preSubmit = usePreSubmitServiceForm(formRef.current, form.watch('meta.previousInstance'));
 
   const mutation = useMutation({
-    mutationFn: submitServiceForm,
+    mutationFn: (values: FormValues<typeof form>) => submitServiceForm(api, values),
     onError: useFormErrorHandler(form, mapError),
     async onSuccess(result, { meta }) {
       await Promise.all([
-        invalidate('listApps'),
-        invalidate('getService', { path: { id: result.serviceId } }),
-        invalidate('listDeployments', { query: { service_id: result.serviceId } }),
+        invalidate('get /v1/apps'),
+        invalidate('get /v1/services/{id}', { path: { id: result.serviceId } }),
+        invalidate('get /v1/deployments', { query: { service_id: result.serviceId } }),
       ]);
 
       if (meta.saveOnly) {
@@ -83,22 +66,6 @@ function ServiceForm_({
       }
     },
   });
-
-  const [requiredPlan, preSubmit] = usePreSubmitServiceForm(form.watch('meta.previousInstance'));
-
-  const instance = useInstance(form.watch('instance'));
-  const cost = useEstimatedCost(useFormValues(form));
-  const deployUrl = useDeployUrl(form);
-
-  useEffect(() => {
-    onCostChanged?.(cost);
-  }, [onCostChanged, cost]);
-
-  useEffect(() => {
-    if (deployUrl !== undefined) {
-      onDeployUrlChanged?.(deployUrl);
-    }
-  }, [onDeployUrlChanged, deployUrl]);
 
   if (form.formState.isLoading) {
     return <ServiceFormSkeleton className={className} />;
@@ -133,12 +100,20 @@ function ServiceForm_({
             })}
           </div>
 
-          <SubmitButton loading={form.formState.isSubmitting} />
+          <div className="row gap-4">
+            {onBack && (
+              <Button color="gray" onClick={onBack}>
+                <Translate id="common.back" />
+              </Button>
+            )}
+
+            <SubmitButton loading={form.formState.isSubmitting} />
+          </div>
         </form>
       </FormProvider>
 
-      <QuotaIncreaseRequestDialog catalogInstanceId={form.watch('instance')} />
-      <ServiceFormUpgradeDialog plan={requiredPlan} submitForm={() => formRef.current?.requestSubmit()} />
+      <BulkEnvironmentVariablesEditionDialog form={form} />
+      <CreateVolumeDialog form={form} />
     </>
   );
 }
@@ -165,41 +140,4 @@ function mapError(fields: Record<string, string>): Record<string, string> {
   }
 
   return mapped as Record<string, string>;
-}
-
-type FetchServiceFormResourcesProps = {
-  className?: string;
-  children: React.ReactNode;
-};
-
-function FetchServiceFormResources({ className, children }: FetchServiceFormResourcesProps) {
-  const userQuery = useUserQuery();
-  const organizationQuery = useOrganizationQuery();
-  const organizationSummaryQuery = useOrganizationSummaryQuery();
-  const regionsQuery = useRegionsQuery();
-  const instancesQuery = useInstancesQuery();
-  const githubAppQuery = useGithubAppQuery();
-
-  if (
-    userQuery.isPending ||
-    organizationQuery.isPending ||
-    organizationSummaryQuery.isPending ||
-    regionsQuery.isPending ||
-    instancesQuery.isPending ||
-    githubAppQuery.isPending
-  ) {
-    return <ServiceFormSkeleton className={className} />;
-  }
-
-  return children;
-}
-
-function useDeployUrl({ formState, getValues }: UseFormReturn<ServiceForm>) {
-  return useMemo(() => {
-    if (formState.isLoading) {
-      return;
-    }
-
-    return `${window.location.origin}/deploy?${getDeployParams(getValues()).toString()}`;
-  }, [formState, getValues]);
 }

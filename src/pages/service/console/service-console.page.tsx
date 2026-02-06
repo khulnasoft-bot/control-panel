@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+import { Alert } from '@design-system';
+import { useEffect, useMemo, useState } from 'react';
 
-import { Alert } from '@snipkit/design-system';
-import { useInstanceQuery, useInstancesQuery } from 'src/api/hooks/service';
-import { Instance } from 'src/api/model';
+import { useInstanceQuery, useInstancesQuery } from 'src/api';
+import { NoItems } from 'src/components/forms/helpers/no-items';
 import { Loading } from 'src/components/loading';
 import { QueryError } from 'src/components/query-error';
-import { SelectInstance } from 'src/components/select-instance';
+import { SelectInstance } from 'src/components/selectors/select-instance';
 import Terminal from 'src/components/terminal/terminal';
 import { useRouteParam } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
+import { Instance } from 'src/model';
 
 import { useTerminal } from './use-terminal';
 
@@ -16,16 +17,18 @@ const T = createTranslate('pages.service.console');
 
 export function ServiceConsolePage() {
   const serviceId = useRouteParam('serviceId');
+
   const instancesQuery = useInstancesQuery({ serviceId, statuses: ['HEALTHY'] });
+  const instances = useMemo(() => instancesQuery.data?.instances ?? [], [instancesQuery.data]);
+
   const [instance, setInstance] = useState<Instance | null>(null);
 
   useEffect(() => {
-    const instances = instancesQuery.data?.instances ?? [];
-
     if (instance === null && instances[0] !== undefined) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInstance(instances[0]);
     }
-  }, [instancesQuery.data, instance]);
+  }, [instances, instance]);
 
   if (instancesQuery.isPending) {
     return <Loading />;
@@ -35,18 +38,14 @@ export function ServiceConsolePage() {
     return <QueryError error={instancesQuery.error} />;
   }
 
-  const instances = instancesQuery.data?.instances ?? [];
-
   return (
     <>
       <SelectInstance
-        label={<T id="instanceLabel" />}
+        label={<T id="instanceSelector.label" />}
         instances={instances}
         value={instance}
         onChange={setInstance}
-        renderNoItems={() => (
-          <div className="col h-10 items-center justify-center text-dim">No healthy instances</div>
-        )}
+        renderNoItems={() => <NoItems message={<T id="instanceSelector.noInstances" />} />}
         className="w-full max-w-xs self-start"
       />
 

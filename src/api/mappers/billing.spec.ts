@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import { Invoice, InvoiceDiscount, InvoicePlanLine, InvoiceUsageLine } from 'src/model';
 import { createDate } from 'src/utils/date';
 import { createFactory } from 'src/utils/factories';
 
-import type { Api } from '../api-types';
-import { Invoice, InvoicePlanLine, InvoiceUsageLine, InvoiceDiscount } from '../model';
+import type { API } from '../api-types';
 
-import { mapInvoice, StripeInvoice } from './billing';
+import { StripeInvoice, mapInvoice } from './billing';
 
 const createStripeInvoice = createFactory<StripeInvoice>(() => ({
   lines: [],
@@ -17,7 +17,7 @@ const createStripeInvoice = createFactory<StripeInvoice>(() => ({
 
 const date = createDate();
 
-const createStripeInvoiceLine = createFactory<Api.NextInvoiceReplyLine>(() => ({
+const createStripeInvoiceLine = createFactory<API.NextInvoiceReplyLine>(() => ({
   amount_excluding_tax: 0,
   period: { end: date, start: date },
   plan_nickname: '',
@@ -28,8 +28,8 @@ const createStripeInvoiceLine = createFactory<Api.NextInvoiceReplyLine>(() => ({
 describe('mapInvoice', () => {
   const transform = (
     invoice: StripeInvoice,
-    lines: Api.NextInvoiceReplyLine[],
-    discounts: Api.NextInvoiceReplyDiscount[] = [],
+    lines: API.NextInvoiceReplyLine[],
+    discounts: API.NextInvoiceReplyDiscount[] = [],
   ) => {
     return mapInvoice({ stripe_invoice: invoice as never, lines, discounts });
   };
@@ -81,15 +81,20 @@ describe('mapInvoice', () => {
     ]);
   });
 
-  it('returns the invoice lines sorted by price', () => {
+  it('returns the invoice lines sorted by price, database lines last', () => {
     const invoice = transform(createStripeInvoice(), [
-      createStripeInvoiceLine({ price: { unit_amount_decimal: 2 } }),
-      createStripeInvoiceLine({ price: { unit_amount_decimal: 1 } }),
+      createStripeInvoiceLine({ plan_nickname: 'Usage 2', price: { unit_amount_decimal: 2 } }),
+      createStripeInvoiceLine({ plan_nickname: 'Database stuff' }),
+      createStripeInvoiceLine({ plan_nickname: 'Usage 1', price: { unit_amount_decimal: 1 } }),
     ]);
 
     const lines = invoice.periods[0]?.lines as InvoiceUsageLine[];
 
-    expect(lines.map((line) => line.price)).toEqual([1, 2]);
+    expect(lines).toEqual([
+      expect.objectContaining<Partial<InvoiceUsageLine>>({ label: 'Usage 1' }),
+      expect.objectContaining<Partial<InvoiceUsageLine>>({ label: 'Usage 2' }),
+      expect.objectContaining<Partial<InvoiceUsageLine>>({ label: 'Database stuff' }),
+    ]);
   });
 
   it('transforms an amount off discount', () => {
@@ -98,9 +103,9 @@ describe('mapInvoice', () => {
       subtotal_excluding_tax: 123,
     });
 
-    const discount: Api.NextInvoiceReplyDiscount = {
+    const discount: API.NextInvoiceReplyDiscount = {
       type: 'AMOUNT_OFF',
-      name: 'Snipkit free tier',
+      name: 'KhulnaSoft free tier',
       amount: '550',
     };
 
@@ -109,7 +114,7 @@ describe('mapInvoice', () => {
     expect(transform(stripeInvoice, [], [discount])).toHaveProperty<InvoiceDiscount[]>('discounts', [
       {
         type: 'amountOff',
-        label: 'Snipkit free tier',
+        label: 'KhulnaSoft free tier',
         value: 550,
       },
     ]);
@@ -120,7 +125,7 @@ describe('mapInvoice', () => {
       subtotal_excluding_tax: 123,
     });
 
-    const discount: Api.NextInvoiceReplyDiscount = {
+    const discount: API.NextInvoiceReplyDiscount = {
       type: 'PERCENT_OFF',
       name: 'Preview for instance usage',
       amount: '5432',

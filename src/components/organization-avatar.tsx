@@ -1,9 +1,8 @@
 import { useId, useMemo } from 'react';
 
-import { useGithubApp } from 'src/api/hooks/git';
-import { useOrganizationUnsafe } from 'src/api/hooks/session';
+import { useGithubApp, useOrganization } from 'src/api';
 
-const useGithubAvatar = false;
+const useGithubAvatar: boolean = false;
 
 type OrganizationAvatarProps = {
   organizationName?: string;
@@ -11,7 +10,7 @@ type OrganizationAvatarProps = {
 };
 
 export function OrganizationAvatar({ organizationName, className }: OrganizationAvatarProps) {
-  const organization = useOrganizationUnsafe();
+  const organization = useOrganization();
   const githubApp = useGithubApp();
 
   if (!useGithubAvatar || !githubApp) {

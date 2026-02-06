@@ -1,156 +1,148 @@
-import { useCombobox } from 'downshift';
-import { useEffect, useMemo } from 'react';
+import { CommandPalette, CommandPaletteComponent, Dialog, useCommandPalette } from '@design-system';
+import clsx from 'clsx';
+import { useRef } from 'react';
 
-import { Spinner } from '@snipkit/design-system';
-import { stopPropagation } from 'src/application/dom-events';
-import { Dialog } from 'src/components/dialog';
-import { IconChevronRight } from 'src/components/icons';
-import { useFeatureFlag } from 'src/hooks/feature-flag';
+import { notify } from 'src/application/notify';
+import { hasMessage } from 'src/application/validation';
+import { closeDialog, openDialog, useOpenedDialogId } from 'src/components/dialog';
+import { BoxSkeleton } from 'src/components/skeleton';
+import { useMount } from 'src/hooks/lifecycle';
 import { useShortcut } from 'src/hooks/shortcut';
+import { IconChevronDown, IconChevronLeft, IconChevronRight, IconChevronUp, IconSearch } from 'src/icons';
+import { createTranslate, useTranslate } from 'src/intl/translate';
 
-import { PaletteItem, useCommandPaletteContext } from './command-palette.provider';
-import { useRegisterDefaultItems } from './register-default-commands';
+import { CommandPaletteContext } from './command-palette-context';
+import { useLearnCommands } from './commands/learn';
+import { useOrganizationCommands } from './commands/organization';
+import { useServicesCommands } from './commands/services';
+import { useSettingsCommands } from './commands/settings';
 
-export function CommandPalette() {
-  const openDialog = Dialog.useOpen();
-  const newCommandPalette = useFeatureFlag('new-command-palette');
+const T = createTranslate('modules.commandPalette');
 
-  useShortcut(['meta', 'k'], newCommandPalette ? () => openDialog('CommandPalette') : undefined);
+export function CommandPaletteProvider({ children }: { children: React.ReactNode }) {
+  const t = useTranslate();
+  const openedDialogId = useOpenedDialogId();
 
-  useRegisterDefaultItems();
-
-  return (
-    <Dialog id="CommandPalette" overlayClassName="col !justify-start">
-      {(props) => (
-        <div
-          {...props}
-          onKeyDown={stopPropagation}
-          className="relative top-1/4 w-full max-w-3xl overflow-hidden rounded-lg bg-popover shadow-xl"
-        >
-          <CommandPaletteContent />
-        </div>
-      )}
-    </Dialog>
-  );
-}
-
-function CommandPaletteContent() {
-  const { defaultItems, items, setItems, inputValue, setInputValue, loading } = useCommandPaletteContext();
-  const closeDialog = Dialog.useClose();
-
-  const filteredItems = useMemo(() => {
-    return (items ?? Array.from(defaultItems))
-      .filter(filter(inputValue))
-      .sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
-  }, [items, defaultItems, inputValue]);
-
-  useEffect(() => {
-    return () => {
-      setItems(undefined);
-      setInputValue('');
-    };
-  }, [setItems, setInputValue]);
-
-  const combobox = useCombobox({
-    isOpen: true,
-    items: filteredItems,
-    selectedItem: null,
-    defaultHighlightedIndex: 0,
-    itemToString(item) {
-      return item?.label ?? '';
-    },
-    inputValue,
-    onInputValueChange({ inputValue }) {
-      setInputValue(inputValue);
-    },
-    onSelectedItemChange({ selectedItem }) {
-      selectedItem?.execute();
-
-      if (!selectedItem?.keepOpen) {
-        closeDialog();
-      }
-    },
-    stateReducer(state, { type, changes }) {
-      switch (type) {
-        case useCombobox.stateChangeTypes.ItemClick:
-        case useCombobox.stateChangeTypes.InputKeyDownEnter:
-          return { ...changes, inputValue: state.inputValue, highlightedIndex: state.highlightedIndex };
-
-        default:
-          return changes;
-      }
-    },
+  const palette = useCommandPalette({
+    onSuccess: closeDialog,
+    onError: (error) => notify.error(hasMessage(error) ? error.message : t('common.unknownError')),
   });
 
-  const { setHighlightedIndex } = combobox;
+  const initialize = useInitialize();
 
-  useEffect(() => {
-    setHighlightedIndex(0);
-  }, [filteredItems, setHighlightedIndex]);
+  useMount(() => initialize(palette));
+
+  useShortcut(['meta', 'k'], () => {
+    openDialog('CommandPalette');
+  });
 
   return (
-    <>
-      <div className="row items-center gap-2 border-b px-2">
-        <IconChevronRight className="size-4 text-dim" />
+    <CommandPaletteContext value={palette}>
+      {children}
 
-        <input
-          autoFocus
-          type="search"
-          placeholder="Type a command..."
-          className="w-full bg-transparent py-2 outline-none"
-          {...combobox.getInputProps({
-            onKeyDown: (event) => {
-              if (event.key === 'Escape') {
-                if (combobox.inputValue === '') {
-                  closeDialog();
-                } else {
-                  setInputValue('');
-                }
-              }
-
-              if (event.key === 'Backspace' && combobox.inputValue === '') {
-                setItems(undefined);
-              }
-            },
-          })}
-        />
-
-        {loading && <Spinner className="size-4 text-dim" />}
-      </div>
-
-      <ul
-        {...combobox.getMenuProps()}
-        className="scrollbar-thin scrollbar-green max-h-96 scroll-my-2 overflow-auto p-2"
+      <Dialog
+        open={openedDialogId === 'CommandPalette'}
+        overlayClassName="col !justify-start"
+        onClose={closeDialog}
+        onClosed={() => palette.reset()}
       >
-        {filteredItems.map((item) => (
-          <li
-            key={item.label}
-            className="col cursor-pointer gap-0.5 rounded p-1 aria-selected:bg-muted/50"
-            {...combobox.getItemProps({ item })}
+        {(props) => (
+          <div
+            {...props}
+            className="relative top-1/4 h-112 w-full max-w-3xl overflow-hidden rounded-lg bg-popover shadow-xl"
           >
-            {item.render?.()}
-
-            {!item.render && (
-              <>
-                <div>{item.label}</div>
-                {item.description && <div className="text-xs text-dim">{item.description}</div>}
-              </>
-            )}
-          </li>
-        ))}
-
-        {filteredItems.length === 0 && (
-          <li className="col min-h-12 items-center justify-center text-dim">No results</li>
+            <CommandPaletteComponent
+              palette={palette}
+              noResults={() => <NoResults palette={palette} />}
+              footer={() => <Footer />}
+            />
+          </div>
         )}
-      </ul>
-    </>
+      </Dialog>
+    </CommandPaletteContext>
   );
 }
 
-const filter = (inputValue: string) => (command: PaletteItem) => {
-  if (inputValue === '') {
-    return true;
+function useInitialize() {
+  const t = T.useTranslate();
+
+  const services = useServicesCommands();
+  const organization = useOrganizationCommands();
+  const settings = useSettingsCommands();
+  const learn = useLearnCommands();
+
+  const initialized = useRef(false);
+
+  return (palette: CommandPalette) => {
+    // react strict mode
+    if (initialized.current) {
+      return;
+    }
+
+    initialized.current = true;
+
+    palette.setIcon(IconSearch);
+    palette.setPlaceholder(t('placeholder'));
+
+    services(palette);
+    organization(palette);
+    settings(palette);
+    learn(palette);
+  };
+}
+
+function NoResults({ palette }: { palette: CommandPalette }) {
+  if (palette.loading) {
+    return (
+      <div className="col gap-2 px-3">
+        {Array(4)
+          .fill(null)
+          .map((_, index) => (
+            <BoxSkeleton key={index} className="h-10 w-full" />
+          ))}
+      </div>
+    );
   }
 
-  return command.keywords.some((keyword) => keyword.includes(inputValue.toLowerCase()));
+  return (
+    <div className="flex flex-1 items-center justify-center text-dim">
+      <T id="noResults" values={{ search: palette.input.value }} />
+    </div>
+  );
+}
+
+function Footer() {
+  return (
+    <div className="row items-center gap-4 border-t p-3">
+      <FooterItem
+        label="Close"
+        shortcut={
+          <span className="text-xs font-medium">
+            <T id="footer.escape" />
+          </span>
+        }
+        className="mr-auto"
+      />
+
+      <FooterItem label={<T id="footer.up" />} shortcut={<IconChevronUp className="size-3" />} />
+      <FooterItem label={<T id="footer.down" />} shortcut={<IconChevronDown className="size-3" />} />
+      <FooterItem label={<T id="footer.left" />} shortcut={<IconChevronLeft className="size-3" />} />
+      <FooterItem label={<T id="footer.right" />} shortcut={<IconChevronRight className="size-3" />} />
+    </div>
+  );
+}
+
+type FooterItemProps = {
+  label: React.ReactNode;
+  shortcut: React.ReactNode;
+  className?: string;
 };
+
+function FooterItem({ label, shortcut, className }: FooterItemProps) {
+  return (
+    <div className={clsx('row items-center gap-2', className)}>
+      <div className="text-dim">{label}</div>
+      <kbd className="rounded-md border px-2 py-1">{shortcut}</kbd>
+    </div>
+  );
+}

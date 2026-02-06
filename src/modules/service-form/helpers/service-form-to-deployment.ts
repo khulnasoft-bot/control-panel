@@ -1,9 +1,7 @@
 import posthog from 'posthog-js';
 
-import { Api } from 'src/api/api-types';
-import { EnvironmentVariable } from 'src/api/model';
-import { assert } from 'src/utils/assert';
-import { entries } from 'src/utils/object';
+import { API } from 'src/api';
+import { EnvironmentVariable } from 'src/model';
 
 import {
   ArchiveSource,
@@ -18,7 +16,9 @@ import {
   ServiceVolume,
 } from '../service-form.types';
 
-export function serviceFormToDeploymentDefinition(form: ServiceForm): Api.DeploymentDefinition {
+import { getDeepSleepValue, getLightSleepValue } from './scaling-rules';
+
+export function serviceFormToDeploymentDefinition(form: ServiceForm): API.DeploymentDefinition {
   return {
     name: form.serviceName,
     type: form.serviceType === 'web' ? 'WEB' : 'WORKER',
@@ -33,13 +33,15 @@ export function serviceFormToDeploymentDefinition(form: ServiceForm): Api.Deploy
     volumes: volumes(form.volumes),
     ...(form.serviceType === 'web' && {
       ports: ports(form.ports),
+      proxy_ports: proxyPorts(form.ports),
       routes: routes(form.ports),
       health_checks: healthChecks(form.ports),
     }),
+    ...form.meta.proxyFields,
   };
 }
 
-function archive(archive: ArchiveSource, builder: Builder): Api.ArchiveSource {
+function archive(archive: ArchiveSource, builder: Builder): API.ArchiveSource {
   return {
     id: archive.archiveId,
     buildpack: builder.type === 'buildpack' ? buildpack(builder) : undefined,
@@ -47,8 +49,8 @@ function archive(archive: ArchiveSource, builder: Builder): Api.ArchiveSource {
   };
 }
 
-function git(git: GitSource, builder: Builder): Api.GitSource {
-  const common: Api.GitSource = {
+function git(git: GitSource, builder: Builder): API.GitSource {
+  const common: API.GitSource = {
     workdir: git.workDirectory ?? undefined,
     buildpack: builder.type === 'buildpack' ? buildpack(builder) : undefined,
     docker: builder.type === 'dockerfile' ? dockerfile(builder) : undefined,
@@ -70,7 +72,7 @@ function git(git: GitSource, builder: Builder): Api.GitSource {
   };
 }
 
-function buildpack({ buildpackOptions }: Builder): Api.BuildpackBuilder {
+function buildpack({ buildpackOptions }: Builder): API.BuildpackBuilder {
   return {
     build_command: buildpackOptions.buildCommand ?? undefined,
     run_command: buildpackOptions.runCommand ?? undefined,
@@ -78,7 +80,7 @@ function buildpack({ buildpackOptions }: Builder): Api.BuildpackBuilder {
   };
 }
 
-function dockerfile({ dockerfileOptions }: Builder): Api.DockerBuilder {
+function dockerfile({ dockerfileOptions }: Builder): API.DockerBuilder {
   return {
     dockerfile: dockerfileOptions.dockerfile ?? undefined,
     entrypoint: dockerfileOptions.entrypoint ?? undefined,
@@ -89,42 +91,51 @@ function dockerfile({ dockerfileOptions }: Builder): Api.DockerBuilder {
   };
 }
 
-function docker(docker: DockerSource, options: DockerDeploymentOptions): Api.DockerSource {
+function docker(docker: DockerSource, options: DockerDeploymentOptions): API.DockerSource {
   return {
     image: docker.image,
     command: options.command ?? undefined,
     args: options.args ?? undefined,
     image_registry_secret: docker.registrySecret ?? undefined,
     entrypoint: options.entrypoint ?? undefined,
-    privileged: options.privileged ?? false,
+    privileged: options.privileged,
   };
 }
 
-function scalings(scaling: Scaling): Array<Api.DeploymentScaling> {
+function scalings(scaling: Scaling): Array<API.DeploymentScaling> {
   if (scaling.min === scaling.max) {
     return [{ min: scaling.min, max: scaling.max }];
   }
 
-  const targets = new Array<Api.DeploymentScalingTarget>();
+  const targets = new Array<API.DeploymentScalingTarget>();
 
-  const keyMap: Record<keyof Scaling['targets'], keyof Api.DeploymentScalingTarget> = {
-    cpu: 'average_cpu',
-    memory: 'average_mem',
-    requests: 'requests_per_second',
-    concurrentRequests: 'concurrent_requests',
-    responseTime: 'requests_response_time',
-    sleepIdleDelay: 'sleep_idle_delay',
-  };
+  if (scaling.targets.cpu.enabled) {
+    targets.push({ average_cpu: { value: scaling.targets.cpu.value } });
+  }
 
-  entries(scaling.targets)
-    .filter(([, { enabled }]) => enabled)
-    .forEach(([target, { value }]) => targets.push({ [keyMap[target]]: { value } }));
+  if (scaling.targets.memory.enabled) {
+    targets.push({ average_mem: { value: scaling.targets.memory.value } });
+  }
+
+  if (scaling.targets.requests.enabled) {
+    targets.push({ requests_per_second: { value: scaling.targets.requests.value } });
+  }
+
+  if (scaling.targets.concurrentRequests.enabled) {
+    targets.push({ concurrent_requests: { value: scaling.targets.concurrentRequests.value } });
+  }
 
   if (scaling.targets.responseTime.enabled) {
-    const target = targets.find((target) => 'requests_response_time' in target);
+    targets.push({ requests_response_time: { value: scaling.targets.responseTime.value, quantile: 95 } });
+  }
 
-    assert(target?.requests_response_time !== undefined);
-    target.requests_response_time.quantile = 95;
+  if (scaling.min === 0) {
+    const target: API.DeploymentScalingTarget['sleep_idle_delay'] = {};
+
+    targets.push({ sleep_idle_delay: target });
+
+    target.deep_sleep_value = getDeepSleepValue(scaling.scaleToZero);
+    target.light_sleep_value = getLightSleepValue(scaling.scaleToZero);
   }
 
   return [
@@ -136,7 +147,7 @@ function scalings(scaling: Scaling): Array<Api.DeploymentScaling> {
   ];
 }
 
-function env(variables: Array<EnvironmentVariable>): Array<Api.DeploymentEnv> {
+function env(variables: Array<EnvironmentVariable>): Array<API.DeploymentEnv> {
   const hasEnvScopes = posthog.featureFlags.isFeatureEnabled('environment-variable-scopes');
 
   return variables.map((variable) => ({
@@ -149,17 +160,17 @@ function env(variables: Array<EnvironmentVariable>): Array<Api.DeploymentEnv> {
   }));
 }
 
-function files(files: Array<File>): Array<Api.DeploymentConfigFile> {
+function files(files: Array<File>): Array<API.DeploymentConfigFile> {
   return files.map(
-    (file): Api.DeploymentConfigFile => ({
+    (file): API.DeploymentConfigFile => ({
       path: file.mountPath,
       content: file.content,
-      permissions: '0777',
+      permissions: file.permissions,
     }),
   );
 }
 
-function ports(ports: Array<Port>): Array<Api.Port> {
+function ports(ports: Array<Port>): Array<API.Port> {
   return ports.map(({ portNumber, protocol, public: isPublic }: Port) => {
     return {
       port: Number(portNumber),
@@ -168,9 +179,18 @@ function ports(ports: Array<Port>): Array<Api.Port> {
   });
 }
 
-function routes(ports: Array<Port>): Array<Api.Route> {
+function proxyPorts(ports: Array<Port>): Array<API.DeploymentProxyPort> {
   return ports
-    .map((port): Api.Route | undefined => {
+    .filter((port) => port.tcpProxy)
+    .map((port) => ({
+      port: port.portNumber,
+      protocol: 'tcp',
+    }));
+}
+
+function routes(ports: Array<Port>): Array<API.Route> {
+  return ports
+    .map((port): API.Route | undefined => {
       if (!port.public) {
         return;
       }
@@ -180,19 +200,19 @@ function routes(ports: Array<Port>): Array<Api.Route> {
         path: port.path,
       };
     })
-    .filter((value): value is Api.Route => value !== undefined);
+    .filter((value): value is API.Route => value !== undefined);
 }
 
-function healthChecks(ports: Array<Port>): Array<Api.DeploymentHealthCheck> {
-  return ports.map((port): Api.DeploymentHealthCheck => {
+function healthChecks(ports: Array<Port>): Array<API.DeploymentHealthCheck> {
+  return ports.map((port): API.DeploymentHealthCheck => {
     const portNumber = Number(port.portNumber);
     const healthCheck = port.healthCheck;
 
-    const tcp = (): Api.TCPHealthCheck => ({
+    const tcp = (): API.TCPHealthCheck => ({
       port: portNumber,
     });
 
-    const http = (): Api.HTTPHealthCheck => ({
+    const http = (): API.HTTPHealthCheck => ({
       port: portNumber,
       path: healthCheck.path,
       method: healthCheck.method.toUpperCase(),

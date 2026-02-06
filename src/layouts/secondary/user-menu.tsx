@@ -1,61 +1,36 @@
-import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useAuth } from '@workos-inc/authkit-react';
 
-import { ButtonMenuItem, Floating, Menu, MenuItem } from '@snipkit/design-system';
-import { useUserQuery } from 'src/api/hooks/session';
-import { useApiMutationFn } from 'src/api/use-api';
-import { useResetIdentifyUser } from 'src/application/posthog';
-import { routes } from 'src/application/routes';
-import { useToken } from 'src/application/token';
-import { IconLogOut, IconSettings } from 'src/components/icons';
-import { Link } from 'src/components/link';
+import { useUser } from 'src/api';
+import { ButtonMenuItem, DropdownMenu, LinkMenuItem } from 'src/components/dropdown-menu';
 import { UserAvatar } from 'src/components/user-avatar';
-import { useNavigate } from 'src/hooks/router';
+import { IconLogOut, IconSettings } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
 
 const T = createTranslate('layouts.secondary.header');
 
 export function UserMenu() {
-  const { clearToken } = useToken();
-  const { data: user } = useUserQuery();
-
-  const [open, setOpen] = useState(false);
-  const resetIdentify = useResetIdentifyUser();
-  const navigate = useNavigate();
-
-  const { mutate: logout } = useMutation({
-    ...useApiMutationFn('logout', {}),
-    onSuccess() {
-      clearToken();
-      resetIdentify();
-      navigate(routes.signIn());
-    },
-  });
+  const { signOut } = useAuth();
+  const user = useUser();
 
   return (
-    <Floating
-      open={open}
-      setOpen={setOpen}
-      placement="bottom-end"
-      offset={8}
-      renderReference={(props) => (
-        <button type="button" onClick={() => setOpen(true)} className="ml-auto" {...props}>
+    <DropdownMenu
+      reference={(props) => (
+        <button type="button" {...props}>
           <UserAvatar user={user} />
         </button>
       )}
-      renderFloating={(props) => (
-        <Menu className="min-w-48" {...props}>
-          <MenuItem element={Link} href={'?settings'} onClick={() => setOpen(false)} className="row gap-2">
-            <IconSettings className="icon" />
-            <T id="settings" />
-          </MenuItem>
-
-          <ButtonMenuItem onClick={() => logout()} className="row gap-2">
-            <IconLogOut className="icon" />
-            <T id="logOut" />
-          </ButtonMenuItem>
-        </Menu>
+    >
+      {user && (
+        <LinkMenuItem to="/" search={{ settings: 'true' }} className="row gap-2">
+          <IconSettings className="icon" />
+          <T id="settings" />
+        </LinkMenuItem>
       )}
-    />
+
+      <ButtonMenuItem onClick={() => signOut()} className="row gap-2">
+        <IconLogOut className="icon" />
+        <T id="logOut" />
+      </ButtonMenuItem>
+    </DropdownMenu>
   );
 }

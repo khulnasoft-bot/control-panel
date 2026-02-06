@@ -1,10 +1,10 @@
+import { Button, IconButton } from '@design-system';
 import clsx from 'clsx';
 import { useState } from 'react';
 import { useFieldArray } from 'react-hook-form';
 
-import { Button, IconButton } from '@snipkit/design-system';
-import { ControlledInput } from 'src/components/controlled';
-import { IconPlus, IconTrash } from 'src/components/icons';
+import { ControlledInput } from 'src/components/forms';
+import { IconPlus, IconTrash } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
 
 import { ServiceForm } from '../../service-form.types';
@@ -31,7 +31,7 @@ export function Files() {
           <Button
             variant="outline"
             color="gray"
-            onClick={() => append({ mountPath: '', content: '' })}
+            onClick={() => append({ mountPath: '', permissions: '0644', content: '' })}
             className="self-center"
           >
             <IconPlus className="size-4" />
@@ -45,12 +45,19 @@ export function Files() {
           <div key={file.id} className="col gap-4 rounded-md border p-4">
             <FileContentEditor index={index} />
 
-            <div className="row items-end gap-4">
+            <div className="col gap-4 sm:row">
               <ControlledInput<ServiceForm, `files.${number}.mountPath`>
                 name={`files.${index}.mountPath`}
                 label={<T id="mountPath.label" />}
                 placeholder={t('mountPath.placeholder')}
                 className="w-full"
+              />
+
+              <ControlledInput<ServiceForm, `files.${number}.permissions`>
+                name={`files.${index}.permissions`}
+                label={<T id="permissions.label" />}
+                placeholder={t('permissions.placeholder')}
+                className="min-w-32"
               />
             </div>
 
@@ -66,7 +73,6 @@ export function Files() {
               placeholder={t('content.placeholder')}
               onFocus={() => setExpandedIndex(index)}
               className="flex-1"
-              inputClassName="truncate"
             />
 
             <ControlledInput<ServiceForm, `files.${number}.mountPath`>
@@ -76,8 +82,7 @@ export function Files() {
               className="flex-1"
             />
 
-            {/* eslint-disable-next-line tailwindcss/no-arbitrary-value */}
-            <IconButton color="gray" Icon={IconTrash} onClick={() => remove(index)} className="mt-[1.625rem]">
+            <IconButton color="gray" Icon={IconTrash} onClick={() => remove(index)} className="mt-6.5">
               <T id="remove" />
             </IconButton>
           </div>
@@ -88,7 +93,7 @@ export function Files() {
         <Button
           variant="ghost"
           color="gray"
-          onClick={() => append({ mountPath: '', content: '' })}
+          onClick={() => append({ mountPath: '', permissions: '0644', content: '' })}
           className={clsx({ hidden: fields.length === 0 })}
         >
           <IconPlus className="size-4" />

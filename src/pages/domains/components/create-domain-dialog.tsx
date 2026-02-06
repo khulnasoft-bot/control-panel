@@ -1,16 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import { FormState, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button } from '@snipkit/design-system';
-import { useApps } from 'src/api/hooks/service';
-import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
+import { apiMutation, useApps, useInvalidateApiQuery } from 'src/api';
 import { notify } from 'src/application/notify';
-import { ControlledInput, ControlledSelect } from 'src/components/controlled';
 import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from 'src/components/dialog';
+import { ControlledInput, ControlledSelect } from 'src/components/forms';
+import { NoItems } from 'src/components/forms/helpers/no-items';
 import { handleSubmit, useFormErrorHandler } from 'src/hooks/form';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { Translate, createTranslate } from 'src/intl/translate';
 import { getId, getName } from 'src/utils/object';
 
 const T = createTranslate('pages.domains.createDialog');
@@ -77,7 +77,7 @@ function DomainForm({ onCreated, renderFooter }: DomainFormProps) {
   const invalidate = useInvalidateApiQuery();
 
   const mutation = useMutation({
-    ...useApiMutationFn('createDomain', (values: FormValues) => ({
+    ...apiMutation('post /v1/domains', (values: FormValues) => ({
       body: {
         name: values.domainName,
         app_id: values.appId ?? undefined,
@@ -85,7 +85,7 @@ function DomainForm({ onCreated, renderFooter }: DomainFormProps) {
       },
     })),
     async onSuccess({ domain }, { domainName }) {
-      await invalidate('listDomains');
+      await invalidate('get /v1/domains');
       form.reset();
       onCreated(domain!.id!, domainName);
     },
@@ -103,9 +103,9 @@ function DomainForm({ onCreated, renderFooter }: DomainFormProps) {
         items={apps}
         getKey={getId}
         itemToString={getName}
-        itemToValue={getId}
+        getValue={getId}
         renderItem={getName}
-        renderNoItems={() => <T id="noApps" />}
+        renderNoItems={() => <NoItems message={<T id="noApps" />} />}
       />
 
       {renderFooter(form.formState)}

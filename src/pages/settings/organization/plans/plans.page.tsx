@@ -3,7 +3,7 @@ import { SectionHeader } from 'src/components/section-header';
 import { createTranslate } from 'src/intl/translate';
 import { createArray } from 'src/utils/arrays';
 
-import { ChangePlanEnterpriseButton, ChangePlanButton } from './change-plan-button';
+import { ChangePlanButton, ChangePlanEnterpriseButton } from './change-plan-button';
 import { PlanCard } from './plan-card';
 
 type Plan = 'starter' | 'pro' | 'scale' | 'enterprise';
@@ -12,7 +12,7 @@ const T = createTranslate('pages.organizationSettings.plans');
 
 export function PlansPage() {
   const pricing = (children: React.ReactNode) => (
-    <ExternalLink openInNewTab href="https://snipkit.com/pricing#features" className="underline">
+    <ExternalLink openInNewTab href="https://khulnasoft.com/pricing#features" className="underline">
       {children}
     </ExternalLink>
   );

@@ -1,17 +1,15 @@
 import { useController } from 'react-hook-form';
 
-import { ControlledCheckbox } from 'src/components/controlled';
+import { ControlledCheckbox } from 'src/components/forms';
+import { OverridableInput } from 'src/components/overridable-input';
+import { ShellCommandInput } from 'src/components/shell-command-input';
 import { createTranslate } from 'src/intl/translate';
 
-import { OverridableInput } from '../../components/overridable-input';
-import { ShellCommandInput } from '../../components/shell-command-input';
 import { ServiceForm } from '../../service-form.types';
 
 const T = createTranslate('modules.serviceForm.builder.dockerfileConfiguration');
 
 export function DockerfileOptions() {
-  const t = T.useTranslate();
-
   return (
     <div className="col gaps">
       <div className="col gap-2">
@@ -23,9 +21,8 @@ export function DockerfileOptions() {
 
       <OverridableInput
         name="builder.dockerfileOptions.dockerfile"
-        label={<T id="dockerfileLocationLabel" />}
-        helpTooltip={<T id="dockerfileLocationTooltip" />}
-        placeholder={t('dockerfileLocationPlaceholder')}
+        label={<T id="dockerfileLocation.label" />}
+        tooltip={<T id="dockerfileLocation.tooltip" />}
       />
 
       <EntrypointInput />
@@ -34,21 +31,20 @@ export function DockerfileOptions() {
 
       <OverridableInput
         name="builder.dockerfileOptions.target"
-        label={<T id="targetLabel" />}
-        helpTooltip={<T id="targetTooltip" />}
+        label={<T id="target.label" />}
+        tooltip={<T id="target.tooltip" />}
       />
 
       <OverridableInput
         name="source.git.workDirectory"
-        label={<T id="workDirectoryLabel" />}
-        helpTooltip={<T id="workDirectoryTooltip" />}
-        placeholder={t('workDirectoryPlaceholder')}
+        label={<T id="workDirectory.label" />}
+        tooltip={<T id="workDirectory.tooltip" />}
       />
 
       <ControlledCheckbox<ServiceForm>
         name="builder.dockerfileOptions.privileged"
-        label={<T id="privilegedLabel" />}
-        helpTooltip={<T id="privilegedTooltip" />}
+        label={<T id="privileged.label" />}
+        tooltip={<T id="privileged.tooltip" />}
       />
     </div>
   );
@@ -65,8 +61,8 @@ function EntrypointInput() {
 
   return (
     <ShellCommandInput
-      label={<T id="entrypointLabel" />}
-      helpTooltip={<T id="entrypointTooltip" />}
+      label={<T id="entrypoint.label" />}
+      tooltip={<T id="entrypoint.tooltip" />}
       instruction="ENTRYPOINT"
       value={field.value}
       onChange={field.onChange}
@@ -89,8 +85,8 @@ function CommandInput() {
 
   return (
     <ShellCommandInput
-      label={<T id="commandLabel" />}
-      helpTooltip={<T id="commandTooltip" />}
+      label={<T id="command.label" />}
+      tooltip={<T id="command.tooltip" />}
       instruction="CMD"
       value={value}
       onChange={(value) => {

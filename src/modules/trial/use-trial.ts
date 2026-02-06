@@ -1,10 +1,9 @@
 import { intervalToDuration, isAfter } from 'date-fns';
 
-import { useSubscriptionQuery } from 'src/api/hooks/billing';
-import { useOrganizationUnsafe } from 'src/api/hooks/session';
+import { useOrganization, useSubscriptionQuery } from 'src/api';
 
 export function useTrial() {
-  const organization = useOrganizationUnsafe();
+  const organization = useOrganization();
   const { data: subscription } = useSubscriptionQuery(organization?.latestSubscriptionId);
 
   if (!organization?.trial || !subscription?.trial) {

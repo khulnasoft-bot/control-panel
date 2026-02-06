@@ -1,14 +1,16 @@
 import { useMutation } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
-import { Input } from '@snipkit/design-system';
-import { GitRepository } from 'src/api/model';
 import { useTranslate } from 'src/intl/translate';
+import { GitRepository } from 'src/model';
+
+import { Input } from '../forms/input';
 
 import { fetchGithubRepository } from './github-api';
 import { parseGithubRepositoryQuery } from './parse-github-repository-query';
 
 type PublicGithubRepositoryInputOwnProps = {
+  tooltip?: React.ReactNode;
   value: string;
   onChange: (value: string) => void;
   onRepositoryFetched: (repository: GitRepository) => void;
@@ -22,6 +24,8 @@ type PublicGithubRepositoryInputProps = Omit<
   PublicGithubRepositoryInputOwnProps;
 
 export function PublicGithubRepositoryInput({
+  label,
+  tooltip,
   value,
   onChange,
   onRepositoryFetched,
@@ -32,7 +36,7 @@ export function PublicGithubRepositoryInput({
 
   const { mutate } = useMutation({
     mutationKey: ['fetchPublicRepository'],
-    mutationFn: fetchGithubRepository,
+    mutationFn: (name: string) => fetchGithubRepository(name),
     onSuccess: onRepositoryFetched,
     onError(error) {
       if (error.message === 'GithubRepositoryNotFound') {
@@ -59,5 +63,13 @@ export function PublicGithubRepositoryInput({
     };
   }, [value, mutate]);
 
-  return <Input value={value} onChange={(event) => onChange(event.target.value)} {...props} />;
+  return (
+    <Input
+      label={label}
+      tooltip={tooltip}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      {...props}
+    />
+  );
 }

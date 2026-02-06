@@ -1,40 +1,41 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button } from '@snipkit/design-system';
-import { Service } from 'src/api/model';
-import { useInvalidateApiQuery } from 'src/api/use-api';
+import { useApi, useInvalidateApiQuery } from 'src/api';
 import { notify } from 'src/application/notify';
 import { updateDatabaseService } from 'src/application/service-functions';
-import { ControlledInput } from 'src/components/controlled';
-import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from 'src/components/dialog';
+import { CloseDialogButton, Dialog, DialogFooter, DialogHeader, closeDialog } from 'src/components/dialog';
+import { ControlledInput } from 'src/components/forms';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
-import { useZodResolver } from 'src/hooks/validation';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { Translate, createTranslate } from 'src/intl/translate';
+import { Service } from 'src/model';
 import { randomString } from 'src/utils/random';
 
-const T = createTranslate('pages.database.roles.createDialog');
+const T = createTranslate('pages.database.roles.create');
 
 const schema = z.object({
   name: z.string().min(1).max(63),
 });
 
 export function CreateDatabaseRoleDialog({ service }: { service: Service }) {
-  const invalidate = useInvalidateApiQuery();
-  const closeDialog = Dialog.useClose();
   const t = T.useTranslate();
 
-  const form = useForm<z.infer<typeof schema>>({
+  const api = useApi();
+  const invalidate = useInvalidateApiQuery();
+
+  const form = useForm({
     defaultValues: {
       name: '',
     },
-    resolver: useZodResolver(schema),
+    resolver: zodResolver(schema),
   });
 
   const mutation = useMutation({
     async mutationFn({ name }: FormValues<typeof form>) {
-      await updateDatabaseService(service.id, (definition) => {
+      await updateDatabaseService(api, service.id, (definition) => {
         definition.database!.neon_postgres!.roles!.push({
           name,
           secret: databaseRoleSecret(service.name),
@@ -42,8 +43,8 @@ export function CreateDatabaseRoleDialog({ service }: { service: Service }) {
       });
     },
     async onSuccess(_, { name }) {
-      await invalidate('getService', { path: { id: service.id } });
-      notify.info(t('successNotification', { name }));
+      await invalidate('get /v1/services/{id}', { path: { id: service.id } });
+      notify.info(t('success', { name }));
       closeDialog();
     },
     onError: useFormErrorHandler(form, mapError),

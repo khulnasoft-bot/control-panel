@@ -1,28 +1,35 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
-import { isApiFailedPrecondition } from '../api-errors';
+import { useApi } from 'src/api';
+
+import { ApiError } from '../api-error';
 import { mapGithubApp, mapRepository } from '../mappers/git';
-import { GitRepository } from '../model';
-import { useApiQueryFn } from '../use-api';
+import { apiQuery, getApiQueryKey } from '../query';
 
-import { useOrganizationQuery, useUserQuery } from './session';
+import { useOrganization } from './session';
 
-const isNotGithubAppError = (error: Error) => {
-  return isApiFailedPrecondition(error) && error.message === 'No GitHub Installation';
+const isNoGithubAppError = (error: unknown) => {
+  return ApiError.is(error, 400) && error.message === 'No GitHub Installation';
 };
 
 export function useGithubAppQuery(refetchInterval?: number) {
-  const userQuery = useUserQuery();
-  const organizationQuery = useOrganizationQuery();
+  const organization = useOrganization();
+  const api = useApi();
 
   return useQuery({
-    ...useApiQueryFn('getGithubApp'),
-    enabled: userQuery.isSuccess && organizationQuery.isSuccess && organizationQuery.data !== null,
+    queryKey: getApiQueryKey('get /v1/github/installation', {}),
+    queryFn: async ({ signal }) => {
+      return api('get /v1/github/installation', {}, { signal }).catch((error) => {
+        if (isNoGithubAppError(error)) {
+          return null;
+        } else {
+          throw error;
+        }
+      });
+    },
+    enabled: organization !== undefined,
     refetchInterval,
-    select: mapGithubApp,
-    refetchOnWindowFocus: () => false,
-    retry: (count, error) => (isNotGithubAppError(error) ? false : count < 3),
-    throwOnError: (error) => !isNotGithubAppError(error),
+    select: (result) => (result ? mapGithubApp(result) : null),
   });
 }
 
@@ -32,7 +39,7 @@ export function useGithubApp(refetchInterval?: number) {
 
 export function useRepositoriesQuery(search: string) {
   return useQuery({
-    ...useApiQueryFn('listRepositories', {
+    ...apiQuery('get /v1/git/repositories', {
       query: {
         limit: '5',
         name: search || undefined,
@@ -43,8 +50,6 @@ export function useRepositoriesQuery(search: string) {
   });
 }
 
-const emptyArray: GitRepository[] = [];
-
 export function useRepositories(search: string) {
-  return useRepositoriesQuery(search).data ?? emptyArray;
+  return useRepositoriesQuery(search).data ?? [];
 }

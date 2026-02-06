@@ -1,15 +1,14 @@
+import { Alert, Button } from '@design-system';
 import { Fragment, useMemo } from 'react';
 import { FormattedList } from 'react-intl';
 
-import { Alert, Button } from '@snipkit/design-system';
-import { useInstances, useRegions } from 'src/api/hooks/catalog';
-import { useOrganization, useOrganizationQuotas } from 'src/api/hooks/session';
-import { CatalogInstance } from 'src/api/model';
+import { useInstancesCatalog, useOrganization, useOrganizationQuotas, useRegionsCatalog } from 'src/api';
 import { formatBytes } from 'src/application/memory';
-import { routes } from 'src/application/routes';
+import { openDialog } from 'src/components/dialog';
 import { LinkButton } from 'src/components/link';
 import { SectionHeader } from 'src/components/section-header';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { TranslateEnum, createTranslate } from 'src/intl/translate';
+import { CatalogInstance } from 'src/model';
 import { isDefined } from 'src/utils/generic';
 import { hasProperty } from 'src/utils/object';
 
@@ -32,10 +31,9 @@ export function OrganizationQuotas() {
     <section className="col items-start gap-6">
       <SectionHeader title={<T id="title" />} description={<T id="description" />} />
 
-      {organization.plan === 'hobby' && <HobbyPlanAlert />}
+      {organization?.plan === 'hobby' && <HobbyPlanAlert />}
 
-      {/* eslint-disable-next-line tailwindcss/no-arbitrary-value */}
-      <div className="grid w-full grid-cols-2 rounded-md border md:grid-cols-[24rem,1fr]">
+      <div className="grid w-full grid-cols-2 rounded-md border md:grid-cols-[24rem_1fr]">
         <QuotasSection
           resourceLabel={<T id="resource" />}
           quotaLabel={<T id="quota" />}
@@ -43,9 +41,9 @@ export function OrganizationQuotas() {
         />
 
         <QuotasSection
-          resourceLabel={<T id="snipkitInstanceType" />}
+          resourceLabel={<T id="khulnasoftInstanceType" />}
           quotaLabel={<T id="quota" />}
-          quotas={instanceTypeQuota.snipkit}
+          quotas={instanceTypeQuota.khulnasoft}
         />
 
         <QuotasSection
@@ -67,8 +65,8 @@ export function OrganizationQuotas() {
         />
       </div>
 
-      {organization.plan !== 'hobby' && (
-        <Button color="gray" className="intercom-contact-us self-end">
+      {organization?.plan !== 'hobby' && (
+        <Button color="gray" className="self-end" onClick={() => openDialog('RequestQuotaIncrease', null)}>
           <T id="requestIncrease" />
         </Button>
       )}
@@ -79,7 +77,7 @@ export function OrganizationQuotas() {
 function HobbyPlanAlert() {
   return (
     <Alert variant="info" description={<T id="hobbyPlanAlert.description" />} className="w-full">
-      <LinkButton color="blue" href={routes.organizationSettings.plans()} className="ml-auto self-center">
+      <LinkButton color="blue" to="/settings/plans" className="ml-auto self-center">
         <T id="hobbyPlanAlert.cta" />
       </LinkButton>
     </Alert>
@@ -114,15 +112,11 @@ function useGeneralQuotaItems(): QuotaItem[] {
   const allowedRegions = useAllowedRegions();
 
   return useMemo(() => {
-    if (quotas === undefined) {
-      return [];
-    }
+    const web = <TranslateEnum key="web" enum="serviceType" value="web" />;
+    const worker = <TranslateEnum key="worker" enum="serviceType" value="worker" />;
+    const database = <TranslateEnum key="database" enum="serviceType" value="database" />;
 
-    const web = <Translate key="web" id="common.serviceType.web" />;
-    const worker = <Translate key="worker" id="common.serviceType.worker" />;
-    const database = <Translate key="database" id="common.serviceType.database" />;
-
-    const allowedServiceTypes = organization.plan === 'hobby' ? [web, database] : [web, database, worker];
+    const allowedServiceTypes = organization?.plan === 'hobby' ? [web, database] : [web, database, worker];
 
     return [
       {
@@ -166,31 +160,31 @@ function useGeneralQuotaItems(): QuotaItem[] {
 
 function useAllowedRegions() {
   const quotas = useOrganizationQuotas();
-  const availableRegions = useRegions().filter(hasProperty('status', 'available'));
+  const availableRegions = useRegionsCatalog().filter(hasProperty('status', 'available'));
 
-  if (quotas?.regions === undefined) {
+  if (quotas.regions === undefined) {
     return availableRegions;
   }
 
   return quotas.regions.map((region) => availableRegions.find(hasProperty('id', region))).filter(isDefined);
 }
 
-function useInstanceTypeQuotaItems(): Record<'snipkit' | 'aws' | 'gpu', QuotaItem[]> {
+function useInstanceTypeQuotaItems(): Record<'khulnasoft' | 'aws' | 'gpu', QuotaItem[]> {
   const organization = useOrganization();
   const quotas = useOrganizationQuotas();
-  const instances = useInstances();
+  const instances = useInstancesCatalog();
 
-  const unset = organization.plan === 'hobby' ? <T id="zero" /> : <T id="infinity" />;
+  const unset = organization?.plan === 'hobby' ? <T id="zero" /> : <T id="infinity" />;
 
   const getQuota = (instance: CatalogInstance): QuotaItem => ({
     key: instance.id,
     label: instance.displayName,
-    value: quotas?.maxInstancesByType[instance.id] ?? unset,
+    value: quotas.maxInstancesByType[instance.id] ?? unset,
   });
 
   return {
-    snipkit: instances
-      .filter((instance) => instance.regionCategory === 'snipkit' && instance.category !== 'gpu')
+    khulnasoft: instances
+      .filter((instance) => instance.regionCategory === 'khulnasoft' && instance.category !== 'gpu')
       .map(getQuota),
     aws: instances.filter((instance) => instance.regionCategory === 'aws').map(getQuota),
     gpu: instances.filter((instance) => instance.category === 'gpu').map(getQuota),
@@ -202,7 +196,7 @@ function useVolumesQuotaItems(): QuotaItem[] {
   const regions = useAllowedRegions();
 
   const quota = (regionId: string) => {
-    return quotas?.volumesByRegion[regionId] ?? quotas?.volumesByRegion['*'];
+    return quotas.volumesByRegion[regionId] ?? quotas.volumesByRegion['*'];
   };
 
   return regions.map((region) => ({

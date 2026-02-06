@@ -1,24 +1,23 @@
-import clsx from 'clsx';
-import { useCombobox } from 'downshift';
-import { useRef, useState } from 'react';
-import { useController } from 'react-hook-form';
-
 import {
   Dropdown,
-  DropdownGroup,
   Field,
   FieldHelperText,
-  FieldLabel,
   IconButton,
-  InputBox,
+  Input,
+  Menu,
+  MenuItem,
   useDropdown,
-  useId,
-} from '@snipkit/design-system';
+} from '@design-system';
+import clsx from 'clsx';
+import { useCombobox } from 'downshift';
+import { Fragment, useRef, useState } from 'react';
+import { useController } from 'react-hook-form';
+
 import { DocumentationLink } from 'src/components/documentation-link';
-import { IconChevronDown } from 'src/components/icons';
+import { LabelTooltip } from 'src/components/forms/label-tooltip';
 import { useFormValues } from 'src/hooks/form';
+import { IconChevronDown } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
-import { identity } from 'src/utils/generic';
 import { lowerCase } from 'src/utils/strings';
 
 import { useServiceVariables } from '../../helpers/service-variables';
@@ -40,9 +39,6 @@ export function EnvironmentVariableValueField({
 }: EnvironmentVariableValueFieldProps) {
   const t = T.useTranslate();
 
-  const id = useId();
-  const helperTextId = `${id}-helper-text`;
-
   const variables = useServiceVariables(useFormValues<ServiceForm>());
 
   const [isOpen, setIsOpen] = useState(false);
@@ -53,7 +49,9 @@ export function EnvironmentVariableValueField({
 
   const variableName = useWatchServiceForm(`environmentVariables.${index}.name`);
 
-  const groups: Array<DropdownGroup<string>> = [
+  type Group = { key: React.Key; label: React.ReactNode; items: string[] };
+
+  const groups: Group[] = [
     {
       key: 'secrets',
       label: 'Secrets',
@@ -66,7 +64,7 @@ export function EnvironmentVariableValueField({
     },
     {
       key: 'systemEnv',
-      label: 'Snipkit variables',
+      label: 'KhulnaSoft variables',
       items: filterItems(variables?.systemEnv ?? [], variableName, field.value),
     },
     {
@@ -84,7 +82,6 @@ export function EnvironmentVariableValueField({
     useCombobox({
       isOpen,
       onIsOpenChange: ({ isOpen }) => setIsOpen(isOpen),
-      id,
       itemToString: String,
       items,
       inputValue: field.value,
@@ -121,7 +118,12 @@ export function EnvironmentVariableValueField({
       },
     });
 
-  const dropdown = useDropdown(isOpen);
+  const dropdown = useDropdown({
+    floating: { open: isOpen },
+    offset: 8,
+    flip: true,
+    matchReferenceSize: true,
+  });
 
   const tooltip = (
     <T
@@ -139,24 +141,12 @@ export function EnvironmentVariableValueField({
 
   return (
     <Field
-      label={
-        label && (
-          <FieldLabel htmlFor={id} helpTooltip={tooltip} {...getLabelProps()}>
-            {label}
-          </FieldLabel>
-        )
-      }
-      helperText={
-        <FieldHelperText id={helperTextId} invalid={fieldState.invalid}>
-          {fieldState.error?.message}
-        </FieldHelperText>
-      }
+      label={label && <LabelTooltip {...getLabelProps()} label={label} tooltip={tooltip} />}
+      helperText={<FieldHelperText invalid={fieldState.invalid}>{fieldState.error?.message}</FieldHelperText>}
     >
-      <InputBox
-        boxRef={dropdown.setReference}
-        boxClassName={clsx(isOpen && '!rounded-b-none')}
-        className="peer"
+      <Input
         placeholder={t('valuePlaceholder')}
+        invalid={fieldState.invalid}
         end={
           <IconButton
             variant="ghost"
@@ -167,20 +157,45 @@ export function EnvironmentVariableValueField({
             className={clsx(isOpen && 'rotate-180')}
           />
         }
-        aria-invalid={fieldState.invalid}
-        aria-errormessage={helperTextId}
+        root={{
+          ref: dropdown.refs.setReference,
+          className: clsx(isOpen && 'rounded-b-none!'),
+        }}
         {...getInputProps({ ...field, ref: inputRef })}
       />
 
-      <Dropdown
-        dropdown={dropdown}
-        groups={groups.filter((group) => group.items.length > 0)}
-        highlightedIndex={highlightedIndex}
-        getMenuProps={getMenuProps}
-        getItemProps={getItemProps}
-        getKey={identity}
-        renderItem={(item) => (item === '__new_secret__' ? <T id="createSecret" /> : item)}
-      />
+      <Dropdown dropdown={dropdown}>
+        <Menu {...getMenuProps()} className="max-h-64 overflow-y-auto">
+          {
+            groups.reduce(
+              (result: { sections: React.ReactNode[]; offset: number }, { key, label, items }) => {
+                result.sections.push(
+                  <Fragment key={key}>
+                    {items.length > 0 && (
+                      <MenuItem className="pointer-events-none font-medium text-dim">{label}</MenuItem>
+                    )}
+
+                    {items.map((item, index) => (
+                      <MenuItem
+                        {...getItemProps({ item, index: index + result.offset })}
+                        key={item}
+                        highlighted={index + result.offset === highlightedIndex}
+                      >
+                        {item === '__new_secret__' ? <T id="createSecret" /> : item}
+                      </MenuItem>
+                    ))}
+                  </Fragment>,
+                );
+
+                result.offset += items.length;
+
+                return result;
+              },
+              { sections: [], offset: 0 },
+            ).sections
+          }
+        </Menu>
+      </Dropdown>
     </Field>
   );
 }

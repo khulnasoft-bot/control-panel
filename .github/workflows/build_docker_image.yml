@@ -9,7 +9,7 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT }}
-  DOCKER_IMAGE: eu.gcr.io/${{ secrets.GCP_PROJECT }}/snipkit-console
+  DOCKER_IMAGE: eu.gcr.io/${{ secrets.GCP_PROJECT }}/khulnasoft-console
   GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
 
 jobs:

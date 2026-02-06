@@ -1,30 +1,29 @@
-import { useMutation } from '@tanstack/react-query';
-import { useCallback, useEffect } from 'react';
+import { Button, TabButtons } from '@design-system';
+import { useMatch } from '@tanstack/react-router';
 
-import { Alert, Button, TabButtons } from '@snipkit/design-system';
-import { useAppQuery, useDeploymentQuery, useServiceQuery } from 'src/api/hooks/service';
-import { App, Deployment, Service } from 'src/api/model';
-import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
-import { notify } from 'src/application/notify';
-import { routes } from 'src/application/routes';
+import { ApiError, useAppQuery, useDeploymentQuery, useServiceQuery } from 'src/api';
 import { getServiceUrls } from 'src/application/service-functions';
+import { CliInfoButton, CliInfoTooltip } from 'src/components/cli-info';
 import { CopyIconButton } from 'src/components/copy-icon-button';
+import { openDialog } from 'src/components/dialog';
 import { DocumentTitle } from 'src/components/document-title';
-import { ExternalLink, TabButtonLink } from 'src/components/link';
+import { ExternalLink, LinkButton, TabButtonLink } from 'src/components/link';
 import { Loading } from 'src/components/loading';
 import { QueryError } from 'src/components/query-error';
 import { ServiceTypeIcon } from 'src/components/service-type-icon';
-import { useNavigate, usePathname, useRouteParam } from 'src/hooks/router';
-import { useServiceName } from 'src/hooks/service';
-import { createTranslate, Translate } from 'src/intl/translate';
-import { PaletteItem, useCommandPaletteContext } from 'src/modules/command-palette/command-palette.provider';
-import { inArray } from 'src/utils/arrays';
+import { useRouteParam } from 'src/hooks/router';
+import { IconArrowLeft } from 'src/icons';
+import { TranslateEnum, createTranslate } from 'src/intl/translate';
+import { App, Deployment, Service } from 'src/model';
+import { useServiceCommands } from 'src/modules/command-palette';
 
 import { DeploymentThrottledAlert } from './deployment-throttled-alert';
 import { InstanceAvailabilityAlerts } from './instance-availability-alerts';
 import { PendingChangesAlert } from './pending-changes-alert';
-import { RedeployButton } from './redeploy-button';
+import { RedeployServiceDialog } from './redeploy-button';
+import { ResumeServiceDialog } from './resume-service-dialog';
 import { ServiceErrorAlert } from './service-error-alert';
+import { ServicePausedAlert } from './service-paused-alert';
 
 const T = createTranslate('pages.service.layout');
 
@@ -38,7 +37,10 @@ export function ServiceLayout({ children }: ServiceLayoutProps) {
   const serviceQuery = useServiceQuery(serviceId);
   const appQuery = useAppQuery(serviceQuery.data?.appId);
   const activeDeploymentQuery = useDeploymentQuery(serviceQuery.data?.activeDeploymentId);
-  const serviceName = useServiceName(serviceId);
+
+  if (serviceQuery.isError && ApiError.is(serviceQuery.error, 404)) {
+    return <ServiceNotFound />;
+  }
 
   if (appQuery.isPending || serviceQuery.isPending) {
     return <Loading />;
@@ -62,10 +64,13 @@ export function ServiceLayout({ children }: ServiceLayoutProps) {
 
   return (
     <div className="col gap-8">
-      <DocumentTitle title={serviceName ?? undefined} />
+      <DocumentTitle title={[app.name, service.name].join('/')} />
       <RegisterServiceCommands service={service} />
 
-      <div className="col sm:row items-start justify-between gap-4">
+      <RedeployServiceDialog />
+      <ResumeServiceDialog />
+
+      <div className="col items-start justify-between gap-4 sm:row">
         <Header app={app} service={service} deployment={activeDeployment} />
         <RedeployButton app={app} service={service} />
       </div>
@@ -83,122 +88,28 @@ export function ServiceLayout({ children }: ServiceLayoutProps) {
   );
 }
 
+function ServiceNotFound() {
+  return (
+    <div className="col min-h-24 items-start justify-center gap-6">
+      <div className="col gap-2">
+        <h1 className="text-xl font-semibold">
+          <T id="serviceNotFound.title" />
+        </h1>
+        <p className="max-w-lg text-dim">
+          <T id="serviceNotFound.description" />
+        </p>
+      </div>
+
+      <LinkButton to="/">
+        <IconArrowLeft />
+        <T id="serviceNotFound.cta" />
+      </LinkButton>
+    </div>
+  );
+}
+
 function RegisterServiceCommands({ service }: { service: Service }) {
-  const { defaultItems, mutationEffects } = useCommandPaletteContext();
-  const invalidate = useInvalidateApiQuery();
-  const navigate = useNavigate();
-
-  const invalidateService = useCallback(async () => {
-    await invalidate('listServices');
-    await invalidate('getService', { path: { id: service.id } });
-  }, [invalidate, service.id]);
-
-  const { mutate: redeploy } = useMutation({
-    ...useApiMutationFn('redeployService', { path: { id: service.id }, body: {} }),
-    ...mutationEffects,
-    onSuccess: async () => {
-      await invalidateService();
-      notify.success(`Service ${service.name} is being redeployed`);
-    },
-  });
-
-  const { mutate: resume } = useMutation({
-    ...useApiMutationFn('resumeService', { path: { id: service.id } }),
-    ...mutationEffects,
-    onSuccess: async () => {
-      await invalidateService();
-      notify.success(`Service ${service.name} is being resumed`);
-    },
-  });
-
-  const { mutate: pause } = useMutation({
-    ...useApiMutationFn('pauseService', { path: { id: service.id } }),
-    ...mutationEffects,
-    onSuccess: async () => {
-      await invalidateService();
-      notify.success(`Service ${service.name} is being paused`);
-    },
-  });
-
-  useEffect(() => {
-    const name = service.name;
-
-    const commands: PaletteItem[] = [
-      {
-        label: `Go to dashboard`,
-        description: `Navigate to the ${name} service's dashboard page`,
-        keywords: ['overview', 'dashboard', 'deployments', 'logs', 'build', 'runtime'],
-        execute: () => navigate(routes.service.overview(service.id)),
-      },
-
-      {
-        label: `Go to metrics`,
-        description: `Navigate to the ${name} service's metrics page`,
-        keywords: ['metrics', 'monitoring', 'graphs', 'charts'],
-        execute: () => navigate(routes.service.metrics(service.id)),
-      },
-
-      {
-        label: `Go to console`,
-        description: `Navigate to the ${name} service's console page`,
-        keywords: ['console', 'shell', 'terminal', 'command', 'execute', 'run', 'ssh'],
-        execute: () => navigate(routes.service.console(service.id)),
-      },
-
-      {
-        label: `Go to settings`,
-        description: `Navigate to the ${name} service's settings page`,
-        keywords: ['settings', 'update'],
-        execute: () => navigate(routes.service.settings(service.id)),
-      },
-
-      {
-        label: `Redeploy service`,
-        description: `Redeploy ${name}'s latest deployment`,
-        keywords: ['redeploy', 'restart'],
-        weight: 4,
-        execute: redeploy,
-      },
-    ];
-
-    commands.forEach((command) => defaultItems.add(command));
-
-    return () => {
-      commands.forEach((command) => defaultItems.delete(command));
-    };
-  }, [defaultItems, navigate, service.id, service.name, redeploy]);
-
-  useEffect(() => {
-    const name = service.name;
-    let command: PaletteItem | undefined = undefined;
-
-    if (service.status === 'PAUSED') {
-      command = {
-        label: `Resume service ${name}`,
-        description: `Resume ${name}`,
-        keywords: ['resume', 'start'],
-        weight: 4,
-        execute: resume,
-      };
-    } else if (inArray(service.status, ['HEALTHY', 'DEGRADED'])) {
-      command = {
-        label: `Pause service ${name}`,
-        description: `Pause ${name}`,
-        keywords: ['pause', 'stop'],
-        weight: 4,
-        execute: pause,
-      };
-    }
-
-    if (command !== undefined) {
-      defaultItems.add(command);
-
-      return () => {
-        defaultItems.delete(command);
-      };
-    }
-  }, [defaultItems, service.name, service.status, resume, pause]);
-
+  useServiceCommands(service);
   return null;
 }
 
@@ -212,24 +123,24 @@ function Header({ app, service, deployment }: HeaderProps) {
   const url = getServiceUrls(app, service, deployment).find((url) => url.externalUrl !== undefined);
 
   return (
-    <div className="row min-w-0 max-w-full items-center gap-2">
-      <ServiceTypeIcon type={service.type} size="big" />
+    <div className="row max-w-full min-w-0 items-center gap-2">
+      <ServiceTypeIcon type={service.type} size={4} />
 
       <div className="col min-w-0 gap-1">
         <div className="row items-center gap-2">
-          <div className="typo-heading truncate">{service.name}</div>
+          <div className="truncate typo-heading">{service.name}</div>
           <CopyIconButton text={`${app.name}/${service.name}`} className="size-4" />
         </div>
 
         <div className="row gap-2 text-dim">
           <div className="whitespace-nowrap">
-            <Translate id={`common.serviceType.${service.type}`} />
+            <TranslateEnum enum="serviceType" value={service.type} />
           </div>
 
           {url !== undefined && (
             <>
               <div className="border-l" />
-              <ExternalLink openInNewTab href={`https://${url.externalUrl}`} className="text-link truncate">
+              <ExternalLink openInNewTab href={`https://${url.externalUrl}`} className="truncate text-link">
                 {url.externalUrl}
               </ExternalLink>
             </>
@@ -240,63 +151,51 @@ function Header({ app, service, deployment }: HeaderProps) {
   );
 }
 
+function RedeployButton({ app, service }: { app: App; service: Service }) {
+  const isServiceSettings = useMatch({ from: '/_main/services/$serviceId/settings', shouldThrow: false });
+
+  if (isServiceSettings || service.status === 'PAUSED') {
+    return null;
+  }
+
+  return (
+    <CliInfoButton
+      button={
+        <Button onClick={() => openDialog('RedeployService', service)} className="self-stretch sm:self-start">
+          <T id="redeploy" />
+        </Button>
+      }
+      tooltip={
+        <CliInfoTooltip
+          title={<T id="redeployCli.title" />}
+          description={<T id="redeployCli.description" />}
+          command={`khulnasoft service redeploy ${app.name}/${service.name}`}
+        />
+      }
+    />
+  );
+}
+
 function Navigation() {
   const serviceId = useRouteParam('serviceId');
 
   return (
     <TabButtons className="self-start">
-      <Tab href={routes.service.overview(serviceId)}>
+      <TabButtonLink to="/services/$serviceId" params={{ serviceId }}>
         <T id="navigation.overview" />
-      </Tab>
+      </TabButtonLink>
 
-      <Tab href={routes.service.metrics(serviceId)}>
+      <TabButtonLink to="/services/$serviceId/metrics" params={{ serviceId }}>
         <T id="navigation.metrics" />
-      </Tab>
+      </TabButtonLink>
 
-      <Tab href={routes.service.console(serviceId)}>
+      <TabButtonLink to="/services/$serviceId/console" params={{ serviceId }}>
         <T id="navigation.console" />
-      </Tab>
+      </TabButtonLink>
 
-      <Tab href={routes.service.settings(serviceId)}>
+      <TabButtonLink to="/services/$serviceId/settings" params={{ serviceId }}>
         <T id="navigation.settings" />
-      </Tab>
+      </TabButtonLink>
     </TabButtons>
-  );
-}
-
-function Tab(props: { href: string; children: React.ReactNode }) {
-  const pathname = usePathname();
-
-  return <TabButtonLink selected={pathname === props.href} className="whitespace-nowrap" {...props} />;
-}
-
-function ServicePausedAlert({ service }: { service: Service }) {
-  const t = T.useTranslate();
-
-  const { mutate: resume, isPending } = useMutation({
-    ...useApiMutationFn('resumeService', {
-      path: { id: service.id },
-    }),
-    onSuccess() {
-      notify.info(t('servicePaused.resuming'));
-    },
-  });
-
-  if (service.status !== 'PAUSED') {
-    return null;
-  }
-
-  return (
-    <Alert
-      variant="info"
-      title={<T id="servicePaused.title" />}
-      description={
-        <T id={service.type === 'worker' ? 'servicePaused.descriptionWorker' : 'servicePaused.description'} />
-      }
-    >
-      <Button color="blue" loading={isPending} onClick={() => resume()} className="ml-auto self-center">
-        <T id="servicePaused.resume" />
-      </Button>
-    </Alert>
   );
 }

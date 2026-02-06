@@ -1,19 +1,18 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button, InputEnd, InputStart } from '@design-system';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { useForm, UseFormReturn } from 'react-hook-form';
+import { UseFormReturn, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button, InputEnd, InputStart } from '@snipkit/design-system';
-import { useOrganization } from 'src/api/hooks/session';
-import { useApiMutationFn, useApiQueryFn, useInvalidateApiQuery } from 'src/api/use-api';
+import { apiMutation, apiQuery, useInvalidateApiQuery, useOrganization } from 'src/api';
 import { notify } from 'src/application/notify';
-import { ControlledInput } from 'src/components/controlled';
+import { ControlledInput } from 'src/components/forms';
 import { SectionHeader } from 'src/components/section-header';
 import { TextSkeleton } from 'src/components/skeleton';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
-import { useZodResolver } from 'src/hooks/validation';
 import { FormattedPrice } from 'src/intl/formatted';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { Translate, createTranslate } from 'src/intl/translate';
 
 const T = createTranslate('pages.organizationSettings.billing.billingAlerts');
 
@@ -23,18 +22,20 @@ const schema = z.object({
 
 export function BillingAlerts() {
   const organization = useOrganization();
-  const isHobby = organization.plan === 'hobby';
+  const isHobby = organization?.plan === 'hobby';
 
-  const form = useForm<z.infer<typeof schema>>({
-    defaultValues: { amount: NaN },
-    resolver: useZodResolver(schema),
+  const form = useForm({
+    defaultValues: {
+      amount: NaN,
+    },
+    resolver: zodResolver(schema),
   });
 
   const { currentAmount, query, updateMutation, deleteMutation } = useSpendingLimit(form);
 
   useEffect(() => {
     form.reset({ amount: currentAmount !== null ? currentAmount / 100 : Number.NaN });
-  }, [currentAmount, form]);
+  }, [form, currentAmount]);
 
   const onSubmit = async ({ amount }: FormValues<typeof form>) => {
     if (Number.isNaN(amount) || amount === 0) {
@@ -95,33 +96,34 @@ function useSpendingLimit(form: UseFormReturn<{ amount: number }>) {
   const invalidate = useInvalidateApiQuery();
 
   const query = useQuery({
-    ...useApiQueryFn('getBudget', {
-      path: { organization_id: organization.id },
+    ...apiQuery('get /v1/organizations/{organization_id}/budget', {
+      path: { organization_id: organization?.id as string },
     }),
+    enabled: organization !== undefined,
     select({ budget }) {
       return Number(budget!.amount!);
     },
   });
 
   const updateMutation = useMutation({
-    ...useApiMutationFn('updateBudget', (amount: number) => ({
-      path: { organization_id: organization.id },
+    ...apiMutation('put /v1/organizations/{organization_id}/budget', (amount: number) => ({
+      path: { organization_id: organization!.id },
       body: { amount: String(amount * 100) },
     })),
     onError: useFormErrorHandler(form),
     async onSuccess({ budget }) {
-      await invalidate('getBudget');
+      await invalidate('get /v1/organizations/{organization_id}/budget');
       notify.success(t('alertSetNotification', { value: <FormattedPrice value={Number(budget?.amount)} /> }));
     },
   });
 
   const deleteMutation = useMutation({
-    ...useApiMutationFn('deleteBudget', {
-      path: { organization_id: organization.id },
+    ...apiMutation('delete /v1/organizations/{organization_id}/budget', {
+      path: { organization_id: organization!.id },
     }),
     onError: useFormErrorHandler(form),
     async onSuccess() {
-      await invalidate('getBudget');
+      await invalidate('get /v1/organizations/{organization_id}/budget');
       notify.success(t('alertRemovedNotification'));
     },
   });

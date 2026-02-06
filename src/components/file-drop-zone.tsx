@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { preventDefault, withPreventDefault } from 'src/application/dom-events';
-import { IconFilePlus } from 'src/components/icons';
+import { IconFilePlus } from 'src/icons';
 import { Translate } from 'src/intl/translate';
 
 type FileDropZoneProps = {
@@ -35,8 +35,8 @@ export function FileDropZone({ children, onDrop }: FileDropZoneProps) {
 
 function DropZone() {
   return (
-    <div className="col pointer-events-none h-40 items-center justify-center gap-2 rounded-lg border-2 border-dashed ">
-      <IconFilePlus className="text-icon size-12" />
+    <div className="pointer-events-none col h-40 items-center justify-center gap-2 rounded-lg border-2 border-dashed">
+      <IconFilePlus className="size-12 text-icon" />
 
       <span className="text-dim">
         <Translate id="common.dragFileHere" />

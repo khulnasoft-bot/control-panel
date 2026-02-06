@@ -1,20 +1,21 @@
 import { BrowserContext, Page } from '@playwright/test';
+import { TOTP } from 'totp-generator';
 
-import type { api as Api } from '../src/api/api';
-
-declare const api: typeof Api;
+import { ApiEndpoint, api as baseApi } from 'src/api/api';
+import { UnexpectedError } from 'src/application/errors';
 
 export const config = {
-  baseUrl: process.env.E2E_BASE_URL as string,
+  baseUrl: process.env.BASE_URL!,
+  websiteBaseUrl: process.env.WEBSITE_BASE_URL!,
   account: {
-    email: process.env.E2E_USER_EMAIL as string,
-    password: process.env.E2E_USER_PASSWORD as string,
-    token: process.env.E2E_USER_TOKEN as string,
+    email: process.env.USER_EMAIL!,
+    password: process.env.USER_PASSWORD!,
+    token: process.env.USER_TOKEN!,
   },
   github: {
-    email: process.env.E2E_USER_EMAIL as string,
-    password: process.env.E2E_USER_GITHUB_PASSWORD as string,
-    totpKey: process.env.E2E_USER_GITHUB_TOTP_KEY as string,
+    email: process.env.USER_EMAIL!,
+    password: process.env.USER_GITHUB_PASSWORD!,
+    totpKey: process.env.USER_GITHUB_TOTP_KEY!,
   },
 };
 
@@ -32,39 +33,72 @@ export function pathname(page: Page) {
   return new URL(page.url()).pathname;
 }
 
-export async function authenticate(page: Page) {
-  await page.goto('/');
-
-  await page.evaluate((token) => {
-    window.localStorage.setItem('access-token', token);
-  }, config.account.token);
-
-  await page.goto('/');
-}
-
-export async function deleteSnipkitResources(page: Page) {
-  await page.evaluate(async () => {
-    const token = localStorage.getItem('access-token') ?? undefined;
-
-    const listAppIds = async () => {
-      const { apps } = await api.listApps({ token, query: { limit: '100' } });
-      return apps!.map((app) => app.id!);
-    };
-
-    for (const appId of await listAppIds()) {
-      await api.deleteApp({ token, path: { id: appId } });
-    }
-
-    while ((await listAppIds()).length > 0) {
-      await new Promise((r) => setTimeout(r, 1000));
-    }
-  });
-}
-
 export async function catchNewPage(context: BrowserContext, fn: () => Promise<void>) {
   const promise = context.waitForEvent('page');
 
   await fn();
 
   return promise;
+}
+
+export async function authenticate(page: Page) {
+  await page.goto('/');
+
+  await page.evaluate((token) => {
+    window.localStorage.setItem('access-token', token);
+  }, config.account.token);
+}
+
+export async function authenticateOnGithub(context: BrowserContext) {
+  const page = await context.newPage();
+
+  await page.goto('https://github.com/login');
+
+  await page.getByLabel('Username or email address').fill(config.github.email);
+  await page.getByLabel('Password').fill(config.github.password);
+
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+
+  await page.locator('[name="app_otp"]').fill(await oneTimePassword());
+
+  await page.waitForURL('https://github.com');
+  await page.close();
+}
+
+async function oneTimePassword() {
+  const { otp } = await TOTP.generate(config.github.totpKey);
+  return otp;
+}
+
+export async function api<E extends ApiEndpoint>(
+  ...[endpoint, params, options]: Parameters<typeof baseApi<E>>
+) {
+  const token = config.account.token;
+  const baseUrl = config.baseUrl;
+
+  try {
+    return await baseApi(endpoint, params, { baseUrl, token, ...options });
+  } catch (error) {
+    if (error instanceof UnexpectedError && (error.details as { status?: number }).status === 429) {
+      await wait(5000);
+      return api(endpoint, params, options);
+    } else {
+      throw error;
+    }
+  }
+}
+
+export async function deleteAllApps() {
+  const listAppIds = async () => {
+    const { apps } = await api('get /v1/apps', {});
+    return apps!.map((app) => app.id!);
+  };
+
+  const appIds = await listAppIds();
+
+  await Promise.all(appIds.map((appId) => api('delete /v1/apps/{id}', { path: { id: appId } })));
+
+  while ((await listAppIds()).length > 0) {
+    await new Promise((r) => setTimeout(r, 1000));
+  }
 }

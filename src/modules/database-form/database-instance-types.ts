@@ -1,15 +1,15 @@
-import { CatalogInstance } from 'src/api/model';
+import { CatalogInstance } from 'src/model';
 
 // prettier-ignore
 export const databaseInstances = Object.freeze([
   //                         id         display_name   cpu   ram   disk    price/mo  price/hr
-  createDatabaseInstanceType('free',    'Free',     [ 0.25,    1,     1],         0,        0),
-  createDatabaseInstanceType('small',   'Small',    [ 0.25,    1,  null],     29.76,     0.04),
-  createDatabaseInstanceType('medium',  'Medium',   [  0.5,    2,  null],     59.52,     0.08),
-  createDatabaseInstanceType('large',   'Large',    [    1,    4,  null],    119.04,     0.16),
-  createDatabaseInstanceType('xlarge',  'XLarge',   [    2,    8,  null],    238.08,     0.32),
-  createDatabaseInstanceType('2xlarge', '2XLarge',  [    4,   16,  null],    476.16,     0.64),
-  createDatabaseInstanceType('3xlarge', '3XLarge',  [    8,   32,  null],    952.32,     1.28),
+  createDatabaseInstanceType('free', 'Free', [0.25, 1, 1], 0, 0),
+  createDatabaseInstanceType('small', 'Small', [0.25, 1, null], 29.76, 0.04),
+  createDatabaseInstanceType('medium', 'Medium', [0.5, 2, null], 59.52, 0.08),
+  createDatabaseInstanceType('large', 'Large', [1, 4, null], 119.04, 0.16),
+  createDatabaseInstanceType('xlarge', 'XLarge', [2, 8, null], 238.08, 0.32),
+  createDatabaseInstanceType('2xlarge', '2XLarge', [4, 16, null], 476.16, 0.64),
+  createDatabaseInstanceType('3xlarge', '3XLarge', [8, 32, null], 952.32, 1.28),
 ])
 
 function createDatabaseInstanceType(
@@ -23,11 +23,11 @@ function createDatabaseInstanceType(
     id: catalogInstanceId,
     status: 'available',
     category: 'standard',
-    regionCategory: 'snipkit',
+    regionCategory: 'khulnasoft',
     displayName,
     vcpuShares,
     memory: memory + ' GB',
-    disk: disk === null ? '∞' : disk + ' GB',
+    disk: disk === null ? null : disk + ' GB',
     priceMonthly,
     priceHourly,
     pricePerSecond: priceHourly / (60 * 60),

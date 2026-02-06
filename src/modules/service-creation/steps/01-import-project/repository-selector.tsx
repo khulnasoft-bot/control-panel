@@ -1,25 +1,23 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button, Spinner } from '@design-system';
 import { useIsMutating, useMutation } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button, Spinner } from '@snipkit/design-system';
-import { useGithubApp, useGithubAppQuery, useRepositoriesQuery } from 'src/api/hooks/git';
-import { useOrganization } from 'src/api/hooks/session';
-import { useApiMutationFn } from 'src/api/use-api';
+import { apiMutation, useGithubApp, useGithubAppQuery, useOrganization, useRepositoriesQuery } from 'src/api';
 import { notify } from 'src/application/notify';
 import { ActionsList, ActionsListButton } from 'src/components/actions-list';
-import { ControlledInput } from 'src/components/controlled';
-import { IconRefreshCcw, IconLock, IconGithub } from 'src/components/icons';
-import { ExternalLink } from 'src/components/link';
+import { ControlledInput } from 'src/components/forms';
+import { ExternalLink, LinkButton } from 'src/components/link';
 import { Loading } from 'src/components/loading';
 import { PublicGithubRepositoryInput } from 'src/components/public-github-repository-input/public-github-repository-input';
 import { BoxSkeleton, CircleSkeleton, TextSkeleton } from 'src/components/skeleton';
 import { handleSubmit, useFormValues } from 'src/hooks/form';
 import { useHistoryState, useLocation } from 'src/hooks/router';
-import { useZodResolver } from 'src/hooks/validation';
+import { IconGithub, IconLock, IconRefreshCcw } from 'src/icons';
 import { FormattedDistanceToNow } from 'src/intl/formatted';
-import { createTranslate } from 'src/intl/translate';
+import { Translate, createTranslate } from 'src/intl/translate';
 import { createArray } from 'src/utils/arrays';
 
 const T = createTranslate('modules.serviceCreation.importProject.github');
@@ -41,9 +39,16 @@ export function RepositorySelector({ onImport }: RepositorySelectorProps) {
 
   return (
     <>
-      {!githubApp && <InstallGithubApp />}
+      {githubApp === null && <InstallGithubApp />}
       {githubApp && <OrganizationRepositorySelector onImport={onImport} />}
+
       <PublicRepositorySelector onImport={onImport} />
+
+      <div>
+        <LinkButton color="gray" to="/services/new" search={(prev) => ({ ...prev, step: 'serviceType' })}>
+          <Translate id="common.back" />
+        </LinkButton>
+      </div>
     </>
   );
 }
@@ -64,13 +69,13 @@ function RepositoriesIndexing() {
 }
 
 function InstallGithubApp() {
-  const { githubAppInstallationRequested } = useHistoryState<{ githubAppInstallationRequested: boolean }>();
+  const { githubAppInstallationRequested } = useHistoryState() as { githubAppInstallationRequested: boolean };
   const location = useLocation();
 
   const { mutate: installGithubApp } = useMutation({
-    ...useApiMutationFn('installGithubApp', {
-      body: { metadata: location },
-    }),
+    ...apiMutation('post /v1/github/installation', (metadata: string) => ({
+      body: { metadata },
+    })),
     onSuccess(result) {
       window.location.href = result.url!;
     },
@@ -88,7 +93,7 @@ function InstallGithubApp() {
         </div>
       </div>
 
-      <Button onClick={() => installGithubApp()} disabled={githubAppInstallationRequested}>
+      <Button onClick={() => installGithubApp(location)} disabled={githubAppInstallationRequested}>
         <IconGithub className="size-icon text-inherit" />
         <T id="installGithubApp.button" />
       </Button>
@@ -142,7 +147,7 @@ function OrganizationRepositorySelector({ onImport }: RepositorySelectorProps) {
             onClick={() => onImport(repository.name)}
             className="row w-full items-center gap-1"
           >
-            <IconGithub className="size-icon me-1" />
+            <IconGithub className="me-1 size-icon" />
 
             <span>{repository.name}</span>
 
@@ -220,7 +225,7 @@ function EditAppPermissions() {
 
 function NoRepository({ search }: { search?: string }) {
   return (
-    <div className="col mx-auto min-h-44 max-w-md items-center justify-center gap-2 text-center">
+    <div className="mx-auto col min-h-44 max-w-md items-center justify-center gap-2 text-center">
       <strong>
         <T id="noRepository.title" />
       </strong>
@@ -239,8 +244,8 @@ function ResynchronizeButton() {
   const [loading, setLoading] = useState(false);
 
   const { mutate: resync } = useMutation({
-    ...useApiMutationFn('resyncRepositories', {
-      path: { organization_id: organization.id },
+    ...apiMutation('post /v1/git/sync/organization/{organization_id}', {
+      path: { organization_id: organization?.id as string },
     }),
     onMutate() {
       setLoading(true);
@@ -258,14 +263,14 @@ function ResynchronizeButton() {
   return (
     <Button size={2} color="gray" disabled={loading} onClick={() => resync()}>
       {loading && <Spinner className="size-4" />}
-      {!loading && <IconRefreshCcw className="text-icon size-4" />}
+      {!loading && <IconRefreshCcw className="size-4 text-icon" />}
       <T id="refresh" />
     </Button>
   );
 }
 
 const schema = z.object({
-  url: z.string().refine((url) => url.match(/.+\/.+/)),
+  url: z.string().refine((url) => url.match(/.+\/.+/), { params: { refinement: 'isGithubRepository' } }),
   repositoryName: z.string().min(1),
 });
 
@@ -278,10 +283,12 @@ function PublicRepositorySelector({ onImport }: RepositorySelectorProps) {
       repositoryName: '',
     },
     mode: 'onChange',
-    resolver: useZodResolver(schema, (error) => {
-      if (error.code === 'custom' && error.path[0] === 'url') {
-        return t('publicRepository.invalidGithubRepositoryUrl');
-      }
+    resolver: zodResolver(schema, {
+      error: (iss) => {
+        if (iss.code === 'custom' && iss.params?.refinement === 'isGithubRepository') {
+          return t('publicRepository.invalidGithubRepositoryUrl');
+        }
+      },
     }),
   });
 

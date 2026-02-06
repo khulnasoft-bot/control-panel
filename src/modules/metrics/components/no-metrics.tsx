@@ -1,8 +1,9 @@
-import { Spinner } from '@snipkit/design-system';
-import { hasMessage } from 'src/api/api-errors';
-import { IconTriangleAlert } from 'src/components/icons';
+import { Spinner } from '@design-system';
+
+import { hasMessage } from 'src/application/validation';
 import { Loading } from 'src/components/loading';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { IconTriangleAlert } from 'src/icons';
+import { Translate, createTranslate } from 'src/intl/translate';
 
 const T = createTranslate('modules.metrics');
 

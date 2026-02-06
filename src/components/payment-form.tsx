@@ -1,49 +1,31 @@
-import {
-  CardCvcElement,
-  CardExpiryElement,
-  CardNumberElement,
-  useElements,
-  useStripe,
-} from '@stripe/react-stripe-js';
-import { StripeError as BaseStripeError, Stripe, StripeElements } from '@stripe/stripe-js';
+import { showNewMessage } from '@intercom/messenger-js-sdk';
+import { Button, Field, FieldLabel, InputEnd, InputStart } from '@design-system';
+import { CardCvcElement, CardExpiryElement, CardNumberElement, useStripe } from '@stripe/react-stripe-js';
 import { useMutation } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { Controller, FormState, useForm } from 'react-hook-form';
 
-import { Button, Field, FieldLabel } from '@snipkit/design-system';
-import { api, ApiEndpointParams } from 'src/api/api';
-import { useOrganization } from 'src/api/hooks/session';
-import { Address, OrganizationPlan } from 'src/api/model';
-import { useInvalidateApiQuery } from 'src/api/use-api';
+import { apiMutation, useInvalidateApiQuery, useOrganization, useUser } from 'src/api';
 import { withStopPropagation } from 'src/application/dom-events';
 import { notify } from 'src/application/notify';
-import { reportError } from 'src/application/report-error';
 import { StripeProvider } from 'src/application/stripe';
-import { getToken, useToken } from 'src/application/token';
-import { AddressField } from 'src/components/address-field/address-field';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
-import { ThemeMode, useThemeModeOrPreferred } from 'src/hooks/theme';
-import { createTranslate, Translate } from 'src/intl/translate';
-import { inArray } from 'src/utils/arrays';
-import { assert } from 'src/utils/assert';
-import { wait } from 'src/utils/promises';
+import { usePaymentMethodMutation } from 'src/hooks/stripe';
+import { useThemeModeOrPreferred } from 'src/hooks/theme';
+import { Translate, createTranslate } from 'src/intl/translate';
+import { Address, OrganizationPlan } from 'src/model';
 
-import { CloseDialogButton, Dialog, DialogFooter, DialogHeader } from './dialog';
+import { AddressField } from './address-field/address-field';
+import { CloseDialogButton, Dialog, DialogFooter, DialogHeader, closeDialog } from './dialog';
+import { ControlledInput } from './forms';
 
 const T = createTranslate('components.upgradeDialog');
 
-const waitForPaymentMethodTimeout = 12 * 1000;
-
-class StripeError extends Error {
-  constructor(public readonly error: BaseStripeError) {
-    super(error.message);
-  }
-}
-
-class TimeoutError extends Error {}
-
 const classes = {
-  base: clsx('col h-10 w-full justify-center rounded border px-2 -outline-offset-1'),
+  base: clsx(
+    'col h-10 w-full justify-center rounded-sm border px-2 -outline-offset-1',
+    'bg-neutral', // todo: make sure it works with all instances of the payment form
+  ),
   focus: clsx('focused'),
 };
 
@@ -66,18 +48,23 @@ const stylesDark = {
 };
 
 type PaymentFormProps = {
-  plan?: OrganizationPlan;
+  plan: OrganizationPlan;
   onPlanChanged?: () => void;
   renderFooter: (formState: FormState<{ address: Address }>) => React.ReactNode;
 };
 
 export function PaymentForm({ plan, onPlanChanged, renderFooter }: PaymentFormProps) {
   const t = T.useTranslate();
+
+  const user = useUser();
   const organization = useOrganization();
 
-  const form = useForm<{ address: Address }>({
+  const invalidate = useInvalidateApiQuery();
+
+  const form = useForm<{ billingAlertAmount: number; address: Address }>({
     defaultValues: {
-      address: organization.billing.address ?? {
+      billingAlertAmount: 20,
+      address: organization?.billing.address ?? {
         line1: '',
         postalCode: '',
         city: '',
@@ -86,116 +73,112 @@ export function PaymentForm({ plan, onPlanChanged, renderFooter }: PaymentFormPr
     },
   });
 
-  const { token } = useToken();
-  const invalidate = useInvalidateApiQuery();
+  const billingInfoMutation = useMutation({
+    ...apiMutation('patch /v1/organizations/{id}', (address: Address) => ({
+      path: { id: organization!.id },
+      query: {},
+      body: {
+        address1: address.line1,
+        address2: address.line2,
+        city: address.city,
+        postal_code: address.postalCode,
+        state: address.state,
+        country: address.country,
+        billing_name: organization?.billing.name === undefined ? user?.name : undefined,
+        billing_email: organization?.billing.email === undefined ? user?.email : undefined,
+      },
+    })),
+    onError: useFormErrorHandler(form, (error) => ({
+      'address.line1': error.address1,
+      'address.line2': error.address2,
+      'address.city': error.city,
+      'address.postalCode': error.postal_code,
+      'address.state': error.state,
+      'address.country': error.country,
+    })),
+  });
 
-  const stripe = useStripe();
-  const elements = useElements();
-
-  const handleFormError = useFormErrorHandler(form, (error) => ({
-    'address.line1': error.address1,
-    'address.line2': error.address2,
-    'address.city': error.city,
-    'address.postalCode': error.postal_code,
-    'address.state': error.state,
-    'address.country': error.country,
-  }));
-
-  const mutation = useMutation({
-    async mutationFn({ address }: FormValues<typeof form>) {
-      await updateBillingInformation(address);
-
-      assert(stripe !== null);
-      assert(elements !== null);
-      await submitPaymentMethod(stripe, elements);
-
-      await waitForPaymentMethod();
-
-      await api.changePlan({
-        token,
-        path: { id: organization.id },
-        body: { plan },
-      });
-    },
-    onError(error) {
-      if (error instanceof StripeError) {
-        notify.error(error.message);
-
-        if (!inArray(error.error.type, ['validation_error', 'card_error'])) {
-          reportError(error, { type: error.error.type, code: error.error.code });
-        }
-      } else if (error instanceof TimeoutError) {
-        notify.error(<PaymentMethodTimeout />);
-      } else {
-        handleFormError(error);
-      }
-    },
+  const changePlanMutation = useMutation({
+    ...apiMutation('post /v1/organizations/{id}/plan', (plan: OrganizationPlan) => ({
+      path: { id: organization!.id },
+      body: { plan },
+    })),
     async onSuccess() {
-      await invalidate('getCurrentOrganization');
+      await Promise.all([
+        invalidate('get /v1/account/organization'),
+        invalidate('get /v1/organizations/{organization_id}/quotas'),
+        invalidate('get /v1/subscriptions/{id}'),
+      ]);
+
       onPlanChanged?.();
     },
   });
 
-  const theme = useThemeModeOrPreferred();
-  const style = theme === ThemeMode.light ? stylesLight : stylesDark;
+  const paymentMethodMutation = usePaymentMethodMutation({
+    onTimeout: () => notify.error(<PaymentMethodTimeout />),
+  });
 
-  if (stripe === null) {
-    return <T id="loadingStripe" />;
-  }
+  const updateBudgetMutation = useMutation({
+    ...apiMutation('put /v1/organizations/{organization_id}/budget', (amount: number) => ({
+      path: { organization_id: organization!.id },
+      body: { amount: String(100 * amount) },
+    })),
+  });
+
+  const onSubmit = async ({ billingAlertAmount, address }: FormValues<typeof form>) => {
+    await billingInfoMutation.mutateAsync(address);
+    await paymentMethodMutation.mutateAsync();
+    await changePlanMutation.mutateAsync(plan);
+
+    if (!Number.isNaN(billingAlertAmount)) {
+      await updateBudgetMutation.mutateAsync(billingAlertAmount);
+    }
+  };
 
   return (
-    <form onSubmit={withStopPropagation(handleSubmit(form, mutation.mutateAsync))} className="col gap-6">
-      <div className="grid grid-cols-2 gap-4">
-        <Field className="col-span-2">
-          <FieldLabel>
-            <T id="cardNumberLabel" />
-          </FieldLabel>
-          <CardNumberElement options={{ classes, style }} />
-        </Field>
+    <form onSubmit={withStopPropagation(handleSubmit(form, onSubmit))} className="col gap-4">
+      <PaymentFormFields />
 
-        <Field className="flex-1">
-          <FieldLabel>
-            <T id="expirationLabel" />
-          </FieldLabel>
-          <CardExpiryElement options={{ classes, style }} />
-        </Field>
-
-        <Field className="flex-1">
-          <FieldLabel>
-            <T id="cvcLabel" />
-          </FieldLabel>
-          <CardCvcElement options={{ classes, style }} />
-        </Field>
-
-        <div className="col-span-2">
-          <Controller
-            control={form.control}
-            name="address"
-            render={({ field }) => (
-              <AddressField
-                required
-                size={3}
-                label={<T id="addressLabel" />}
-                placeholder={t('addressPlaceholder')}
-                value={field.value}
-                onChange={field.onChange}
-                errors={{
-                  line1: form.formState.errors.address?.line1?.message,
-                  line2: form.formState.errors.address?.line2?.message,
-                  city: form.formState.errors.address?.city?.message,
-                  postalCode: form.formState.errors.address?.postalCode?.message,
-                  state: form.formState.errors.address?.state?.message,
-                  country: form.formState.errors.address?.country?.message,
-                }}
-              />
-            )}
+      <Controller
+        control={form.control}
+        name="address"
+        render={({ field, fieldState }) => (
+          <AddressField
+            {...field}
+            required
+            size={3}
+            label={<T id="addressLabel" />}
+            placeholder={t('addressPlaceholder')}
+            errors={fieldState.error}
           />
-        </div>
-      </div>
+        )}
+      />
 
       <p className="text-dim">
         {plan === 'starter' && <T id="temporaryHoldMessage" />}
         {plan !== 'starter' && <T id="proratedChargeMessage" />}
+      </p>
+
+      <ControlledInput
+        control={form.control}
+        name="billingAlertAmount"
+        type="number"
+        label={<T id="billingAlert.label" />}
+        start={
+          <InputStart>
+            <T id="billingAlert.inputStart" />
+          </InputStart>
+        }
+        end={
+          <InputEnd>
+            <T id="billingAlert.inputEnd" />
+          </InputEnd>
+        }
+        className="max-w-48"
+      />
+
+      <p className="text-dim">
+        <T id="billingAlert.description" />
       </p>
 
       {renderFooter(form.formState)}
@@ -203,21 +186,68 @@ export function PaymentForm({ plan, onPlanChanged, renderFooter }: PaymentFormPr
   );
 }
 
-type UpgradeDialogProps = {
-  id?: string;
-  plan?: OrganizationPlan;
-  onPlanChanged?: () => void;
-  title: React.ReactNode;
-  description?: React.ReactNode;
-  submit: React.ReactNode;
-};
+export function PaymentFormFields() {
+  const stripe = useStripe();
 
-export function UpgradeDialog({ id, plan, onPlanChanged, title, description, submit }: UpgradeDialogProps) {
-  const closeDialog = Dialog.useClose();
+  const theme = useThemeModeOrPreferred();
+  const style = theme === 'light' ? stylesLight : stylesDark;
+
+  if (stripe === null) {
+    return <T id="loadingStripe" />;
+  }
 
   return (
-    <Dialog id={id ?? 'Upgrade'} context={{ plan }} className="col w-full max-w-xl gap-4">
-      <DialogHeader title={title} />
+    <div className="grid grid-cols-2 gap-4">
+      <Field className="col-span-2">
+        <FieldLabel>
+          <T id="cardNumberLabel" />
+        </FieldLabel>
+        <CardNumberElement options={{ classes, style }} />
+      </Field>
+
+      <Field className="flex-1">
+        <FieldLabel>
+          <T id="expirationLabel" />
+        </FieldLabel>
+        <CardExpiryElement options={{ classes, style }} />
+      </Field>
+
+      <Field className="flex-1">
+        <FieldLabel>
+          <T id="cvcLabel" />
+        </FieldLabel>
+        <CardCvcElement options={{ classes, style }} />
+      </Field>
+    </div>
+  );
+}
+
+export type UpgradeDialogProps = {
+  plan?: OrganizationPlan;
+  onPlanChanged?: () => void;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  submit?: React.ReactNode;
+};
+
+export function UpgradeDialog() {
+  return (
+    <Dialog id="Upgrade" className="col w-full max-w-xl gap-4">
+      {(props) => <UpgradeDialogContent {...props} />}
+    </Dialog>
+  );
+}
+
+function UpgradeDialogContent({
+  plan = 'starter',
+  onPlanChanged,
+  title,
+  description,
+  submit,
+}: UpgradeDialogProps) {
+  return (
+    <>
+      <DialogHeader title={title ?? <T id="title" />} />
 
       {description && <p className="text-dim">{description}</p>}
 
@@ -235,17 +265,17 @@ export function UpgradeDialog({ id, plan, onPlanChanged, title, description, sub
               </CloseDialogButton>
 
               <Button type="submit" size={3} loading={formState.isSubmitting}>
-                {submit}
+                {submit ?? <T id="submit" />}
               </Button>
             </DialogFooter>
           )}
         />
       </StripeProvider>
-    </Dialog>
+    </>
   );
 }
 
-function PaymentMethodTimeout() {
+export function PaymentMethodTimeout() {
   return (
     <div className="col gap-1">
       <strong>
@@ -257,85 +287,13 @@ function PaymentMethodTimeout() {
           id="paymentMethodTimeoutDescription"
           values={{
             contactUs: (children) => (
-              <span className="intercom-contact-us cursor-pointer underline">{children}</span>
+              <button type="button" className="underline" onClick={() => showNewMessage('')}>
+                {children}
+              </button>
             ),
           }}
         />
       </p>
     </div>
   );
-}
-
-async function updateBillingInformation(address: Address) {
-  const token = getToken();
-  const { user } = await api.getCurrentUser({ token });
-  const { organization } = await api.getCurrentOrganization({ token });
-
-  const body: ApiEndpointParams<'updateOrganization'>['body'] = {
-    address1: address.line1,
-    address2: address.line2,
-    city: address.city,
-    postal_code: address.postalCode,
-    state: address.state,
-    country: address.country,
-  };
-
-  if (organization?.billing_name === '') {
-    body.billing_name = user?.name;
-  }
-
-  if (organization?.billing_email === '') {
-    body.billing_email = user?.email;
-  }
-
-  await api.updateOrganization({
-    token,
-    path: { id: organization!.id! },
-    query: {},
-    body,
-  });
-}
-
-async function submitPaymentMethod(stripe: Stripe, elements: StripeElements) {
-  const token = getToken();
-  const { payment_method } = await api.createPaymentAuthorization({ token });
-
-  try {
-    const card = elements.getElement(CardNumberElement);
-    assert(card !== null);
-
-    const result = await stripe.confirmCardPayment(
-      payment_method!.authorization_stripe_payment_intent_client_secret!,
-      { payment_method: { card } },
-    );
-
-    if (result.error) {
-      throw new StripeError(result.error);
-    }
-  } finally {
-    await api.confirmPaymentAuthorization({
-      token,
-      path: { id: payment_method!.id! },
-    });
-  }
-}
-
-async function waitForPaymentMethod() {
-  const token = getToken();
-  let hasPaymentMethod = false;
-
-  const start = new Date().getTime();
-  const elapsed = () => new Date().getTime() - start;
-
-  while (!hasPaymentMethod && elapsed() <= waitForPaymentMethodTimeout) {
-    const organization = await api.getCurrentOrganization({ token });
-
-    hasPaymentMethod = Boolean(organization.organization?.has_payment_method);
-
-    await wait(1000);
-  }
-
-  if (elapsed() > waitForPaymentMethodTimeout) {
-    throw new TimeoutError();
-  }
 }

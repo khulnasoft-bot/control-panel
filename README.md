@@ -1,16 +1,16 @@
-[Website](https://www.snipkit.com) | [Repository](https://github.com/snipkit/control-panel)
+[Website](https://www.khulnasoft.com) | [Repository](https://github.com/khulnasoft/control-panel)
 
-[![Code quality](https://github.com/snipkit/control-panel/actions/workflows/code_quality.yml/badge.svg)](https://github.com/snipkit/control-panel/actions/workflows/code_quality.yml)
+[![Code quality](https://github.com/khulnasoft/control-panel/actions/workflows/code_quality.yml/badge.svg)](https://github.com/khulnasoft/control-panel/actions/workflows/code_quality.yml)
 
 # Overview
 
-This project contains the source code of the Snipkit control panel, accessible at [https://app.snipkit.com](https://app.snipkit.com).
+This project contains the source code of the KhulnaSoft control panel, accessible at [https://app.khulnasoft.com](https://app.khulnasoft.com).
 
 ## Introduction
 
 The control panel is a [React](https://reactjs.org) project powered by [TypeScript](https://typescriptlang.org), [Vite](https://vitejs.dev) and [tailwindcss](https://tailwindcss.com).
 
-If this documentation is unclear or outdated, feel free to [open a pull request](https://github.com/snipkit/control-panel/pulls) on the GitHub repository.
+If this documentation is unclear or outdated, feel free to [open a pull request](https://github.com/khulnasoft/control-panel/pulls) on the GitHub repository.
 
 ## Run the project locally
 
@@ -91,7 +91,7 @@ Some workflows are run through [GitHub Actions](https://github.com/features/acti
 - Build docker image (production and staging branches only): build and push a docker image that will be deployed automatically
 - Code quality: check linter, formatter, types and tests
 - E2E tests (manual trigger): run the end-to-end tests
-- Preview env (PR only): creates a deployment on Snipkit with the code of the pull request
+- Preview env (PR only): creates a deployment on KhulnaSoft with the code of the pull request
 - Publish design system (manual trigger): publish the design system in a github npm package
 
 ## Submitting pull requests

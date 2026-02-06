@@ -1,16 +1,16 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { Button } from '@snipkit/design-system';
-import { useOrganization } from 'src/api/hooks/session';
-import { useApiMutationFn, useInvalidateApiQuery } from 'src/api/use-api';
+import { apiMutation, useInvalidateApiQuery, useOrganization } from 'src/api';
 import { notify } from 'src/application/notify';
-import { ControlledInput } from 'src/components/controlled';
+import { ControlledInput } from 'src/components/forms';
 import { SectionHeader } from 'src/components/section-header';
 import { FormValues, handleSubmit, useFormErrorHandler } from 'src/hooks/form';
-import { useZodResolver } from 'src/hooks/validation';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { Translate, createTranslate } from 'src/intl/translate';
 
 const T = createTranslate('pages.organizationSettings.general.organizationName');
 
@@ -21,21 +21,27 @@ const schema = z.object({
 export function OrganizationName() {
   const organization = useOrganization();
 
-  const form = useForm<z.infer<typeof schema>>({
-    defaultValues: { organizationName: organization.name },
-    resolver: useZodResolver(schema),
+  const form = useForm({
+    defaultValues: {
+      organizationName: organization?.name ?? '',
+    },
+    resolver: zodResolver(schema),
   });
+
+  useEffect(() => {
+    form.resetField('organizationName', { defaultValue: organization?.name ?? '' });
+  }, [form, organization?.name]);
 
   const invalidate = useInvalidateApiQuery();
 
   const mutation = useMutation({
-    ...useApiMutationFn('updateOrganization', ({ organizationName }: FormValues<typeof form>) => ({
+    ...apiMutation('put /v1/organizations/{id}/name', ({ organizationName }: FormValues<typeof form>) => ({
       query: {},
-      path: { id: organization.id },
+      path: { id: organization!.id },
       body: { name: organizationName },
     })),
     onSuccess(_, values) {
-      void invalidate('getCurrentOrganization');
+      void invalidate('get /v1/account/organization');
       form.reset(values);
       notify.success("Your organization's name was updated");
     },
@@ -43,7 +49,7 @@ export function OrganizationName() {
   });
 
   return (
-    <section className="col sm:row items-start gap-4 sm:gap-8">
+    <section className="col items-start gap-4 sm:row sm:gap-8">
       <SectionHeader title={<T id="title" />} description={<T id="description" />} />
 
       <form onSubmit={handleSubmit(form, mutation.mutateAsync)} className="row gap-4">

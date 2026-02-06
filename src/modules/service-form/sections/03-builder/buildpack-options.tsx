@@ -1,14 +1,12 @@
-import { ControlledCheckbox } from 'src/components/controlled';
+import { ControlledCheckbox } from 'src/components/forms';
+import { OverridableInput } from 'src/components/overridable-input';
 import { createTranslate } from 'src/intl/translate';
 
-import { OverridableInput } from '../../components/overridable-input';
 import { ServiceForm } from '../../service-form.types';
 
 const T = createTranslate('modules.serviceForm.builder.buildpackConfiguration');
 
 export function BuildpackOptions() {
-  const t = T.useTranslate();
-
   return (
     <div className="col gaps">
       <div className="col gap-2">
@@ -18,29 +16,28 @@ export function BuildpackOptions() {
         </div>
       </div>
 
-      <OverridableInput
+      <OverridableInput<ServiceForm, 'builder.buildpackOptions.buildCommand'>
         name="builder.buildpackOptions.buildCommand"
-        label={<T id="buildCommandLabel" />}
-        helpTooltip={<T id="buildCommandTooltip" />}
+        label={<T id="buildCommand.label" />}
+        tooltip={<T id="buildCommand.tooltip" />}
       />
 
-      <OverridableInput
+      <OverridableInput<ServiceForm, 'builder.buildpackOptions.runCommand'>
         name="builder.buildpackOptions.runCommand"
-        label={<T id="runCommandLabel" />}
-        helpTooltip={<T id="runCommandTooltip" />}
+        label={<T id="runCommand.label" />}
+        tooltip={<T id="runCommand.tooltip" />}
       />
 
-      <OverridableInput
+      <OverridableInput<ServiceForm, 'source.git.workDirectory'>
         name="source.git.workDirectory"
-        label={<T id="workDirectoryLabel" />}
-        helpTooltip={<T id="workDirectoryTooltip" />}
-        placeholder={t('workDirectoryPlaceholder')}
+        label={<T id="workDirectory.label" />}
+        tooltip={<T id="workDirectory.tooltip" />}
       />
 
       <ControlledCheckbox<ServiceForm, 'builder.buildpackOptions.privileged'>
         name="builder.buildpackOptions.privileged"
-        label={<T id="privilegedLabel" />}
-        helpTooltip={<T id="privilegedTooltip" />}
+        label={<T id="privileged.label" />}
+        tooltip={<T id="privileged.tooltip" />}
       />
     </div>
   );

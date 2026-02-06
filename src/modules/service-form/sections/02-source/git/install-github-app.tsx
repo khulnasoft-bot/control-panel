@@ -1,18 +1,18 @@
+import { Alert, Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 
-import { Alert, Button } from '@snipkit/design-system';
-import { useApiMutationFn } from 'src/api/use-api';
+import { apiMutation } from 'src/api';
 import { useHistoryState, useLocation } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
 
 const T = createTranslate('modules.serviceForm.source.git');
 
 export function InstallGithubApp() {
-  const { githubAppInstallationRequested } = useHistoryState<{ githubAppInstallationRequested: boolean }>();
+  const { githubAppInstallationRequested } = useHistoryState();
   const location = useLocation();
 
   const { mutate: installGithubApp } = useMutation({
-    ...useApiMutationFn('installGithubApp', {
+    ...apiMutation('post /v1/github/installation', {
       body: { metadata: location },
     }),
     onSuccess(result) {

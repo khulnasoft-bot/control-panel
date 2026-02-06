@@ -1,12 +1,14 @@
-import { Alert } from '@snipkit/design-system';
+import { Alert } from '@design-system';
+
 import {
+  useCatalogInstance,
   useCatalogInstanceAvailability,
   useCatalogInstanceRegionsAvailability,
-  useInstance,
-} from 'src/api/hooks/catalog';
-import { useComputeDeployment, useDeploymentScaling } from 'src/api/hooks/service';
-import { ComputeDeployment, Service } from 'src/api/model';
+  useComputeDeployment,
+  useDeploymentScaling,
+} from 'src/api';
 import { createTranslate } from 'src/intl/translate';
+import { ComputeDeployment, Service } from 'src/model';
 import { hasProperty } from 'src/utils/object';
 
 const T = createTranslate('pages.service.layout.instanceAvailability');
@@ -17,7 +19,7 @@ type InstanceAvailabilityAlertsProps = {
 
 export function InstanceAvailabilityAlerts({ service }: InstanceAvailabilityAlertsProps) {
   const deployment = useComputeDeployment(service.activeDeploymentId);
-  const instance = useInstance(deployment?.definition.instanceType);
+  const instance = useCatalogInstance(deployment?.definition.instanceType);
   const canScaleToMax = useCanScaleToMax(deployment);
 
   const availability = useCatalogInstanceRegionsAvailability(
@@ -50,7 +52,7 @@ export function InstanceAvailabilityAlerts({ service }: InstanceAvailabilityAler
 
 function useCanScaleToMax(deployment?: ComputeDeployment) {
   const instanceAvailability = useCatalogInstanceAvailability(deployment?.definition.instanceType);
-  const scaling = useDeploymentScaling(deployment?.id);
+  const scaling = useDeploymentScaling(deployment);
 
   if (deployment == undefined || scaling === undefined) {
     return true;

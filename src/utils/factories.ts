@@ -19,7 +19,7 @@ import {
   Secret,
   Service,
   Volume,
-} from 'src/api/model';
+} from 'src/model';
 
 import { createDate } from './date';
 import { createId } from './strings';
@@ -32,6 +32,7 @@ export function createFactory<T>(getDefaults: () => T): Factory<T> {
 
 const organization = createFactory<Organization>(() => ({
   id: createId(),
+  externalId: '',
   name: '',
   status: 'ACTIVE',
   statusMessage: 'VALID',
@@ -56,6 +57,14 @@ const quotas = createFactory<OrganizationQuotas>(() => ({
   maxMemory: 0,
   maxDomains: 0,
   logsRetention: 0,
+  scaleToZero: {
+    isDeepSleepEnabled: false,
+    deepSleepIdleDelayMin: 0,
+    deepSleepIdleDelayMax: 0,
+    isLightSleepEnabled: false,
+    lightSleepIdleDelayMin: 0,
+    lightSleepIdleDelayMax: 0,
+  },
 }));
 
 const activity = createFactory<Activity>(() => ({
@@ -91,7 +100,7 @@ const region = createFactory<CatalogRegion>(() => ({
   status: 'available',
   datacenters: [],
   volumesEnabled: false,
-  category: 'snipkit',
+  category: 'khulnasoft',
   scope: 'metropolitan',
 }));
 
@@ -100,7 +109,7 @@ const instance = createFactory<CatalogInstance>(() => ({
   displayName: '',
   status: 'available',
   category: 'standard',
-  regionCategory: 'snipkit',
+  regionCategory: 'khulnasoft',
   vcpuShares: 0,
   memory: '',
   disk: '',
@@ -172,6 +181,7 @@ const service = createFactory<Service>(() => ({
   name: '',
   status: 'HEALTHY',
   createdAt: createDate(),
+  lifeCycle: {},
 }));
 
 const computeDeployment = createFactory<ComputeDeployment>(() => ({
@@ -184,6 +194,7 @@ const computeDeployment = createFactory<ComputeDeployment>(() => ({
   messages: [],
   definition: deploymentDefinition(),
   definitionApi: {},
+  proxyPorts: [],
   trigger: null,
 }));
 
@@ -203,6 +214,7 @@ const deploymentDefinition = createFactory<DeploymentDefinition>(() => ({
 
 const deploymentInstance = createFactory<Instance>(() => ({
   id: createId(),
+  serviceId: '',
   status: 'HEALTHY',
   name: '',
   region: '',
@@ -218,6 +230,7 @@ const databaseDeployment = createFactory<DatabaseDeployment>(() => ({
   appId: '',
   serviceId: '',
   name: '',
+  date: createDate(),
   status: 'HEALTHY',
   created_at: '',
   postgresVersion: 16,

@@ -1,26 +1,25 @@
-import { useMutation } from '@tanstack/react-query';
+import { useAuth } from '@workos-inc/authkit-react';
 import clsx from 'clsx';
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { z } from 'zod';
+import z from 'zod';
 
-import { useOrganization, useOrganizationUnsafe, useUserQuery, useUserUnsafe } from 'src/api/hooks/session';
-import { useApiMutationFn } from 'src/api/use-api';
+import { useOrganization, useUser } from 'src/api';
 import { getConfig } from 'src/application/config';
-import { createValidationGuard } from 'src/application/create-validation-guard';
-import { routes } from 'src/application/routes';
-import { useToken } from 'src/application/token';
+import { StoredValue } from 'src/application/storage';
+import { createValidationGuard } from 'src/application/validation';
 import { DocumentTitle } from 'src/components/document-title';
-import { IconChevronLeft, IconPlus, IconX } from 'src/components/icons';
 import { Link, LinkButton } from 'src/components/link';
-import LogoSnipkit from 'src/components/logo-snipkit.svg?react';
+import { Loading } from 'src/components/loading';
+import LogoKhulnaSoft from 'src/components/logo-khulnasoft.svg?react';
 import Logo from 'src/components/logo.svg?react';
 import { OrganizationAvatar } from 'src/components/organization-avatar';
-import { useLocation, useNavigate } from 'src/hooks/router';
-import { useLocalStorage } from 'src/hooks/storage';
+import { UpgradeDialog } from 'src/components/payment-form';
+import { RequestQuotaIncreaseDialog } from 'src/components/quota-increase-request-dialog';
+import { useLocation } from 'src/hooks/router';
 import { useThemeModeOrPreferred } from 'src/hooks/theme';
+import { IconChevronLeft, IconPlus } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
-import { CommandPalette } from 'src/modules/command-palette/command-palette';
-import { CreateServiceDialog } from 'src/modules/create-service-dialog/create-service-dialog';
+import { CommandPaletteProvider } from 'src/modules/command-palette';
 import { TrialBanner } from 'src/modules/trial/trial-banner';
 import { TrialWelcomeDialog } from 'src/modules/trial/trial-welcome-dialog';
 import { useTrial } from 'src/modules/trial/use-trial';
@@ -29,6 +28,7 @@ import { inArray } from 'src/utils/arrays';
 import { OrganizationSwitcher } from '../organization-switcher';
 
 import { AppBreadcrumbs } from './app-breadcrumbs';
+import { ContextPalette } from './context-palette';
 import { FeatureFlagsDialog } from './feature-flags-dialog';
 import { GlobalAlert } from './global-alert';
 import { HelpLinks } from './help-links';
@@ -36,7 +36,6 @@ import { Layout } from './layout';
 import { Navigation } from './navigation';
 import { OrganizationPlan } from './organization-plan';
 import { PlatformStatus } from './platform-status';
-import { PreloadDatacenterLatencies } from './preload-datacenter-latencies';
 import { UserMenu } from './user-menu';
 
 const T = createTranslate('layouts.main');
@@ -46,22 +45,28 @@ type LayoutProps = {
 };
 
 export function MainLayout({ children }: LayoutProps) {
+  const trial = useTrial();
   const pageContext = usePageContext();
-  const banner = useBanner();
+  const authKit = useAuth();
+
+  if (!useOrganization()) {
+    return null;
+  }
 
   return (
-    <>
+    <CommandPaletteProvider>
       <DocumentTitle />
-      <PreloadDatacenterLatencies />
-      <CommandPalette />
 
-      <CreateServiceDialog />
+      <UpgradeDialog />
+      <RequestQuotaIncreaseDialog />
       <FeatureFlagsDialog />
       <TrialWelcomeDialog />
+      <ContextPalette />
+
+      {authKit.impersonator && <Impersonation email={authKit.user?.email} />}
 
       <Layout
-        banner={banner ? { session: <SessionTokenBanner />, trial: <TrialBanner /> }[banner] : null}
-        hasBanner={banner !== undefined}
+        banner={trial && <TrialBanner />}
         header={<AppBreadcrumbs />}
         menu={<Menu />}
         menuCollapsed={<Menu collapsed />}
@@ -69,19 +74,19 @@ export function MainLayout({ children }: LayoutProps) {
         context={pageContext.enabled ? <PageContext {...pageContext} /> : null}
         contextExpanded={pageContext.expanded}
       />
-    </>
+    </CommandPaletteProvider>
   );
 }
 
 function Menu({ collapsed = false }: { collapsed?: boolean }) {
-  const organization = useOrganizationUnsafe();
+  const organization = useOrganization();
   const isDeactivated = inArray(organization?.status, ['DEACTIVATING', 'DEACTIVATED']);
 
   return (
     <div className="col min-h-full gap-4 py-4 sm:gap-6 sm:py-6">
-      <Link href={isDeactivated ? routes.organizationSettings.index() : routes.home()} className="mx-2 px-3">
+      <Link to={isDeactivated ? '/settings' : '/'} className="mx-2 px-3">
         {collapsed && <Logo className="h-6" />}
-        {!collapsed && <LogoSnipkit className="h-6" />}
+        {!collapsed && <LogoKhulnaSoft className="h-6" />}
       </Link>
 
       {collapsed && (
@@ -96,7 +101,7 @@ function Menu({ collapsed = false }: { collapsed?: boolean }) {
         </div>
       )}
 
-      <LinkButton size={2} href={routes.createService()} disabled={isDeactivated} className="mx-3 capitalize">
+      <LinkButton size={2} to="/services/new" disabled={isDeactivated} className="mx-3 capitalize">
         {collapsed && (
           <div>
             <IconPlus className="size-5" />
@@ -109,7 +114,7 @@ function Menu({ collapsed = false }: { collapsed?: boolean }) {
 
       <div className="col gap-4">
         {!collapsed && (
-          <div className="mx-4 divide-y rounded-md border bg-neutral">
+          <div role="menu" className="mx-4 divide-y rounded-md border bg-neutral">
             <UserMenu collapsed={collapsed} />
             <OrganizationPlan />
           </div>
@@ -125,17 +130,9 @@ function Menu({ collapsed = false }: { collapsed?: boolean }) {
 }
 
 function Main({ children }: { children: React.ReactNode }) {
-  const user = useUserUnsafe();
-  const organization = useOrganizationUnsafe();
-  const isAuthenticated = user !== undefined && organization !== undefined;
-
-  if (!isAuthenticated) {
-    return null;
-  }
-
   return (
-    <main className="overflow-x-auto px-2 py-4 sm:px-4">
-      <Suspense>
+    <main className="px-2 py-4 sm:px-4">
+      <Suspense fallback={<Loading />}>
         <GlobalAlert />
         {children}
       </Suspense>
@@ -143,44 +140,17 @@ function Main({ children }: { children: React.ReactNode }) {
   );
 }
 
-function useBanner(): 'session' | 'trial' | void {
-  const { session } = useToken();
-  const organization = useOrganizationUnsafe();
-  const trial = useTrial();
-
-  if (organization === undefined) {
-    return;
-  }
-
-  if (session) {
-    return 'session';
-  }
-
-  if (trial) {
-    return 'trial';
-  }
-}
-
-function SessionTokenBanner() {
-  const organization = useOrganization();
-  const { clearToken } = useToken();
-  const navigate = useNavigate();
-
-  const mutation = useMutation({
-    ...useApiMutationFn('logout', {}),
-    onMutate: clearToken,
-    onSuccess: () => navigate(routes.home()),
-  });
-
+function Impersonation({ email }: { email?: string }) {
   return (
-    <div className="bg-orange px-4 py-1.5 text-center font-medium md:h-full md:whitespace-nowrap">
-      <T id="sessionTokenWarning" values={{ organizationName: organization.name }} />
-      <button type="button" className="absolute inset-y-0 right-0 px-4" onClick={() => mutation.mutate()}>
-        <IconX className="size-5" />
-      </button>
+    <div className="pointer-events-none fixed inset-0 z-70 border-4 border-orange">
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-t-md bg-orange px-2 pt-1 text-xs text-black">
+        <T id="impersonating" values={{ email }} />
+      </div>
     </div>
   );
 }
+
+const isReadyEvent = createValidationGuard(z.object({ ready: z.literal(true) }));
 
 type PageContextProps = {
   expanded?: boolean;
@@ -188,9 +158,9 @@ type PageContextProps = {
 };
 
 function PageContext({ expanded, setExpanded }: PageContextProps) {
-  const { pageContextBaseUrl } = getConfig();
+  const pageContextBaseUrl = getConfig('pageContextBaseUrl');
+  const { getAccessToken } = useAuth();
 
-  const { token } = useToken();
   const location = useLocation();
   const theme = useThemeModeOrPreferred();
 
@@ -210,17 +180,22 @@ function PageContext({ expanded, setExpanded }: PageContextProps) {
 
   useEffect(() => {
     if (pageContextBaseUrl !== undefined && ready) {
-      iFrameRef.current?.contentWindow?.postMessage({ token, location }, pageContextBaseUrl);
+      void getAccessToken().then((token) => {
+        iFrameRef.current?.contentWindow?.postMessage({ token, location }, pageContextBaseUrl);
+      });
     }
-  }, [pageContextBaseUrl, iFrameRef, ready, token, location]);
+  }, [getAccessToken, pageContextBaseUrl, iFrameRef, ready, location]);
 
   return (
     <>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="col absolute right-full h-full justify-center bg-muted/50 opacity-0 transition-opacity hover:opacity-100"
+        className={clsx(
+          'absolute right-full hidden h-full justify-center bg-muted/50 transition-opacity sm:col',
+          !expanded && 'opacity-0 hover:opacity-100',
+        )}
       >
-        <IconChevronLeft className={clsx('size-6 text-dim', expanded && '-scale-x-100')} />
+        <IconChevronLeft className={clsx('icon', expanded && '-scale-x-100')} />
       </button>
 
       <iframe
@@ -233,18 +208,25 @@ function PageContext({ expanded, setExpanded }: PageContextProps) {
   );
 }
 
-const isReadyEvent = createValidationGuard(z.object({ ready: z.literal(true) }));
+const pageContextExpanded = new StoredValue<boolean>('page-context-expanded');
 
 function usePageContext() {
-  const { data: user } = useUserQuery();
-  const { pageContextBaseUrl } = getConfig();
+  const { impersonator } = useAuth();
+  const user = useUser();
+  const pageContextBaseUrl = getConfig('pageContextBaseUrl');
 
-  const enabled = Boolean(pageContextBaseUrl !== undefined && user?.flags.includes('ADMIN'));
-  const [expanded = false, setExpanded] = useLocalStorage<boolean>('page-context-expanded');
+  const enabled = Boolean(
+    pageContextBaseUrl !== undefined && (user?.flags.includes('ADMIN') || impersonator !== null),
+  );
+
+  const [expanded, setExpanded] = useState(pageContextExpanded.read() ?? false);
 
   return {
     enabled,
     expanded: enabled && expanded,
-    setExpanded,
+    setExpanded: (expanded: boolean) => {
+      setExpanded(expanded);
+      pageContextExpanded.write(expanded);
+    },
   };
 }

@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 
-import { useOrganization, useOrganizationQuotas, useOrganizationSummary } from 'src/api/hooks/session';
-import { CatalogInstance } from 'src/api/model';
+import { useOrganizationQuotas, useOrganizationSummary } from 'src/api';
+import { CatalogInstance } from 'src/model';
 
 export function useInstanceQuota(instance: CatalogInstance) {
   const getInstanceQuota = useGetInstanceQuota();
@@ -34,22 +34,17 @@ export function useGetHasInstanceQuota(previousInstance?: CatalogInstance) {
 }
 
 export function useGetInstanceQuota() {
-  const organization = useOrganization();
   const quotas = useOrganizationQuotas();
   const summary = useOrganizationSummary();
 
   return useCallback(
     (instance: CatalogInstance) => {
       const max = () => {
-        const { maxInstancesByType, instanceTypes } = quotas ?? {};
-        const quota = maxInstancesByType?.[instance.id];
+        const { maxInstancesByType, instanceTypes } = quotas;
+        const quota = maxInstancesByType[instance.id];
 
         if (quota !== undefined) {
           return quota;
-        }
-
-        if (instance.plans && !instance.plans.includes(organization.plan)) {
-          return 0;
         }
 
         if (instanceTypes !== undefined && !instanceTypes.includes(instance.id)) {
@@ -60,11 +55,11 @@ export function useGetInstanceQuota() {
       };
 
       const used = () => {
-        return summary?.instancesUsed[instance.id] ?? 0;
+        return summary.instancesUsed[instance.id] ?? 0;
       };
 
       return { max: max(), used: used() };
     },
-    [organization, quotas, summary],
+    [quotas, summary],
   );
 }

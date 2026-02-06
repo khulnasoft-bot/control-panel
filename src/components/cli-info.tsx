@@ -1,6 +1,6 @@
-import { Tooltip } from '@snipkit/design-system';
 import { CopyIconButton } from 'src/components/copy-icon-button';
-import { IconInfo } from 'src/components/icons';
+import { Tooltip } from 'src/components/tooltip';
+import { IconInfo } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
 
 import { DocumentationLink } from './documentation-link';
@@ -17,13 +17,16 @@ export function CliInfoButton({ button, tooltip }: CliInfoButtonProps) {
     <div className="col items-end">
       {button}
 
-      <Tooltip allowHover color="neutral" content={tooltip} className="max-w-md">
-        {(props) => (
+      <Tooltip
+        allowHover
+        trigger={(props) => (
           <button type="button" className="text-xs text-dim/75 underline" {...props}>
             <T id="cta" values={{ icon: <IconInfo className="ml-1 inline-block size-3 align-middle" /> }} />
           </button>
         )}
-      </Tooltip>
+        content={tooltip}
+        className="max-w-md"
+      />
     </div>
   );
 }
@@ -44,7 +47,7 @@ export function CliInfoTooltip({ title, description, command }: CliInfoTooltipPr
         </div>
       </div>
 
-      <div className="row items-center justify-between gap-2 rounded bg-black p-2 font-mono text-white">
+      <div className="row items-center justify-between gap-2 rounded-sm bg-black p-2 font-mono text-white">
         $ {command}
         <div>
           <CopyIconButton text={command} className="size-4" />

@@ -1,14 +1,15 @@
+import { Button } from '@design-system';
 import { useState } from 'react';
 
-import { Button } from '@snipkit/design-system';
-import { ComputeDeployment, Replica } from 'src/api/model';
 import { RegionFlag } from 'src/components/region-flag';
 import { InstanceStatusBadge } from 'src/components/status-badges';
 import { createTranslate } from 'src/intl/translate';
+import { ComputeDeployment, Replica } from 'src/model';
+
+import { useDeploymentMetricsQuery } from '../deployment-metrics/deployment-metrics';
 
 import { ReplicaDrawer } from './replica-drawer';
 import { ReplicaCpu, ReplicaMemory } from './replica-metadata';
-import { useReplicaMetricsQuery } from './replica-metrics';
 
 const T = createTranslate('modules.deployment.deploymentLogs.scaling');
 
@@ -18,7 +19,7 @@ type ReplicaListProps = {
 };
 
 export function ReplicaList({ deployment, replicas }: ReplicaListProps) {
-  const metrics = useReplicaMetricsQuery(deployment);
+  const metrics = useDeploymentMetricsQuery(deployment);
 
   if (replicas.length === 0 || metrics.isPending) {
     return null;
@@ -45,11 +46,10 @@ type ReplicaItemProps = {
   metrics?: { cpu?: number; memory?: number };
 };
 
-export function ReplicaItem({ deployment, replica, metrics }: ReplicaItemProps) {
+function ReplicaItem({ deployment, replica, metrics }: ReplicaItemProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    // eslint-disable-next-line tailwindcss/no-arbitrary-value
     <div className="grid grid-cols-[1fr_auto] items-center gap-x-2 gap-y-3 rounded-lg border p-3 sm:grid-cols-[auto_1fr_auto]">
       <div className="row items-center gap-2 sm:order-1">
         <RegionFlag regionId={replica.region} className="size-4" />
@@ -72,7 +72,7 @@ export function ReplicaItem({ deployment, replica, metrics }: ReplicaItemProps) 
       )}
 
       {replica.status && (
-        <div className="row col-span-full items-center gap-4 sm:order-2 sm:col-span-1">
+        <div className="col-span-full row items-center gap-4 sm:order-2 sm:col-span-1">
           {metrics?.cpu !== undefined && <ReplicaCpu value={metrics.cpu} />}
           {metrics?.memory !== undefined && <ReplicaMemory value={metrics.memory} />}
         </div>

@@ -1,14 +1,14 @@
-import * as intercom from '@intercom/messenger-js-sdk';
 // eslint-disable-next-line no-restricted-imports
 import { PostHog, PostHogProvider as PostHogJsProvider, usePostHog as usePostHogJs } from 'posthog-js/react';
 import { useCallback, useEffect } from 'react';
-// eslint-disable-next-line no-restricted-imports
-import { useLocation } from 'wouter';
 
-import { useOrganizationUnsafe, useUserUnsafe } from 'src/api/hooks/session';
+import { useApi, useUser } from 'src/api';
+import { useLocation } from 'src/hooks/router';
+import { User } from 'src/model';
 
 import { getConfig } from './config';
-import { identifyUserInSentry } from './report-error';
+import { identifyUserInIntercom } from './intercom';
+import { identifyUserInSentry } from './sentry';
 
 // cSpell:ignore pageleave autocapture
 
@@ -17,7 +17,8 @@ type PostHogProviderProps = {
 };
 
 export function PostHogProvider({ children }: PostHogProviderProps) {
-  const { posthogApiHost, posthogKey } = getConfig();
+  const posthogApiHost = getConfig('posthogApiHost');
+  const posthogKey = getConfig('posthogKey');
 
   if (posthogApiHost === undefined || posthogKey === undefined) {
     return children;
@@ -34,8 +35,8 @@ export function PostHogProvider({ children }: PostHogProviderProps) {
         autocapture: false,
       }}
     >
+      <Identify />
       <TrackPageViews />
-      <IdentifyUser />
       {children}
     </PostHogJsProvider>
   );
@@ -45,8 +46,21 @@ function usePostHog(): PostHog | undefined {
   return usePostHogJs();
 }
 
+function Identify() {
+  const user = useUser();
+  const [identify] = useIdentifyUser();
+
+  useEffect(() => {
+    if (user) {
+      identify(user);
+    }
+  }, [identify, user]);
+
+  return null;
+}
+
 function TrackPageViews() {
-  const [location] = useLocation();
+  const location = useLocation();
   const posthog = usePostHog();
 
   useEffect(() => {
@@ -58,37 +72,27 @@ function TrackPageViews() {
   return null;
 }
 
-function IdentifyUser() {
-  const posthog = usePostHog();
-
-  const user = useUserUnsafe();
-  const organization = useOrganizationUnsafe();
-
-  useEffect(() => {
-    identifyUserInSentry(user);
-
-    if (user !== undefined) {
-      posthog?.identify(user.id);
-    }
-  }, [posthog, user]);
-
-  useEffect(() => {
-    if (organization !== undefined) {
-      posthog?.group('segment_group', organization.id);
-    }
-  }, [posthog, organization]);
-
-  return null;
-}
-
 // eslint-disable-next-line react-refresh/only-export-components
-export function useResetIdentifyUser() {
+export function useIdentifyUser() {
+  const api = useApi();
   const posthog = usePostHog();
 
-  return useCallback(() => {
-    intercom.shutdown();
-    posthog?.reset(true);
-  }, [posthog]);
+  const identify = useCallback(
+    (user: User) => {
+      posthog?.identify(user.id);
+      identifyUserInSentry(user);
+      void identifyUserInIntercom(api, user);
+    },
+    [posthog, api],
+  );
+
+  const clear = useCallback(() => {
+    posthog?.reset();
+    identifyUserInSentry(null);
+    void identifyUserInIntercom(api, null);
+  }, [posthog, api]);
+
+  return [identify, clear] as const;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

@@ -1,58 +1,64 @@
+import { useEffect, useRef } from 'react';
 import { useFormContext } from 'react-hook-form';
 
-import { useInstance } from 'src/api/hooks/catalog';
+import { useTrackEvent } from 'src/application/posthog';
 import { createTranslate } from 'src/intl/translate';
 
 import { ServiceFormSection } from '../../components/service-form-section';
 import { ServiceForm } from '../../service-form.types';
 import { useWatchServiceForm } from '../../use-service-form';
 
-import { AutoScalingConfiguration } from './auto-scaling-configuration';
-import { FixedScalingConfiguration } from './fixed-scaling-configuration';
-import { ScalingAlerts } from './scaling-alerts';
+import { ScalingConfiguration } from './scaling-configuration';
 
 const T = createTranslate('modules.serviceForm.scaling');
 
 export function ScalingSection() {
-  const { watch } = useFormContext<ServiceForm>();
-
-  const hasVolumes = watch('volumes').filter((volume) => volume.name !== '').length > 0;
-  const instance = useInstance(watch('instance'));
-  const scaling = watch('scaling');
+  useScalingChangedEvent();
 
   return (
     <ServiceFormSection
       section="scaling"
-      title={<SectionTitle />}
-      description={<T id="description" />}
-      expandedTitle={<T id="expandedTitle" />}
+      title={<T id="title" />}
+      action={<T id="action" />}
+      summary={<Summary />}
       className="col gap-6"
     >
-      <ScalingAlerts />
-
-      {hasVolumes || (scaling.min === scaling.max && instance?.category === 'eco') ? (
-        <FixedScalingConfiguration />
-      ) : (
-        <AutoScalingConfiguration />
-      )}
+      <ScalingConfiguration />
     </ServiceFormSection>
   );
 }
 
-const SectionTitle = () => {
+function useScalingChangedEvent() {
+  const { watch } = useFormContext<ServiceForm>();
+  const track = useTrackEvent();
+
+  const changed = useRef(false);
+
+  useEffect(() => {
+    const { unsubscribe } = watch((values, { name }) => {
+      if (changed.current || !name?.startsWith('scaling')) {
+        return;
+      }
+
+      changed.current = true;
+      track('scaling_changed');
+    });
+
+    return () => unsubscribe();
+  }, [watch, track]);
+}
+
+function Summary() {
   const scaling = useWatchServiceForm('scaling');
   const fixedScaling = scaling.min === scaling.max;
 
   return (
-    <div className="row gap-1">
-      <T id={fixedScaling ? 'fixed' : 'autoscaling'} />
-      <span className="font-normal text-dim">
-        {fixedScaling ? (
-          <T id="instancePerRegion" values={{ value: scaling.min }} />
-        ) : (
-          <T id="instancesPerRegion" values={{ min: scaling.min, max: scaling.max }} />
-        )}
-      </span>
+    <div className="row gap-1 font-normal text-dim">
+      {fixedScaling ? (
+        <T id="summaryFixedScaling" values={{ value: scaling.min }} />
+      ) : (
+        <T id="summaryAutoScaling" values={{ min: scaling.min, max: scaling.max }} />
+      )}
     </div>
   );
-};
+}

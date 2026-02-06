@@ -1,6 +1,7 @@
-import { DialogFooter, DialogHeader } from '@snipkit/design-system';
+import { DialogFooter, DialogHeader } from '@design-system';
+
 import { ExternalLink, Link } from 'src/components/link';
-import { useTallyLink, tallyForms } from 'src/hooks/tally';
+import { tallyForms, useTallyLink } from 'src/hooks/tally';
 import { createTranslate } from 'src/intl/translate';
 
 import { PlanItem } from './plan-item';
@@ -19,7 +20,7 @@ export function SelectPlan({ onDowngrade, onSelected }: SelectPlanProps) {
     <>
       <div className="row justify-between gap-4">
         <DialogHeader title={<T id="title" />} />
-        <Link href={`?settings`} className="text-dim hover:underline">
+        <Link to="/" search={{ settings: 'true' }} className="text-dim hover:underline">
           <T id="manageAccount" />
         </Link>
       </div>
@@ -36,7 +37,7 @@ export function SelectPlan({ onDowngrade, onSelected }: SelectPlanProps) {
         <PlanItem plan="scale" onUpgrade={() => onSelected('scale')} />
       </div>
 
-      <DialogFooter className="!block text-dim">
+      <DialogFooter className="block! text-dim">
         <T
           id="footer"
           values={{

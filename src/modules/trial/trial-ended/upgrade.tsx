@@ -1,7 +1,8 @@
-import { Button, DialogFooter, DialogHeader } from '@snipkit/design-system';
+import { Button, DialogFooter, DialogHeader } from '@design-system';
+
 import { notify } from 'src/application/notify';
 import { PaymentForm } from 'src/components/payment-form';
-import { createTranslate, Translate, TranslateEnum } from 'src/intl/translate';
+import { Translate, TranslateEnum, createTranslate } from 'src/intl/translate';
 
 import { PlanItem } from './plan-item';
 
@@ -19,7 +20,7 @@ export function Upgrade({ plan, onCancel }: { plan: 'starter' | 'pro' | 'scale';
       </p>
 
       <div className="row items-start gap-8">
-        <PlanItem plan={plan} popular={plan === 'pro'} className="!hidden !h-auto w-72 md:!flex" />
+        <PlanItem plan={plan} popular={plan === 'pro'} className="hidden! h-auto! w-72 md:flex!" />
 
         <PaymentForm
           plan={plan}

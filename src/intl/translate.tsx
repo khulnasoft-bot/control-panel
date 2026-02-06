@@ -1,6 +1,5 @@
 import { IntlShape, useIntl } from 'react-intl';
 
-import { routes } from 'src/application/routes';
 import { Link } from 'src/components/link';
 import { capitalize, lowerCase } from 'src/utils/strings';
 import { Flatten } from 'src/utils/types';
@@ -19,7 +18,7 @@ export const createTranslate = createTranslationHelper<TranslationKeys>({
   code: (children) => <code>{children}</code>,
   dim: (children) => <span className="text-dim">{children}</span>,
   upgrade: (children) => (
-    <Link href={routes.organizationSettings.plans()} className="text-link">
+    <Link to="/settings/plans" className="text-link">
       {children}
     </Link>
   ),
@@ -53,7 +52,11 @@ type Enum = EnumKeys extends `enums.${infer E}.${string}` ? E : never;
 type EnumValue<E extends Enum> =
   Extract<EnumKeys, `enums.${E}.${string}`> extends `enums.${E}.${infer V}` ? V : never;
 
-export function TranslateEnum<E extends Enum>({ enum: enumName, value }: { enum: E; value: EnumValue<E> }) {
+export function TranslateEnum<E extends Enum>({ enum: enumName, value }: { enum: E; value?: EnumValue<E> }) {
+  if (value === undefined) {
+    return null;
+  }
+
   return <Translate id={`enums.${enumName}.${value}` as TranslationKeys} />;
 }
 

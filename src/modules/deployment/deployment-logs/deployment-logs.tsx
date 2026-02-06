@@ -1,33 +1,29 @@
+import { AccordionHeader, AccordionSection } from '@design-system';
 import clsx from 'clsx';
-import { max, sub } from 'date-fns';
-import React, { useMemo, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState } from 'react';
 
-import { AccordionHeader, AccordionSection } from '@snipkit/design-system';
+import { useInstancesQuery } from 'src/api';
+import { hasBuild } from 'src/application/service-functions';
+import { BuildLogs, RuntimeLogs } from 'src/components/logs';
+import { useObserve } from 'src/hooks/lifecycle';
+import { useNow } from 'src/hooks/timers';
+import { IconCircleDashed } from 'src/icons';
+import { TranslateStatus, createTranslate } from 'src/intl/translate';
 import {
   App,
   ComputeDeployment,
   DeploymentBuild,
   DeploymentBuildStatus,
+  DeploymentStatus,
   Instance,
   LogLine,
   Service,
-} from 'src/api/model';
-import { hasBuild, isDeploymentRunning } from 'src/application/service-functions';
-import { IconCircleDashed } from 'src/components/icons';
-import { FeatureFlag, useFeatureFlag } from 'src/hooks/feature-flag';
-import { useObserve } from 'src/hooks/lifecycle';
-import { LogsFilters, useLogs } from 'src/hooks/logs';
-import { useNow } from 'src/hooks/timers';
-import { createTranslate, TranslateStatus } from 'src/intl/translate';
+} from 'src/model';
 
 import { DeploymentScaling } from '../deployment-scaling/deployment-scaling';
 
-import { BuildLogs } from './build-logs';
 import { BuildSteps } from './build-steps';
 import { buildStatusMap, runtimeStatusMap } from './deployment-status-icons';
-import { Replicas } from './replicas';
-import { RuntimeLogs } from './runtime-logs';
 
 type DeploymentPhase = 'build' | 'runtime';
 
@@ -37,10 +33,10 @@ type DeploymentLogsProps = {
   app: App;
   service: Service;
   deployment: ComputeDeployment;
-  instances: Instance[];
 };
 
-export function DeploymentLogs({ app, service, deployment, instances }: DeploymentLogsProps) {
+export function DeploymentLogs({ app, service, deployment }: DeploymentLogsProps) {
+  const { data: { instances = [] } = {} } = useInstancesQuery({ deploymentId: deployment.id });
   const [expanded, setExpanded] = useState(() => getInitialPhase(deployment));
 
   useAutoExpandSection(setExpanded, deployment);
@@ -117,23 +113,11 @@ type BuildSectionProps = {
 };
 
 function BuildSection({ app, service, deployment, expanded, setExpanded }: BuildSectionProps) {
-  const now = useRef(new Date());
-
-  const logs = useLogs(deployment.build?.status === 'RUNNING', {
-    deploymentId: deployment.id,
-    regionalDeploymentId: null,
-    instanceId: null,
-    type: 'build',
-    period: '30d',
-    start: new Date(deployment.build?.startedAt ?? deployment.date),
-    end: new Date(deployment.build?.finishedAt ?? now.current),
-    search: '',
-    logs: true,
-    events: true,
-  });
+  const [lastLogLine, setLastLogLine] = useState<LogLine>();
 
   return (
     <AccordionSection
+      keepMounted
       isExpanded={expanded}
       header={
         <BuildSectionHeader
@@ -141,13 +125,13 @@ function BuildSection({ app, service, deployment, expanded, setExpanded }: Build
           expanded={expanded}
           setExpanded={setExpanded}
           deployment={deployment}
-          lines={[]}
+          lastLogLine={lastLogLine}
         />
       }
     >
       <div className="divide-y border-t">
         <BuildSteps deployment={deployment} />
-        <BuildLogs app={app} service={service} deployment={deployment} logs={logs} />
+        <BuildLogs app={app} service={service} deployment={deployment} onLastLineChanged={setLastLogLine} />
       </div>
     </AccordionSection>
   );
@@ -158,10 +142,16 @@ type BuildSectionHeaderProps = {
   expanded: boolean;
   setExpanded: (expanded: boolean) => void;
   deployment: ComputeDeployment;
-  lines: LogLine[];
+  lastLogLine?: LogLine;
 };
 
-function BuildSectionHeader({ disabled, expanded, setExpanded, deployment, lines }: BuildSectionHeaderProps) {
+function BuildSectionHeader({
+  disabled,
+  expanded,
+  setExpanded,
+  deployment,
+  lastLogLine,
+}: BuildSectionHeaderProps) {
   const status = getBuildStatus(deployment);
   const [StatusIcon, statusColorClassName] = buildStatusMap[status];
 
@@ -171,10 +161,10 @@ function BuildSectionHeader({ disabled, expanded, setExpanded, deployment, lines
       expanded={expanded}
       setExpanded={setExpanded}
       title={<T id="build.title" />}
-      status={<TranslateStatus status={status} />}
+      status={status}
       StatusIcon={StatusIcon}
       statusColorClassName={statusColorClassName}
-      lastLogLine={status === 'RUNNING' ? lines[lines.length - 1] : undefined}
+      lastLogLine={status === 'RUNNING' && lastLogLine}
       end={<BuildSectionHeaderEnd expanded={expanded} deployment={deployment} />}
     />
   );
@@ -253,42 +243,11 @@ type RuntimeSectionProps = {
 };
 
 function RuntimeSection({ app, service, deployment, instances, expanded, setExpanded }: RuntimeSectionProps) {
-  const logsFilters = useFeatureFlag('logs-filters');
-  const now = useMemo(() => new Date(), []);
-
-  const start = useMemo(() => {
-    return max([sub(now, logsFilters ? { hours: 1 } : { days: 30 }), deployment.date]);
-  }, [now, logsFilters, deployment.date]);
-
-  const end = useMemo(() => {
-    return new Date(deployment.terminatedAt ?? now);
-  }, [now, deployment.terminatedAt]);
-
-  const filters: LogsFilters = {
-    deploymentId: deployment.id,
-    regionalDeploymentId: null,
-    instanceId: null,
-    type: 'runtime',
-    period: logsFilters ? '1h' : '30d',
-    start,
-    end,
-    search: '',
-    logs: true,
-    events: true,
-  };
-
-  const filtersForm = useForm<LogsFilters>({
-    defaultValues: filters,
-  });
-
-  const logs = useLogs(isDeploymentRunning(deployment), filtersForm.watch());
-
-  useObserve(deployment, () => {
-    filtersForm.reset(filters);
-  });
+  const [lastLogLine, setLastLogLine] = useState<LogLine>();
 
   return (
     <AccordionSection
+      keepMounted
       isExpanded={expanded}
       header={
         <RuntimeSectionHeader
@@ -296,7 +255,7 @@ function RuntimeSection({ app, service, deployment, instances, expanded, setExpa
           expanded={expanded}
           setExpanded={setExpanded}
           deployment={deployment}
-          lines={logs.lines}
+          lastLogLine={lastLogLine}
         />
       }
     >
@@ -306,13 +265,10 @@ function RuntimeSection({ app, service, deployment, instances, expanded, setExpa
           service={service}
           deployment={deployment}
           instances={instances}
-          filters={filtersForm}
-          logs={logs}
+          onLastLineChanged={setLastLogLine}
         />
 
-        <FeatureFlag feature="new-deployment-scaling" fallback={<Replicas deployment={deployment} />}>
-          <DeploymentScaling deployment={deployment} />
-        </FeatureFlag>
+        <DeploymentScaling deployment={deployment} />
       </div>
     </AccordionSection>
   );
@@ -323,7 +279,7 @@ type RuntimeSectionHeaderProps = {
   expanded: boolean;
   setExpanded: (expanded: boolean) => void;
   deployment: ComputeDeployment;
-  lines: LogLine[];
+  lastLogLine?: LogLine;
 };
 
 function RuntimeSectionHeader({
@@ -331,7 +287,7 @@ function RuntimeSectionHeader({
   expanded,
   setExpanded,
   deployment,
-  lines,
+  lastLogLine,
 }: RuntimeSectionHeaderProps) {
   const notStarted =
     hasBuild(deployment) && !deployment.buildSkipped && deployment.build?.status !== 'COMPLETED';
@@ -346,10 +302,10 @@ function RuntimeSectionHeader({
       expanded={expanded}
       setExpanded={setExpanded}
       title={<T id="runtime.title" />}
-      status={notStarted ? <T id="runtime.notStarted" /> : <TranslateStatus status={deployment.status} />}
+      status={notStarted ? 'notStarted' : deployment.status}
       StatusIcon={StatusIcon}
       statusColorClassName={statusColorClassName}
-      lastLogLine={deployment.status === 'STARTING' ? lines[lines.length - 1] : undefined}
+      lastLogLine={deployment.status === 'STARTING' && lastLogLine}
     />
   );
 }
@@ -359,10 +315,10 @@ type SectionHeaderProps = {
   expanded: boolean;
   setExpanded: (expanded: boolean) => void;
   title: React.ReactNode;
-  status: React.ReactNode;
+  status: DeploymentBuildStatus | DeploymentStatus | 'notStarted';
   statusColorClassName: string;
   StatusIcon: React.ComponentType<{ className?: string }>;
-  lastLogLine?: LogLine;
+  lastLogLine?: LogLine | false;
   end?: React.ReactNode;
 };
 
@@ -378,18 +334,24 @@ function SectionHeader({
   end,
 }: SectionHeaderProps) {
   return (
-    <AccordionHeader expanded={expanded} setExpanded={setExpanded} className={clsx(disabled && 'opacity-50')}>
+    <AccordionHeader
+      expanded={expanded}
+      setExpanded={setExpanded}
+      className={clsx(disabled && 'pointer-events-none opacity-50')}
+    >
       <div className="font-medium">{title}</div>
 
-      <div className="row ms-auto min-w-0 items-center gap-2 ps-4 text-xs">
+      <div className="ms-auto row min-w-0 items-center gap-2 ps-4 text-xs">
         {end}
 
-        {!expanded && lastLogLine !== undefined && (
+        {!expanded && lastLogLine && (
           <div className="max-w-96 truncate font-mono text-dim">{lastLogLine.text}</div>
         )}
 
         <div className="row items-center gap-2">
-          <div className={clsx('text-xs', statusColorClassName)}>{status}</div>
+          <div className={clsx('text-xs', statusColorClassName)}>
+            {status === 'notStarted' ? <T id="runtime.notStarted" /> : <TranslateStatus status={status} />}
+          </div>
           <StatusIcon className={clsx('size-5', statusColorClassName)} />
         </div>
       </div>

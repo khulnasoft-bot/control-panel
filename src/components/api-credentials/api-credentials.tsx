@@ -1,14 +1,18 @@
-import { Table } from '@snipkit/design-system';
-import { ApiCredential, ApiCredentialType } from 'src/api/model';
+import { Table } from '@design-system';
+
 import { Loading } from 'src/components/loading';
 import { QueryError } from 'src/components/query-error';
 import { TextSkeleton } from 'src/components/skeleton';
 import { createTranslate } from 'src/intl/translate';
+import { ApiCredential, ApiCredentialType } from 'src/model';
 
-import { Dialog } from '../dialog';
+import { openDialog } from '../dialog';
 
 import { ApiCredentialsList } from './api-credentials-list';
 import { CreateApiCredentialDialog } from './create-api-credential-dialog';
+
+const TO = createTranslate('pages.organizationSettings.apiCredential');
+const TU = createTranslate('pages.userSettings.apiCredential');
 
 type ApiCredentialsProps = {
   type: ApiCredentialType;
@@ -18,8 +22,6 @@ type ApiCredentialsProps = {
 };
 
 export function ApiCredentials({ type, loading, error, credentials = [] }: ApiCredentialsProps) {
-  const openDialog = Dialog.useOpen();
-
   if (loading) {
     return (
       <Loading>
@@ -46,23 +48,23 @@ export function ApiCredentials({ type, loading, error, credentials = [] }: ApiCr
 }
 
 function Skeleton({ type }: { type: ApiCredentialType }) {
-  const T = createTranslate(`pages.${type}Settings.apiCredential.list`);
+  const T = type === 'organization' ? TO : TU;
 
   return (
     <Table
       items={[null]}
       columns={{
         name: {
-          header: <T id="name" />,
+          header: <T id="list.name" />,
           render: () => <TextSkeleton width={16} />,
         },
         description: {
-          header: <T id="description" />,
+          header: <T id="list.description" />,
           render: () => <TextSkeleton width={32} />,
         },
         created: {
           className: 'lg:w-48',
-          header: <T id="created" />,
+          header: <T id="list.created" />,
           render: () => <TextSkeleton width={16} />,
         },
         actions: {

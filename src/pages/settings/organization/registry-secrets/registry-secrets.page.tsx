@@ -1,8 +1,8 @@
+import { Button } from '@design-system';
 import clsx from 'clsx';
 
-import { Button } from '@snipkit/design-system';
-import { useSecrets } from 'src/api/hooks/secret';
-import { Dialog } from 'src/components/dialog';
+import { useSecrets } from 'src/api';
+import { openDialog } from 'src/components/dialog';
 import { Title } from 'src/components/title';
 import { createTranslate } from 'src/intl/translate';
 import { CreateRegistrySecretDialog } from 'src/modules/secrets/registry/create-registry-secret-dialog';
@@ -12,8 +12,7 @@ import { RegistrySecretList } from './components/registry-secret-list';
 const T = createTranslate('pages.organizationSettings.registrySecrets');
 
 export function RegistrySecretsPage() {
-  const openDialog = Dialog.useOpen();
-  const secrets = useSecrets('registry');
+  const secrets = useSecrets('REGISTRY');
 
   return (
     <>
@@ -22,7 +21,7 @@ export function RegistrySecretsPage() {
         end={
           <Button
             onClick={() => openDialog('CreateRegistrySecret')}
-            className={clsx(secrets?.length === 0 && 'hidden')}
+            className={clsx(secrets?.length === 0 && 'hidden!')}
           >
             <T id="createRegistrySecret" />
           </Button>

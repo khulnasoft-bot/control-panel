@@ -1,50 +1,45 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { UseFormReturn } from 'react-hook-form';
 
-import { api, ApiEndpointParams } from 'src/api/api';
-import { useOrganization } from 'src/api/hooks/session';
-import { OrganizationPlan } from 'src/api/model';
-import { useInvalidateApiQuery, usePrefetchApiQuery } from 'src/api/use-api';
-import { routes } from 'src/application/routes';
+import { API, ApiFn, apiQuery, useApi, useInvalidateApiQuery, useOrganization } from 'src/api';
 import { updateDatabaseService } from 'src/application/service-functions';
-import { useToken } from 'src/application/token';
 import { useFormErrorHandler } from 'src/hooks/form';
-import { useNavigate, useSearchParam } from 'src/hooks/router';
+import { useNavigate } from 'src/hooks/router';
+import { OrganizationPlan } from 'src/model';
 import { hasProperty } from 'src/utils/object';
 import { randomString } from 'src/utils/random';
 
 import { databaseInstances } from './database-instance-types';
 import { DatabaseServiceForm } from './database-service-form.types';
 
-// cSpell:ignore snipkitdb
+// cSpell:ignore khulnasoftdb
 
 export function useSubmitDatabaseServiceForm(
   form: UseFormReturn<DatabaseServiceForm>,
   onPlanUpgradeRequired: (plan: OrganizationPlan) => void,
 ) {
-  const [appId] = useSearchParam('app_id');
+  const api = useApi();
   const organization = useOrganization();
-  const { token } = useToken();
+
+  const queryClient = useQueryClient();
   const invalidate = useInvalidateApiQuery();
-  const prefetch = usePrefetchApiQuery();
   const navigate = useNavigate();
 
   const mutation = useMutation({
     async mutationFn(values: DatabaseServiceForm) {
-      const { databaseServiceId } = values.meta;
+      const { appId, databaseServiceId } = values.meta;
 
       if (databaseServiceId) {
-        await updateDatabaseService(databaseServiceId, (definition) => {
+        await updateDatabaseService(api, databaseServiceId, (definition) => {
           definition.name = values.serviceName;
           definition.database!.neon_postgres!.instance_type = values.instance;
         });
 
         return databaseServiceId;
       } else {
-        const { service } = await api.createService({
-          token,
+        const { service } = await api('post /v1/services', {
           query: { dry_run: false },
-          body: createApiService(appId ?? (await getDatabaseAppId(token, values.serviceName)), values),
+          body: createApiService(appId ?? (await getDatabaseAppId(api, values.serviceName)), values),
         });
 
         return service!.id!;
@@ -52,11 +47,12 @@ export function useSubmitDatabaseServiceForm(
     },
     async onSuccess(databaseServiceId) {
       await Promise.all([
-        invalidate('listApps'),
-        prefetch('getService', { path: { id: databaseServiceId } }),
+        invalidate('get /v1/apps'),
+        queryClient.invalidateQueries({ queryKey: ['listAppsFull'] }),
+        queryClient.prefetchQuery(apiQuery('get /v1/services/{id}', { path: { id: databaseServiceId } })),
       ]);
 
-      navigate(routes.database.overview(databaseServiceId));
+      await navigate({ to: '/database-services/$databaseServiceId', params: { databaseServiceId } });
     },
     onError: useFormErrorHandler(form, (error) => ({
       serviceName: error.name ?? error['definition.name'],
@@ -66,17 +62,16 @@ export function useSubmitDatabaseServiceForm(
   return async (values: DatabaseServiceForm) => {
     const instance = databaseInstances.find(hasProperty('id', values.instance));
 
-    if (instance?.plans !== undefined && !instance.plans.includes(organization.plan)) {
+    if (instance?.plans !== undefined && !instance.plans.includes(organization!.plan)) {
       onPlanUpgradeRequired(instance.plans[0] as OrganizationPlan);
     } else {
-      await mutation.mutateAsync(values).catch(() => {});
+      await mutation.mutateAsync(values).catch(() => { });
     }
   };
 }
 
-async function getDatabaseAppId(token: string | undefined, appName: string): Promise<string> {
-  const { apps } = await api.listApps({
-    token,
+async function getDatabaseAppId(api: ApiFn, appName: string): Promise<string> {
+  const { apps } = await api('get /v1/apps', {
     query: { name: appName },
   });
 
@@ -86,18 +81,14 @@ async function getDatabaseAppId(token: string | undefined, appName: string): Pro
     }
   }
 
-  const { app } = await api.createApp({
-    token,
+  const { app } = await api('post /v1/apps', {
     body: { name: appName },
   });
 
   return app!.id!;
 }
 
-function createApiService(
-  appId: string,
-  values: DatabaseServiceForm,
-): ApiEndpointParams<'createService'>['body'] {
+function createApiService(appId: string, values: DatabaseServiceForm): API.CreateService {
   return {
     app_id: appId,
     definition: {
@@ -109,7 +100,7 @@ function createApiService(
           region: values.region,
           roles: [{ name: values.defaultRole, secret: databaseRoleSecret(values.serviceName) }],
           instance_type: values.instance,
-          databases: [{ name: 'snipkitdb', owner: values.defaultRole }],
+          databases: [{ name: 'khulnasoftdb', owner: values.defaultRole }],
         },
       },
     },

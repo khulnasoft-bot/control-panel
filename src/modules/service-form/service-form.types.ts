@@ -1,4 +1,4 @@
-import { EnvironmentVariable, ServiceType } from 'src/api/model';
+import { BuilderType, EnvironmentVariable, ServiceType } from 'src/model';
 
 export type ServiceFormSection =
   | 'serviceType'
@@ -38,6 +38,7 @@ type ServiceFormMeta = {
   hasPreviousBuild: boolean;
   skipBuild: boolean;
   saveOnly: boolean;
+  proxyFields: Record<string, unknown>;
 };
 
 type Source = {
@@ -97,8 +98,6 @@ export type Builder = {
   };
 };
 
-export type BuilderType = 'buildpack' | 'dockerfile';
-
 export type DockerDeploymentOptions = {
   entrypoint: string[] | null;
   command: string | null;
@@ -108,16 +107,25 @@ export type DockerDeploymentOptions = {
 
 export type File = {
   mountPath: string;
+  permissions: string;
   content: string;
 };
 
 export type Scaling = {
   min: number;
   max: number;
-  targets: Record<
-    'cpu' | 'memory' | 'requests' | 'concurrentRequests' | 'responseTime' | 'sleepIdleDelay',
-    ScalingTarget
-  >;
+  scaleToZero: {
+    idlePeriod: number;
+    lightToDeepPeriod: number;
+    lightSleepEnabled: boolean;
+  };
+  targets: {
+    cpu: ScalingTarget;
+    memory: ScalingTarget;
+    requests: ScalingTarget;
+    concurrentRequests: ScalingTarget;
+    responseTime: ScalingTarget;
+  };
 };
 
 export type ScalingTarget = {
@@ -130,6 +138,7 @@ export type Port = {
   protocol: PortProtocol;
   path: string;
   public: boolean;
+  tcpProxy: boolean;
   healthCheck: HealthCheck;
 };
 

@@ -1,22 +1,22 @@
+import { Badge, Button } from '@design-system';
 import clsx from 'clsx';
 import { useRef } from 'react';
 
-import { Badge, Button, RadioInput } from '@snipkit/design-system';
-import { useCatalogInstanceAvailability } from 'src/api/hooks/catalog';
-import { useOrganization } from 'src/api/hooks/session';
-import { CatalogInstance } from 'src/api/model';
-import { formatBytes } from 'src/application/memory';
+import { useCatalogInstanceAvailability, useOrganization } from 'src/api';
+import { formatBytes, parseBytes } from 'src/application/memory';
 import { isTenstorrentGpu } from 'src/application/tenstorrent';
-import { Dialog } from 'src/components/dialog';
-import { IconCpu, IconMemoryStick, IconMicrochip, IconRadioReceiver } from 'src/components/icons';
+import { openDialog } from 'src/components/dialog';
+import { Radio } from 'src/components/forms';
+import { ExternalLinkButton } from 'src/components/link';
 import { useMount } from 'src/hooks/lifecycle';
-import { tallyForms, useTallyDialog } from 'src/hooks/tally';
+import { tallyForms } from 'src/hooks/tally';
+import { IconCpu, IconMemoryStick, IconMicrochip, IconRadioReceiver } from 'src/icons';
 import { FormattedPrice } from 'src/intl/formatted';
-import { createTranslate } from 'src/intl/translate';
+import { TranslateEnum, createTranslate } from 'src/intl/translate';
+import { CatalogInstance } from 'src/model';
 
 import { CatalogAvailability } from './catalog-availability';
 import { InstanceSelectorBadge } from './instance-selector';
-import { RequestQuotaIncreaseDialog } from './request-quota-increase-dialog';
 
 const T = createTranslate('components.instanceSelector');
 
@@ -37,13 +37,7 @@ export function InstanceItem({
   onSelected,
   regionSelector,
 }: InstanceItemProps) {
-  const organization = useOrganization();
-
-  const requiresHigherQuota =
-    organization.plan === 'hobby'
-      ? instance.id !== 'free'
-      : badges.includes('requiresHigherQuota') || badges.includes('preview');
-
+  const requiresHigherQuota = badges.includes('requiresHigherQuota');
   const ref = useRef<HTMLLabelElement>(null);
 
   useMount(() => {
@@ -61,7 +55,7 @@ export function InstanceItem({
       )}
     >
       <div className="rounded-t-lg p-4">
-        <div className="col sm:row gap-4">
+        <div className="col gap-4 sm:row">
           <InstanceDescription
             instance={instance}
             disabled={disabled}
@@ -86,7 +80,7 @@ function InstancePrice({ instance }: { instance: CatalogInstance }) {
   const instanceAvailability = useCatalogInstanceAvailability(instance.id);
 
   return (
-    <div className="row sm:col items-center gap-2 sm:items-end sm:gap-0">
+    <div className="row items-center gap-2 sm:col sm:items-end sm:gap-0">
       <div className="order-2">
         <T
           id="costs.pricePerHour"
@@ -128,8 +122,14 @@ function InstanceDescription({ instance, disabled, selected, onSelected, badges 
   return (
     <div className="col flex-1 gap-2">
       <div className="row items-center gap-2 font-medium">
-        <RadioInput disabled={disabled} checked={selected} onChange={onSelected} data-instance />
-        <span className="text-base">{instance.displayName}</span>
+        <Radio
+          label={<span className="text-base">{instance.displayName}</span>}
+          disabled={disabled}
+          checked={selected}
+          onChange={onSelected}
+          data-instance
+        />
+
         {badges}
       </div>
 
@@ -158,18 +158,28 @@ function InstanceSpec({ instance }: { instance: CatalogInstance }) {
 
       <div className="row items-center gap-1">
         <IconMemoryStick className="size-4 stroke-1" />
-        <T id="instanceSpec.ram" values={{ value: instance.memory }} />
+        <T id="instanceSpec.ram" values={{ value: formatMemory(instance.memory) }} />
       </div>
 
       <div className="row items-center gap-1">
         <IconRadioReceiver className="size-4 stroke-1" />
-        <T id="instanceSpec.disk" values={{ value: instance.memory }} />
+        <T id="instanceSpec.disk" values={{ value: formatMemory(instance.disk) }} />
       </div>
     </div>
   );
 }
 
+function formatMemory(value: string | null) {
+  if (value === null) {
+    return '∞';
+  }
+
+  return formatBytes(parseBytes(value), { round: true, precision: 2, decimal: true });
+}
+
 function InstanceBadges({ badges }: { badges: InstanceSelectorBadge[] }) {
+  const organization = useOrganization();
+
   return (
     <>
       {badges.includes('inUse') && (
@@ -208,7 +218,7 @@ function InstanceBadges({ badges }: { badges: InstanceSelectorBadge[] }) {
         </Badge>
       )}
 
-      {badges.includes('requiresHigherQuota') && (
+      {badges.includes('requiresHigherQuota') && organization?.plan !== 'hobby' && (
         <Badge key="quotas" size={1} color="orange">
           <T id="badge.requiresHigherQuota" />
         </Badge>
@@ -218,45 +228,52 @@ function InstanceBadges({ badges }: { badges: InstanceSelectorBadge[] }) {
 }
 
 function RequestQuota({ instance }: { instance: CatalogInstance }) {
-  const openDialog = Dialog.useOpen();
-  const tally = useTallyDialog(tallyForms.tenstorrentRequest);
-
   const organization = useOrganization();
-  const isHobby = organization.plan === 'hobby';
+  const addCreditCard = organization?.plan === 'hobby';
 
   if (instance.id === 'free') {
     return null;
   }
 
-  const handleClick = () => {
-    if (!isHobby && isTenstorrentGpu(instance)) {
-      tally.openPopup();
-    } else if (isHobby) {
-      openDialog('UpgradeInstanceSelector');
-    } else {
-      openDialog('RequestQuotaIncrease', { instanceId: instance.id });
-    }
-  };
+  if (addCreditCard) {
+    return <AddCreditCardButton />;
+  }
 
-  const text = () => {
-    if (isHobby) {
-      return <T id="actions.addCreditCard" />;
-    }
+  if (isTenstorrentGpu(instance)) {
+    return (
+      <ExternalLinkButton
+        href={`https://tally.so/r/${tallyForms.requestTenstorrentAccess}`}
+        openInNewTab
+        color="gray"
+        className="mt-4"
+      >
+        <T id="actions.requestAccess" />
+      </ExternalLinkButton>
+    );
+  }
 
-    if (isTenstorrentGpu(instance)) {
-      return <T id="actions.requestAccess" />;
-    }
+  return (
+    <Button color="gray" onClick={() => openDialog('RequestQuotaIncrease', instance)} className="mt-4">
+      <T id="actions.requestQuotaIncrease" />
+    </Button>
+  );
+}
 
-    return <T id="actions.requestQuotaIncrease" />;
+function AddCreditCardButton() {
+  const plan = <TranslateEnum enum="plans" value="starter" />;
+
+  const onUpgrade = () => {
+    openDialog('Upgrade', {
+      plan: 'starter',
+      title: <T id="actions.upgradeDialog.title" />,
+      description: <T id="actions.upgradeDialog.description" values={{ plan }} />,
+      submit: <T id="actions.upgradeDialog.submit" />,
+    });
   };
 
   return (
-    <>
-      <Button color="gray" onClick={handleClick} className="mt-4">
-        {text()}
-      </Button>
-
-      <RequestQuotaIncreaseDialog instance={instance} />
-    </>
+    <Button color="gray" onClick={onUpgrade} className="mt-4">
+      <T id="actions.addCreditCard" />
+    </Button>
   );
 }

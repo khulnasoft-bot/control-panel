@@ -1,11 +1,10 @@
+import { Badge, ProgressBar } from '@design-system';
 import clsx from 'clsx';
 
-import { Badge, ProgressBar } from '@snipkit/design-system';
-import { useOrganization } from 'src/api/hooks/session';
-import { routes } from 'src/application/routes';
+import { useOrganization } from 'src/api';
 import { LinkButton } from 'src/components/link';
 import { FormattedPrice } from 'src/intl/formatted';
-import { createTranslate, TranslateEnum } from 'src/intl/translate';
+import { TranslateEnum, createTranslate } from 'src/intl/translate';
 import { defined } from 'src/utils/assert';
 
 import { useTrial } from './use-trial';
@@ -21,7 +20,7 @@ export function TrialSummaryPopup({ className, ...props }: TrialSummaryPopupProp
   return (
     <div {...props} className={clsx('w-56 rounded-md border bg-popover', className)}>
       <div className="row justify-between border-b p-3">
-        <T id="currentPlan" values={{ plan: <TranslateEnum enum="plans" value={organization.plan} /> }} />
+        <T id="currentPlan" values={{ plan: <TranslateEnum enum="plans" value={organization?.plan} /> }} />
 
         <Badge size={1} color="green" className="ms-auto">
           <T id="badge" />
@@ -49,13 +48,13 @@ export function TrialSummaryPopup({ className, ...props }: TrialSummaryPopupProp
           </div>
         </div>
 
-        <ProgressBar progress={trial.credits.currentSpend / trial.credits.maxSpend} label={false} />
+        <ProgressBar progress={trial.credits.currentSpend / trial.credits.maxSpend} />
 
         <div className="text-center text-xs text-dim">
           <T id="timeLeft" values={{ days: trial.daysLeft }} />
         </div>
 
-        <LinkButton color="gray" size={1} href={routes.organizationSettings.billing()}>
+        <LinkButton color="gray" size={1} to="/settings/billing">
           <T id="cta" />
         </LinkButton>
       </div>

@@ -1,11 +1,13 @@
+import { useAuth } from '@workos-inc/authkit-react';
 import { useCallback, useEffect, useState } from 'react';
 import { z } from 'zod';
 
-import { ApiStream, apiStreams } from 'src/api/api';
-import { createValidationGuard } from 'src/application/create-validation-guard';
+import { apiStream } from 'src/api/api';
+import { getConfig } from 'src/application/config';
 import { UnexpectedError } from 'src/application/errors';
-import { reportError } from 'src/application/report-error';
-import { useToken } from 'src/application/token';
+import { notify } from 'src/application/notify';
+import { reportError } from 'src/application/sentry';
+import { createValidationGuard, hasMessage } from 'src/application/validation';
 import { TerminalRef } from 'src/components/terminal/terminal';
 import { useMount } from 'src/hooks/lifecycle';
 import { createTranslate } from 'src/intl/translate';
@@ -19,24 +21,36 @@ const T = createTranslate('pages.service.console');
 const { brightBlack, brightRed } = terminalColors;
 
 export function useTerminal(instanceId: string, { readOnly }: { readOnly?: boolean } = {}) {
-  const { token } = useToken();
   const t = T.useTranslate();
 
+  const { getAccessToken } = useAuth();
+
   const [terminal, setTerminal] = useState<TerminalRef | null>(null);
-  const [stream, setStream] = useState<ApiStream | null>(null);
+  const [stream, setStream] = useState<WebSocket | null>(null);
   const [size, setSize] = useState<{ width: number; height: number }>();
 
   const { prompt, reset } = usePrompt(instanceId, stream, terminal);
 
   const connect = useCallback(
-    (instanceId: string) => {
-      setStream(apiStreams.exec({ token: token ?? undefined, query: { id: instanceId } }));
+    async (instanceId: string) => {
+      const stream = apiStream(
+        'get /v1/streams/instances/exec',
+        {
+          query: { id: instanceId },
+        },
+        {
+          baseUrl: getConfig('apiBaseUrl'),
+          token: await getAccessToken(),
+        },
+      );
+
+      setStream(stream);
     },
-    [token],
+    [getAccessToken],
   );
 
   useMount(() => {
-    connect(instanceId);
+    void connect(instanceId);
   });
 
   useEffect(() => {
@@ -45,18 +59,16 @@ export function useTerminal(instanceId: string, { readOnly }: { readOnly?: boole
 
   useEffect(() => {
     if (stream && terminal) {
-      stream?.close();
+      stream.close();
       reset(terminal);
-      connect(instanceId);
+      void connect(instanceId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instanceId]);
 
-  const onData = useCallback(
+  const sendMessage = useCallback(
     (data: string) => {
-      if (prompt !== undefined) {
-        prompt(data);
-      } else if (stream?.readyState === WebSocket.OPEN) {
+      try {
         const message: ExecInputStdin = {
           body: {
             stdin: { data: btoa(data) },
@@ -64,14 +76,27 @@ export function useTerminal(instanceId: string, { readOnly }: { readOnly?: boole
         };
 
         if (!readOnly) {
-          stream.send(JSON.stringify(message));
+          stream?.send(JSON.stringify(message));
         }
-      } else if (terminal) {
-        reset(terminal);
-        connect(instanceId);
+      } catch (error) {
+        notify.error(hasMessage(error) ? error.message : t('unexpectedError'));
       }
     },
-    [prompt, stream, terminal, reset, connect, instanceId, readOnly],
+    [stream, readOnly, t],
+  );
+
+  const onData = useCallback(
+    (data: string) => {
+      if (prompt !== undefined) {
+        prompt(data);
+      } else if (stream?.readyState === WebSocket.OPEN) {
+        sendMessage(data);
+      } else if (terminal) {
+        reset(terminal);
+        void connect(instanceId);
+      }
+    },
+    [prompt, reset, connect, sendMessage, stream, terminal, instanceId],
   );
 
   useEffect(() => {

@@ -1,16 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@workos-inc/authkit-react';
 import { useMemo } from 'react';
 
-import { api } from 'src/api/api';
-import { useSecrets } from 'src/api/hooks/secret';
-import { useToken } from 'src/application/token';
+import { apiQuery, useSecrets } from 'src/api';
 import { hasProperty } from 'src/utils/object';
-import { wait } from 'src/utils/promises';
 
 export function useVerifyDockerImage(image: string, registrySecretName: string | undefined) {
-  const { token } = useToken();
+  const { getAccessToken } = useAuth();
 
-  const secrets = useSecrets('registry');
+  const secrets = useSecrets('REGISTRY');
   const secretId = secrets?.find(hasProperty('name', registrySecretName))?.id;
 
   const {
@@ -20,23 +18,15 @@ export function useVerifyDockerImage(image: string, registrySecretName: string |
     refetch,
   } = useQuery({
     enabled: image.length > 0,
-    refetchInterval: false,
     refetchOnWindowFocus: false,
     retry: false,
-    queryKey: ['verifyDockerImage', { token, image, secretId }] as const,
-    async queryFn({ signal }) {
-      if (!(await wait(500, signal))) {
-        return null;
-      }
-
-      return api.verifyDockerImage({
-        token,
-        query: {
-          image: image.trim(),
-          secret_id: secretId,
-        },
-      });
-    },
+    meta: { getAccessToken, delay: 500 },
+    ...apiQuery('get /v1/docker-helper/verify', {
+      query: {
+        image: image.trim(),
+        secret_id: secretId,
+      },
+    }),
   });
 
   const error = useMemo(() => {

@@ -1,11 +1,4 @@
 import { parseBytes } from 'src/application/memory';
-import { inArray, last } from 'src/utils/arrays';
-import { assert } from 'src/utils/assert';
-import { round } from 'src/utils/math';
-import { hasProperty, requiredDeep, snakeToCamelDeep } from 'src/utils/object';
-import { lowerCase, removePrefix, shortId } from 'src/utils/strings';
-
-import type { Api } from '../api-types';
 import {
   ComputeDeployment,
   ComputeDeploymentType,
@@ -18,9 +11,16 @@ import {
   PostgresVersion,
   RegionalDeployment,
   Replica,
-} from '../model';
+} from 'src/model';
+import { inArray, last } from 'src/utils/arrays';
+import { assert } from 'src/utils/assert';
+import { round } from 'src/utils/math';
+import { hasProperty, requiredDeep, snakeToCamelDeep } from 'src/utils/object';
+import { lowerCase, removePrefix, shortId } from 'src/utils/strings';
 
-export function mapDeployment(deployment: Api.Deployment): Deployment {
+import type { API } from '../api-types';
+
+export function mapDeployment(deployment: API.Deployment): Deployment {
   if (deployment.definition!.type === 'DATABASE') {
     return mapDatabaseDeployment(deployment);
   }
@@ -28,7 +28,7 @@ export function mapDeployment(deployment: Api.Deployment): Deployment {
   return mapComputeDeployment(deployment);
 }
 
-export function mapRegionalDeployment(deployment: Api.RegionalDeployment): RegionalDeployment {
+export function mapRegionalDeployment(deployment: API.RegionalDeployment): RegionalDeployment {
   return snakeToCamelDeep(requiredDeep(deployment));
 }
 
@@ -40,14 +40,18 @@ export function isDatabaseDeployment(deployment: Deployment | undefined): deploy
   return deployment !== undefined && 'postgresVersion' in deployment;
 }
 
-export function mapInstance(instance: Api.Instance): Instance {
+export function mapInstance(instance: API.Instance): Instance {
   return {
     ...snakeToCamelDeep(requiredDeep(instance)),
     name: shortId(instance.id)!,
   };
 }
 
-export function mapReplica(replica: Api.GetDeploymentScalingReplyItem): Replica {
+export function mapReplica(replica: {
+  region?: string;
+  replica_index?: number;
+  instances?: API.Instance[];
+}): Replica {
   const instance = replica.instances?.find(hasProperty('status', 'HEALTHY')) ?? replica.instances?.[0];
 
   return {
@@ -62,13 +66,13 @@ export function mapReplica(replica: Api.GetDeploymentScalingReplyItem): Replica 
   };
 }
 
-function mapComputeDeployment(deployment: Api.Deployment): ComputeDeployment {
+function mapComputeDeployment(deployment: API.Deployment): ComputeDeployment {
   const definition = deployment.definition!;
 
   const type = (): ComputeDeploymentType => {
     const type = definition.type;
 
-    if (!inArray(type, ['WEB', 'WORKER'] as const)) {
+    if (!inArray(type, ['WEB', 'WORKER', 'SANDBOX'] as const)) {
       throw new Error(`Invalid deployment type "${type}"`);
     }
 
@@ -205,22 +209,40 @@ function mapComputeDeployment(deployment: Api.Deployment): ComputeDeployment {
       portNumber: port.port!,
       protocol: port.protocol! as PortProtocol,
       path: definition.routes!.find(hasProperty('port', port.port))?.path,
+      tcpProxy: definition.proxy_ports!.find(hasProperty('port', port.port)) !== undefined,
     }));
   };
 
   const scaling = (): DeploymentDefinition['scaling'] => {
     const scaling = definition.scalings![0]!;
+    const sleepIdleDelay = scaling.targets?.find(
+      (target) => target.sleep_idle_delay !== undefined,
+    )?.sleep_idle_delay;
 
     return {
       min: scaling.min!,
       max: scaling.max!,
+      deepSleepValue: sleepIdleDelay?.deep_sleep_value || undefined,
+      lightSleepValue: sleepIdleDelay?.light_sleep_value || undefined,
     };
   };
 
-  const trigger = (): ComputeDeployment['trigger'] => {
-    const trigger = deployment?.metadata?.trigger;
+  const proxyPorts = (): ComputeDeployment['proxyPorts'] => {
+    if (deployment.metadata?.proxy_ports !== undefined) {
+      return deployment.metadata.proxy_ports.map((proxyPort) => ({
+        port: proxyPort.port!,
+        publicPort: proxyPort.public_port!,
+        host: proxyPort.host!,
+      }));
+    }
 
-    if (deployment?.parent_id === '') {
+    return [];
+  };
+
+  const trigger = (): ComputeDeployment['trigger'] => {
+    const trigger = deployment.metadata?.trigger;
+
+    if (deployment.parent_id === '') {
       return { type: 'initial' };
     }
 
@@ -228,11 +250,11 @@ function mapComputeDeployment(deployment: Api.Deployment): ComputeDeployment {
       return { type: 'redeploy' };
     }
 
-    if (trigger?.type === 'RESUME') {
+    if (trigger.type === 'RESUME') {
       return { type: 'resume' };
     }
 
-    if (trigger?.type === 'GIT') {
+    if (trigger.type === 'GIT') {
       return {
         type: 'git',
         repository: trigger.git!.repository!,
@@ -257,6 +279,9 @@ function mapComputeDeployment(deployment: Api.Deployment): ComputeDeployment {
     id: deployment.id!,
     appId: deployment.app_id!,
     serviceId: deployment.service_id!,
+    lastProvisionedDeploymentId:
+      deployment.metadata?.archive?.last_provisioned_deployment_id ??
+      deployment.metadata?.git?.last_provisioned_deployment_id,
     name: shortId(deployment.id)!,
     date: deployment.created_at!,
     terminatedAt: deployment.terminated_at!,
@@ -280,6 +305,7 @@ function mapComputeDeployment(deployment: Api.Deployment): ComputeDeployment {
       scaling: scaling(),
     },
     definitionApi: definition,
+    proxyPorts: proxyPorts(),
     trigger: trigger(),
   };
 }
@@ -300,7 +326,7 @@ export const databaseQuotas = {
   maxStorageSize: parseBytes('1GB'), // 1 GB
 };
 
-function mapDatabaseDeployment(deployment: Api.Deployment): DatabaseDeployment {
+function mapDatabaseDeployment(deployment: API.Deployment): DatabaseDeployment {
   const definition = deployment.definition!.database!.neon_postgres!;
   const info = deployment.database_info?.neon_postgres;
 
@@ -313,12 +339,13 @@ function mapDatabaseDeployment(deployment: Api.Deployment): DatabaseDeployment {
     appId: deployment.app_id!,
     serviceId: deployment.service_id!,
     name: deployment.definition!.name!,
+    date: deployment.created_at!,
     status: deployment.status!,
     postgresVersion: definition.pg_version as PostgresVersion,
     region: definition.region!,
     host: info?.server_host,
     instance: definition.instance_type!,
-    roles: definition?.roles?.map((role) => ({ name: role.name!, secretId: getSecretId(role.name!) })),
+    roles: definition.roles?.map((role) => ({ name: role.name!, secretId: getSecretId(role.name!) })),
     databases: definition.databases?.map((database) => ({ name: database.name!, owner: database.owner! })),
     neonPostgres: info ? snakeToCamelDeep(info) : {},
     activeTime: {

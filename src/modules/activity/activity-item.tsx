@@ -1,9 +1,9 @@
 import clsx from 'clsx';
 
-import { Activity } from 'src/api/model';
-import { IconClock } from 'src/components/icons';
+import { IconClock } from 'src/icons';
 import { FormattedDistanceToNow } from 'src/intl/formatted';
 import { createTranslate } from 'src/intl/translate';
+import { Activity } from 'src/model';
 
 import { ActivityActorImage } from './activity-actor';
 import { ActivityApiCredentialIcon } from './activity-api-credential-icon';
@@ -30,7 +30,7 @@ export function ActivityItem({ activity, className }: { activity: Activity; clas
               <ActivityApiCredentialIcon activity={activity} />
             </div>
 
-            <div className="row items-center gap-1 whitespace-nowrap text-xs text-dim">
+            <div className="row items-center gap-1 text-xs whitespace-nowrap text-dim">
               <div>
                 <IconClock className="size-4" />
               </div>

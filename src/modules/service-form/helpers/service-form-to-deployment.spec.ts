@@ -1,14 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { Api } from 'src/api/api-types';
+import type { API } from 'src/api';
+
+import { ServiceForm } from '../service-form.types';
 
 import { defaultHealthCheck, defaultServiceForm } from './initialize-service-form';
 import { serviceFormToDeploymentDefinition } from './service-form-to-deployment';
 
 describe('serviceFormToDeploymentDefinition', () => {
-  it('service form to api deployment definition', () => {
-    const form = defaultServiceForm();
+  let form: ServiceForm;
 
+  beforeEach(() => {
+    form = defaultServiceForm();
+  });
+
+  it('service form to api deployment definition', () => {
     form.appName = 'name';
     form.serviceName = 'name';
     form.source.git.organizationRepository.repositoryName = 'org/repo';
@@ -16,7 +22,7 @@ describe('serviceFormToDeploymentDefinition', () => {
     form.environmentVariables = [];
     form.files = [];
 
-    expect(serviceFormToDeploymentDefinition(form)).toEqual<Api.DeploymentDefinition>({
+    expect(serviceFormToDeploymentDefinition(form)).toEqual<API.DeploymentDefinition>({
       name: 'name',
       type: 'WEB',
       git: {
@@ -38,6 +44,7 @@ describe('serviceFormToDeploymentDefinition', () => {
           protocol: 'http',
         },
       ],
+      proxy_ports: [],
       routes: [
         {
           port: 8000,
@@ -57,35 +64,54 @@ describe('serviceFormToDeploymentDefinition', () => {
     });
   });
 
+  describe('scale to zero', () => {
+    beforeEach(() => {
+      form.scaling.min = 0;
+      form.scaling.max = 1;
+
+      form.scaling.scaleToZero = {
+        idlePeriod: 300,
+        lightToDeepPeriod: 300,
+        lightSleepEnabled: false,
+      };
+    });
+
+    it('light sleep', () => {
+      expect(serviceFormToDeploymentDefinition(form)).toHaveProperty('scalings[0].targets', [
+        { sleep_idle_delay: { deep_sleep_value: 300 } },
+      ]);
+    });
+
+    it('deep sleep', () => {
+      form.scaling.scaleToZero.idlePeriod = 60;
+      form.scaling.scaleToZero.lightSleepEnabled = true;
+
+      expect(serviceFormToDeploymentDefinition(form)).toHaveProperty('scalings[0].targets', [
+        { sleep_idle_delay: { deep_sleep_value: 360, light_sleep_value: 60 } },
+      ]);
+    });
+  });
+
   it('autoscaling', () => {
     const form = defaultServiceForm();
 
-    form.scaling = {
-      min: 1,
-      max: 2,
-      targets: {
-        requests: { enabled: true, value: 1 },
-        cpu: { enabled: true, value: 1 },
-        memory: { enabled: true, value: 1 },
-        concurrentRequests: { enabled: true, value: 1 },
-        responseTime: { enabled: true, value: 1 },
-        sleepIdleDelay: { enabled: true, value: 1 },
-      },
+    form.scaling.min = 1;
+    form.scaling.max = 2;
+
+    form.scaling.targets = {
+      cpu: { enabled: true, value: 1 },
+      memory: { enabled: true, value: 2 },
+      requests: { enabled: true, value: 3 },
+      concurrentRequests: { enabled: true, value: 4 },
+      responseTime: { enabled: true, value: 5 },
     };
 
-    expect(serviceFormToDeploymentDefinition(form)).toHaveProperty('scalings', [
-      {
-        min: 1,
-        max: 2,
-        targets: [
-          { requests_per_second: { value: 1 } },
-          { average_cpu: { value: 1 } },
-          { average_mem: { value: 1 } },
-          { concurrent_requests: { value: 1 } },
-          { requests_response_time: { value: 1, quantile: 95 } },
-          { sleep_idle_delay: { value: 1 } },
-        ],
-      },
+    expect(serviceFormToDeploymentDefinition(form)).toHaveProperty('scalings[0].targets', [
+      { average_cpu: { value: 1 } },
+      { average_mem: { value: 2 } },
+      { requests_per_second: { value: 3 } },
+      { concurrent_requests: { value: 4 } },
+      { requests_response_time: { value: 5, quantile: 95 } },
     ]);
   });
 

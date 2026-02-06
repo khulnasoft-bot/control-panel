@@ -1,93 +1,131 @@
-import clsx from 'clsx';
+import { Badge, IconButton } from '@design-system';
 import { useFormContext } from 'react-hook-form';
 
-import { IconButton, useBreakpoint } from '@snipkit/design-system';
 import { preventDefault } from 'src/application/dom-events';
 import { onKeyDownPositiveInteger } from 'src/application/restrict-keys';
-import { ControlledInput, ControlledSelect, ControlledSwitch } from 'src/components/controlled';
-import { IconTrash } from 'src/components/icons';
-import { createTranslate } from 'src/intl/translate';
+import { ControlledCheckbox, ControlledInput, ControlledSelect } from 'src/components/forms';
+import { IconTrash } from 'src/icons';
+import { TranslateEnum, createTranslate } from 'src/intl/translate';
 import { identity } from 'src/utils/generic';
 
 import { ServiceForm } from '../../service-form.types';
-import { useWatchServiceForm } from '../../use-service-form';
 
 const T = createTranslate('modules.serviceForm.ports');
 
-type PortFieldsProps = {
-  index: number;
-  canRemove: boolean;
-  onRemove: () => void;
-};
-
-export function PortFields({ index, canRemove, onRemove }: PortFieldsProps) {
-  const { setValue } = useFormContext<ServiceForm>();
-  const port = useWatchServiceForm(`ports.${index}`);
-
-  const isMobile = !useBreakpoint('md');
-  const showLabel = isMobile || index === 0;
+export function PortFields({ index, onRemove }: { index: number; onRemove?: () => void }) {
+  const { setValue, watch } = useFormContext<ServiceForm>();
 
   return (
-    // eslint-disable-next-line tailwindcss/no-arbitrary-value
-    <div className="grid grid-cols-1 gap-4 rounded border px-6 py-5 md:grid-cols-[1fr_1fr_1fr_4rem_auto] md:border-none md:p-0">
-      <ControlledInput<ServiceForm, `ports.${number}.portNumber`>
-        ref={(ref) => ref?.addEventListener('wheel', preventDefault, { passive: false })}
-        name={`ports.${index}.portNumber`}
-        type="number"
-        label={showLabel && <T id="portLabel" />}
-        onKeyDown={onKeyDownPositiveInteger}
-        min={1}
-        max={64999}
-        step={1}
-      />
+    <div className="col gap-6 rounded-md bg-muted/50 p-3">
+      <div className="row items-center justify-between gap-4">
+        <div className="row min-w-0 items-center gap-2">
+          <div className="text-base font-medium">{watch(`ports.${index}.portNumber`) || ''}</div>
 
-      <ControlledSelect<ServiceForm, `ports.${number}.protocol`>
-        name={`ports.${index}.protocol`}
-        label={showLabel && <T id="protocolLabel" />}
-        items={port.public ? ['http', 'http2'] : ['tcp']}
-        getKey={identity}
-        itemToString={identity}
-        itemToValue={identity}
-        renderItem={(type) =>
-          ({
-            tcp: <T id="tcp" />,
-            http: <T id="http" />,
-            http2: <T id="http2" />,
-          })[type]
-        }
-      />
+          <div className="text-dim">
+            <TranslateEnum enum="portProtocol" value={watch(`ports.${index}.protocol`)} />
+          </div>
 
-      {!port.public && <div />}
+          {watch(`ports.${index}.public`) && (
+            <Badge size={1} color="blue" className="truncate">
+              <T id="badges.public" />
+            </Badge>
+          )}
 
-      {port.public && (
-        <ControlledInput<ServiceForm>
-          name={`ports.${index}.path`}
-          label={showLabel && <T id="pathLabel" />}
-          helpTooltip={<T id="pathTooltip" values={{ path: port.path }} />}
+          {watch(`ports.${index}.tcpProxy`) && (
+            <Badge size={1} color="blue" className="truncate">
+              <T id="badges.tcpProxy" />
+            </Badge>
+          )}
+        </div>
+
+        {onRemove && <IconButton Icon={IconTrash} variant="ghost" size={1} color="gray" onClick={onRemove} />}
+      </div>
+
+      <div className="row gap-4">
+        <ControlledInput<ServiceForm, `ports.${number}.portNumber`>
+          ref={(ref) => ref?.addEventListener('wheel', preventDefault, { passive: false })}
+          name={`ports.${index}.portNumber`}
+          label={<T id="portNumber.label" />}
+          type="number"
+          onKeyDown={onKeyDownPositiveInteger}
+          min={1}
+          max={64999}
+          step={1}
+          className="flex-1"
         />
-      )}
 
-      <ControlledSwitch
-        name={`ports.${index}.public`}
-        label={showLabel && <T id="publicLabel" />}
-        helpTooltip={<T id="publicTooltip" />}
-        onChangeEffect={(event) => {
-          if (event.target.checked) {
-            setValue(`ports.${index}.protocol`, 'http', { shouldValidate: true });
-            setValue(`ports.${index}.path`, '/', { shouldValidate: true });
-          } else {
-            setValue(`ports.${index}.protocol`, 'tcp', { shouldValidate: true });
-            setValue(`ports.${index}.path`, '', { shouldValidate: true });
-          }
-        }}
-      />
+        <ControlledSelect<ServiceForm, `ports.${number}.protocol`>
+          name={`ports.${index}.protocol`}
+          label={<T id="protocol.label" />}
+          items={['http', 'http2', 'tcp']}
+          getKey={identity}
+          itemToString={identity}
+          getValue={identity}
+          renderItem={(value) => <TranslateEnum enum="portProtocol" value={value} />}
+          onChangeEffect={(protocol) => {
+            if (protocol === 'tcp') {
+              setValue(`ports.${index}.public`, false);
+            }
+          }}
+          className="flex-1"
+        />
+      </div>
 
-      {/* eslint-disable-next-line tailwindcss/no-arbitrary-value */}
-      <div className={clsx(!isMobile && showLabel && 'mt-[1.625rem]')}>
-        <IconButton color="gray" Icon={IconTrash} disabled={!canRemove} onClick={onRemove}>
-          <T id="deletePort" />
-        </IconButton>
+      <div className="col gap-2">
+        <div className="col gap-2 sm:row sm:items-center">
+          <ControlledCheckbox<ServiceForm, `ports.${number}.public`>
+            name={`ports.${index}.public`}
+            label={<T id="http.label" />}
+            disabled={watch(`ports.${index}.protocol`) === 'tcp'}
+            className="whitespace-nowrap"
+          />
+
+          <div className="text-xs text-dim">
+            <T id="http.description" />
+          </div>
+        </div>
+
+        {watch(`ports.${index}.public`) && (
+          <div className="col gap-4 rounded-lg bg-muted px-3 py-4">
+            <ControlledInput<ServiceForm, `ports.${number}.path`>
+              label={<T id="path.label" />}
+              name={`ports.${index}.path`}
+              className="grid grid-cols-[auto_1fr] items-center! gap-x-2"
+            />
+
+            <div className="text-xs text-dim">
+              <T id="path.helperText" values={{ url: url(watch(`ports.${index}.path`)) }} />
+            </div>
+          </div>
+        )}
+
+        {watch(`ports.${index}.protocol`) === 'tcp' && (
+          <Badge size={1} color="orange" className="self-start text-start">
+            <T id="http.disabled" />
+          </Badge>
+        )}
+      </div>
+
+      <div className="col gap-2">
+        <div className="col gap-2 sm:row sm:items-center">
+          <ControlledCheckbox<ServiceForm, `ports.${number}.tcpProxy`>
+            name={`ports.${index}.tcpProxy`}
+            label={<T id="tcpProxy.label" />}
+            className="whitespace-nowrap"
+          />
+          <div className="text-xs text-dim">
+            <T id="tcpProxy.description" />
+          </div>
+        </div>
+
+        <div className="text-xs text-dim">
+          <T id="tcpProxy.info" />
+        </div>
       </div>
     </div>
   );
+}
+
+function url(path: string) {
+  return <span className="text-default">https://[subdomain].khulnasoft.app{path}</span>;
 }

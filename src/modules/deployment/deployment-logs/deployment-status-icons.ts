@@ -1,8 +1,8 @@
+import { Spinner } from '@design-system';
 import clsx from 'clsx';
 
-import { Spinner } from '@snipkit/design-system';
-import { DeploymentBuildStatus, DeploymentStatus } from 'src/api/model';
-import { IconCircleAlert, IconCircleCheck, IconCircleDashed, IconCircleX } from 'src/components/icons';
+import { IconCircleAlert, IconCircleCheck, IconCircleDashed, IconCircleX } from 'src/icons';
+import { DeploymentBuildStatus, DeploymentStatus } from 'src/model';
 import { ValueOf } from 'src/utils/types';
 
 const statuses = {

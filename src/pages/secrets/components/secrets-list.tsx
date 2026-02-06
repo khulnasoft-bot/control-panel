@@ -1,39 +1,30 @@
+import { Button, Spinner, Table, TableColumnSelection, useBreakpoint } from '@design-system';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { useState } from 'react';
 
-import {
-  Button,
-  ButtonMenuItem,
-  Spinner,
-  Table,
-  TableColumnSelection,
-  Tooltip,
-  useBreakpoint,
-} from '@snipkit/design-system';
-import { Secret } from 'src/api/model';
-import { useApiQueryFn } from 'src/api/use-api';
+import { apiQuery } from 'src/api';
 import { notify } from 'src/application/notify';
-import { ActionsMenu } from 'src/components/actions-menu';
-import { Dialog } from 'src/components/dialog';
-import { IconEye, IconEyeOff } from 'src/components/icons';
+import { Tooltip } from 'src/components/tooltip';
 import { useClipboard } from 'src/hooks/clipboard';
+import { IconEye, IconEyeOff } from 'src/icons';
 import { FormattedDistanceToNow } from 'src/intl/formatted';
-import { createTranslate, Translate } from 'src/intl/translate';
+import { Translate, createTranslate } from 'src/intl/translate';
+import { Secret } from 'src/model';
 
-import { DeleteSecretDialog } from './delete-secret-dialog';
-import { EditSecretDialog } from './edit-secret-dialog';
 import { NoSecrets } from './no-secrets';
+import { SecretActions } from './secret-actions';
 
-const T = createTranslate('pages.secrets.secretsList');
+const T = createTranslate('pages.secrets.list');
 
 type SecretListProps = {
   secrets: Secret[];
   onCreate: () => void;
+  onDeleted: () => void;
   selection: TableColumnSelection<Secret>;
 };
 
-export function SecretsList({ secrets, onCreate, selection }: SecretListProps) {
+export function SecretsList({ secrets, onCreate, onDeleted, selection }: SecretListProps) {
   const isMobile = !useBreakpoint('sm');
 
   if (secrets.length === 0) {
@@ -62,7 +53,7 @@ export function SecretsList({ secrets, onCreate, selection }: SecretListProps) {
         },
         actions: {
           className: clsx('w-12'),
-          render: (secret) => <SecretActions secret={secret} />,
+          render: (secret) => <SecretActions secret={secret} onDeleted={onDeleted} />,
         },
       }}
     />
@@ -75,9 +66,8 @@ function Value({ secret }: { secret: Secret }) {
   const [showValue, setShowValue] = useState(false);
 
   const query = useQuery({
-    ...useApiQueryFn('revealSecret', { path: { id: secret.id } }),
+    ...apiQuery('post /v1/secrets/{id}/reveal', { path: { id: secret.id } }),
     enabled: showValue,
-    refetchInterval: false,
     placeholderData: keepPreviousData,
     select: (result) => result.value as unknown as string,
   });
@@ -108,46 +98,21 @@ function Value({ secret }: { secret: Secret }) {
       </Button>
 
       {showValue && query.data !== undefined ? (
-        <Tooltip content={<Translate id="common.clickToCopy" />}>
-          {(props) => (
+        <Tooltip
+          trigger={(props) => (
             <button
               {...props}
-              className="whitespace-pre-line break-all text-start font-mono"
+              className="text-start font-mono break-all whitespace-pre-line"
               onClick={copyValue}
             >
               {query.data}
             </button>
           )}
-        </Tooltip>
+          content={<Translate id="common.clickToCopy" />}
+        />
       ) : (
         <div className="text-dim">{masked}</div>
       )}
     </div>
-  );
-}
-
-function SecretActions({ secret }: { secret: Secret }) {
-  const openDialog = Dialog.useOpen();
-
-  return (
-    <>
-      <ActionsMenu>
-        {(withClose) => (
-          <>
-            <ButtonMenuItem onClick={withClose(() => openDialog('EditSecret', { secretId: secret.id }))}>
-              <T id="actions.edit" />
-            </ButtonMenuItem>
-            <ButtonMenuItem
-              onClick={withClose(() => openDialog('ConfirmDeleteSecret', { resourceId: secret.id }))}
-            >
-              <T id="actions.delete" />
-            </ButtonMenuItem>
-          </>
-        )}
-      </ActionsMenu>
-
-      <EditSecretDialog secret={secret} />
-      <DeleteSecretDialog secret={secret} />
-    </>
   );
 }

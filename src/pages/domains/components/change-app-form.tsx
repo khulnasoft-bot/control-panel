@@ -1,27 +1,25 @@
+import { Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { Button } from '@snipkit/design-system';
-import { api } from 'src/api/api';
-import { useApps } from 'src/api/hooks/service';
-import { Domain } from 'src/api/model';
-import { useInvalidateApiQuery } from 'src/api/use-api';
+import { useApi, useApps, useInvalidateApiQuery } from 'src/api';
 import { notify } from 'src/application/notify';
-import { useToken } from 'src/application/token';
-import { ControlledSelect } from 'src/components/controlled';
+import { ControlledSelect } from 'src/components/forms';
 import { handleSubmit } from 'src/hooks/form';
 import { createTranslate } from 'src/intl/translate';
+import { Domain } from 'src/model';
 import { hasProperty } from 'src/utils/object';
 
-const T = createTranslate('pages.domains.domainsList.changeApp');
+const T = createTranslate('pages.domains.list.changeApp');
 
 export function ChangeAppForm({ domain }: { domain: Domain }) {
-  const { token } = useToken();
   const t = T.useTranslate();
 
-  const apps = useApps();
+  const api = useApi();
   const invalidate = useInvalidateApiQuery();
+
+  const apps = useApps();
 
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -37,8 +35,7 @@ export function ChangeAppForm({ domain }: { domain: Domain }) {
         return false;
       }
 
-      await api.editDomain({
-        token,
+      await api('patch /v1/domains/{id}', {
         path: { id: domain.id },
         query: {},
         body: { app_id: appId as string | undefined },
@@ -49,7 +46,7 @@ export function ChangeAppForm({ domain }: { domain: Domain }) {
         return;
       }
 
-      await invalidate('listDomains');
+      await invalidate('get /v1/domains');
 
       form.reset(values);
 
@@ -73,7 +70,7 @@ export function ChangeAppForm({ domain }: { domain: Domain }) {
         items={['none', ...(apps ?? [])] as const}
         getKey={(app) => (app === 'none' ? 'none' : app.id)}
         itemToString={(app) => (app === 'none' ? 'none' : app.name)}
-        itemToValue={(app) => (app === 'none' ? null : app.id)}
+        getValue={(app) => (app === 'none' ? null : app.id)}
         renderItem={(app) => (app === 'none' ? <T id="noApp" /> : app.name)}
         className="max-w-sm"
       />

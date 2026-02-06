@@ -1,11 +1,11 @@
 import { SvgComponent } from 'src/application/types';
-import { ControlledSelectBox } from 'src/components/controlled';
-import { IconPackage } from 'src/components/icons';
-import IconDocker from 'src/icons/docker.svg?react';
+import { ControlledSelectBox } from 'src/components/forms';
+import { IconDocker, IconPackage } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
+import { BuilderType } from 'src/model';
 
 import { ServiceFormSection } from '../../components/service-form-section';
-import { BuilderType, ServiceForm } from '../../service-form.types';
+import { ServiceForm } from '../../service-form.types';
 import { useWatchServiceForm } from '../../use-service-form';
 
 import { BuildpackOptions } from './buildpack-options';
@@ -19,11 +19,11 @@ export function BuilderSection() {
   return (
     <ServiceFormSection
       section="builder"
-      title={<SectionTitle />}
-      expandedTitle={<T id="expandedTitle" />}
-      description={<T id="description" />}
+      title={<T id="title" />}
+      action={<T id="action" />}
+      summary={<Summary />}
     >
-      <div className="gaps mb-5 grid grid-cols-1 md:grid-cols-2">
+      <div className="mb-5 grid grid-cols-1 gaps md:grid-cols-2">
         <BuilderTypeOption
           type="buildpack"
           Icon={IconPackage}
@@ -45,17 +45,17 @@ export function BuilderSection() {
   );
 }
 
-function SectionTitle() {
+function Summary() {
   const builderType = useWatchServiceForm('builder.type');
 
-  const { Icon, title } =
-    builderType === 'buildpack'
-      ? { Icon: IconPackage, title: <T id="buildpack" /> }
-      : { Icon: IconDocker, title: <T id="dockerfile" /> };
+  const { Icon, title } = {
+    buildpack: { Icon: IconPackage, title: <T id="buildpack" /> },
+    dockerfile: { Icon: IconDocker, title: <T id="dockerfile" /> },
+  }[builderType];
 
   return (
     <div className="row items-center gap-2">
-      <Icon className="text-icon size-5" />
+      <Icon className="size-4 text-icon" />
       {title}
     </div>
   );

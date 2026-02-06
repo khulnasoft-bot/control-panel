@@ -1,26 +1,27 @@
+import { Badge, Table, useBreakpoint } from '@design-system';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useAuth } from '@workos-inc/authkit-react';
 import clsx from 'clsx';
 
-import { Badge, ButtonMenuItem, Select, Table, useBreakpoint } from '@snipkit/design-system';
-import { api } from 'src/api/api';
-import { useInvitationsQuery } from 'src/api/hooks/invitation';
-import { useOrganization, useUser } from 'src/api/hooks/session';
-import { mapOrganizationMember } from 'src/api/mappers/session';
-import { OrganizationInvitation, type OrganizationMember } from 'src/api/model';
-import { useApiMutationFn, useApiQueryFn, useInvalidateApiQuery } from 'src/api/use-api';
+import {
+  apiMutation,
+  apiQuery,
+  mapInvitation,
+  mapOrganizationMember,
+  useInvalidateApiQuery,
+  useOrganization,
+  useUser,
+} from 'src/api';
 import { notify } from 'src/application/notify';
-import { routes } from 'src/application/routes';
-import { useToken } from 'src/application/token';
-import { ActionsMenu } from 'src/components/actions-menu';
-import { ConfirmationDialog } from 'src/components/confirmation-dialog';
-import { Dialog } from 'src/components/dialog';
+import { closeDialog, openDialog } from 'src/components/dialog';
+import { ActionsMenu, ButtonMenuItem } from 'src/components/dropdown-menu';
+import { Select } from 'src/components/forms/select';
 import { Loading } from 'src/components/loading';
 import { QueryError } from 'src/components/query-error';
 import { useSha256 } from 'src/hooks/hash';
-import { useNavigate } from 'src/hooks/router';
 import { FormattedDistanceToNow } from 'src/intl/formatted';
-import { createTranslate, Translate } from 'src/intl/translate';
-import { identity } from 'src/utils/generic';
+import { Translate, createTranslate } from 'src/intl/translate';
+import { OrganizationInvitation, type OrganizationMember } from 'src/model';
 
 const T = createTranslate('pages.team.membersList');
 
@@ -28,10 +29,16 @@ export function MembersList() {
   const isMobile = !useBreakpoint('sm');
 
   const organization = useOrganization();
-  const invitationsQuery = useInvitationsQuery({ status: 'PENDING' });
+
+  const invitationsQuery = useQuery({
+    ...apiQuery('get /v1/organization_invitations', { query: { statuses: ['PENDING'] } }),
+    refetchInterval: 5_000,
+    select: ({ invitations }) => invitations!.map(mapInvitation),
+  });
 
   const membersQuery = useQuery({
-    ...useApiQueryFn('listOrganizationMembers', { query: { organization_id: organization.id } }),
+    ...apiQuery('get /v1/organization_members', { query: { organization_id: organization?.id } }),
+    refetchInterval: 5_000,
     select: ({ members }) => members!.map(mapOrganizationMember),
   });
 
@@ -51,7 +58,7 @@ export function MembersList() {
         </div>
 
         <p className="text-dim">
-          <T id="description" values={{ organizationName: organization.name }} />
+          <T id="description" values={{ organizationName: organization?.name }} />
         </p>
       </div>
 
@@ -78,9 +85,7 @@ export function MembersList() {
                 <Select
                   disabled
                   items={['owner']}
-                  selectedItem="owner"
-                  getKey={identity}
-                  itemToString={identity}
+                  value="owner"
                   renderItem={() => <T id="owner" />}
                   className="w-full max-w-64"
                 />
@@ -143,85 +148,64 @@ function OrganizationMember({ membership }: { membership: OrganizationMember }) 
 }
 
 function Actions({ item }: { item: OrganizationInvitation | OrganizationMember }) {
-  const openDialog = Dialog.useOpen();
+  const t = T.useTranslate();
 
   const user = useUser();
-  const organization = useOrganization();
-  const organizationName = organization.name;
 
   const resendInvitationMutation = useResendInvitation();
   const deleteInvitationMutation = useDeleteInvitation();
-  const removeOrganizationMemberMutation = useRemoveOrganizationMember();
-  const leaveOrganizationMutation = useLeaveOrganization();
+  const leaveOrganization = useLeaveOrganization();
+  const removeOrganizationMember = useRemoveOrganizationMember();
+
+  const onLeaveOrganization = (member: OrganizationMember) => {
+    openDialog('Confirmation', {
+      title: t('leaveOrganization.title'),
+      description: t('leaveOrganization.description', { organizationName: member.organization.name }),
+      confirmationText: member.organization.name,
+      submitText: t('leaveOrganization.submitButton'),
+      onConfirm: () => leaveOrganization.mutateAsync(member),
+    });
+  };
+
+  const onRemoveMember = (member: OrganizationMember) => {
+    openDialog('Confirmation', {
+      title: t('removeMember.title'),
+      description: t('removeMember.description', {
+        name: member.user.name,
+        organizationName: member.organization.name,
+      }),
+      confirmationText: member.organization.name,
+      submitText: t('removeMember.submitButton'),
+      onConfirm: () => removeOrganizationMember.mutateAsync(member),
+    });
+  };
 
   return (
-    <>
-      <ActionsMenu>
-        {(withClose) => (
-          <>
-            {isInvitation(item) && (
-              <>
-                <ButtonMenuItem onClick={withClose(() => resendInvitationMutation.mutate(item))}>
-                  <T id="actions.resendInvitation" />
-                </ButtonMenuItem>
-
-                <ButtonMenuItem onClick={withClose(() => deleteInvitationMutation.mutate(item))}>
-                  <T id="actions.deleteInvitation" />
-                </ButtonMenuItem>
-              </>
-            )}
-
-            {!isInvitation(item) && (
-              <>
-                {item.user.id === user.id && (
-                  <ButtonMenuItem
-                    onClick={withClose(() =>
-                      openDialog('ConfirmLeaveOrganization', { resourceId: item.user.id }),
-                    )}
-                  >
-                    <T id="actions.leave" />
-                  </ButtonMenuItem>
-                )}
-
-                {item.user.id !== user.id && (
-                  <ButtonMenuItem
-                    onClick={withClose(() => openDialog('ConfirmRemoveMember', { resourceId: item.user.id }))}
-                  >
-                    <T id="actions.removeMember" />
-                  </ButtonMenuItem>
-                )}
-              </>
-            )}
-          </>
-        )}
-      </ActionsMenu>
-
-      {!isInvitation(item) && (
-        <>
-          <ConfirmationDialog
-            id="ConfirmRemoveMember"
-            resourceId={item.user.id}
-            title={<T id="removeMember.title" />}
-            description={
-              <T id="removeMember.description" values={{ name: item.user.name, organizationName }} />
-            }
-            confirmationText={organizationName}
-            submitText={<T id="removeMember.submitButton" />}
-            onConfirm={() => removeOrganizationMemberMutation.mutateAsync(item)}
-          />
-
-          <ConfirmationDialog
-            id="ConfirmLeaveOrganization"
-            resourceId={item.user.id}
-            title={<T id="leaveOrganization.title" />}
-            description={<T id="leaveOrganization.description" values={{ organizationName }} />}
-            confirmationText={organizationName}
-            submitText={<T id="leaveOrganization.submitButton" />}
-            onConfirm={() => leaveOrganizationMutation.mutateAsync(item)}
-          />
-        </>
+    <ActionsMenu>
+      {isInvitation(item) && (
+        <ButtonMenuItem onClick={() => resendInvitationMutation.mutate(item)}>
+          <T id="actions.resendInvitation" />
+        </ButtonMenuItem>
       )}
-    </>
+
+      {isInvitation(item) && (
+        <ButtonMenuItem onClick={() => deleteInvitationMutation.mutate(item)}>
+          <T id="actions.deleteInvitation" />
+        </ButtonMenuItem>
+      )}
+
+      {!isInvitation(item) && item.user.id === user?.id && (
+        <ButtonMenuItem onClick={() => onLeaveOrganization(item)}>
+          <T id="actions.leave" />
+        </ButtonMenuItem>
+      )}
+
+      {!isInvitation(item) && item.user.id !== user?.id && (
+        <ButtonMenuItem onClick={() => onRemoveMember(item)}>
+          <T id="actions.removeMember" />
+        </ButtonMenuItem>
+      )}
+    </ActionsMenu>
   );
 }
 
@@ -229,7 +213,7 @@ function useResendInvitation() {
   const t = T.useTranslate();
 
   return useMutation({
-    ...useApiMutationFn('resendInvitation', (invitation: OrganizationInvitation) => ({
+    ...apiMutation('post /v1/organization_invitations/{id}/resend', (invitation: OrganizationInvitation) => ({
       path: { id: invitation.id },
     })),
     onSuccess(_, { email }) {
@@ -243,11 +227,11 @@ function useDeleteInvitation() {
   const t = T.useTranslate();
 
   return useMutation({
-    ...useApiMutationFn('deleteInvitation', (invitation: OrganizationInvitation) => ({
+    ...apiMutation('delete /v1/organization_invitations/{id}', (invitation: OrganizationInvitation) => ({
       path: { id: invitation.id },
     })),
     async onSuccess(_, { email }) {
-      await invalidate('listInvitations');
+      await invalidate('get /v1/organization_invitations');
       notify.info(t('actions.deleteInvitationSuccessNotification', { email }));
     },
   });
@@ -258,11 +242,13 @@ function useRemoveOrganizationMember() {
   const t = T.useTranslate();
 
   return useMutation({
-    ...useApiMutationFn('deleteOrganizationMember', (membership: OrganizationMember) => ({
+    ...apiMutation('delete /v1/organization_members/{id}', (membership: OrganizationMember) => ({
       path: { id: membership.id },
     })),
     async onSuccess(_, { user, organization }) {
-      await invalidate('listOrganizationMembers');
+      await invalidate('get /v1/organization_members');
+
+      closeDialog();
 
       notify.info(
         t('actions.removeMemberSuccessNotification', {
@@ -275,50 +261,14 @@ function useRemoveOrganizationMember() {
 }
 
 function useLeaveOrganization() {
-  const { token, setToken, clearToken } = useToken();
-  const user = useUser();
-  const navigate = useNavigate();
-  const t = T.useTranslate();
+  const { signOut } = useAuth();
 
   return useMutation({
-    async mutationFn(membership: OrganizationMember) {
-      const { members } = await api.listOrganizationMembers({
-        token,
-        query: { user_id: user.id },
-      });
-
-      const [otherOrganizationId] = members!
-        .map((member) => member.organization_id!)
-        .filter((organizationId) => organizationId !== membership.organization.id);
-
-      let result: string | undefined = undefined;
-
-      if (otherOrganizationId) {
-        const { token: newToken } = await api.switchOrganization({
-          token,
-          path: { id: otherOrganizationId },
-          header: {},
-        });
-
-        result = newToken!.id!;
-      }
-
-      await api.deleteOrganizationMember({
-        token,
-        path: { id: membership.id },
-      });
-
-      return result;
-    },
-    async onSuccess(token, { organization }) {
-      if (token !== undefined) {
-        setToken(token);
-      } else {
-        clearToken();
-      }
-
-      navigate(routes.home());
-      notify.info(t('actions.leaveSuccessNotification', { organizationName: organization.name }));
+    ...apiMutation('delete /v1/organization_members/{id}', (membership: OrganizationMember) => ({
+      path: { id: membership.id },
+    })),
+    onSuccess() {
+      signOut();
     },
   });
 }

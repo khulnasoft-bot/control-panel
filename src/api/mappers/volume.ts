@@ -1,11 +1,11 @@
 import { parseBytes } from 'src/application/memory';
+import { Volume, VolumeSnapshot } from 'src/model';
 import { requiredDeep, snakeToCamelDeep } from 'src/utils/object';
 import { removePrefix } from 'src/utils/strings';
 
-import type { Api } from '../api-types';
-import { Volume, VolumeSnapshot } from '../model';
+import type { API } from '../api-types';
 
-export function mapVolume(volume: Api.PersistentVolume): Volume {
+export function mapVolume(volume: API.PersistentVolume): Volume {
   return {
     ...snakeToCamelDeep(requiredDeep(volume)),
     size: parseBytes(`${volume.max_size}GB`),
@@ -13,11 +13,7 @@ export function mapVolume(volume: Api.PersistentVolume): Volume {
   };
 }
 
-export function mapSnapshotList(snapshots: Api.Snapshot[]): VolumeSnapshot[] {
-  return snapshots.map(mapSnapshot);
-}
-
-export function mapSnapshot(snapshot: Api.Snapshot): VolumeSnapshot {
+export function mapSnapshot(snapshot: API.Snapshot): VolumeSnapshot {
   return {
     ...snakeToCamelDeep(requiredDeep(snapshot)),
     volumeId: snapshot.parent_volume_id!,

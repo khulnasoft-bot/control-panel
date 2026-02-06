@@ -1,19 +1,30 @@
+import path from 'node:path';
+
 import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
-import { getBaseDomain } from './src/utils/getBaseDomain';
 
-dotenv.config();
+dotenv.config({
+  path: path.resolve(import.meta.dirname, 'tests', '.env'),
+  quiet: true,
+});
 
 const ci = process.env.CI === 'true';
-const baseURL = process.env.E2E_BASE_URL ?? `https://${getBaseDomain()}/staging`;
+const baseURL = process.env.BASE_URL ?? 'https://staging.khulnasoft.com';
+
+const oneClickApps = process.env.ONE_CLICK_APP !== undefined;
 
 export default defineConfig({
   testDir: './tests',
-  globalTimeout: 25 * 60 * 1000,
+  timeout: oneClickApps ? ms({ minutes: 20 }) : undefined,
+  globalTimeout: oneClickApps ? ms({ hours: 6 }) : ms({ minutes: 25 }),
   forbidOnly: !!ci,
-  retries: ci ? 2 : 0,
-  workers: 1,
+  retries: ci && !oneClickApps ? 2 : 0,
+  maxFailures: oneClickApps ? 30 : undefined,
+  workers: 10,
   reporter: ci ? [['list'], ['github']] : 'list',
+
+  grep: oneClickApps ? /one-click-apps/ : undefined,
+  grepInvert: oneClickApps ? undefined : /one-click-apps/,
 
   use: {
     baseURL,
@@ -44,3 +55,7 @@ export default defineConfig({
     // },
   ],
 });
+
+function ms({ minutes = 0, hours = 0 }: { minutes?: number; hours?: number }) {
+  return (minutes * 60 + hours * 60 * 60) * 1000;
+}

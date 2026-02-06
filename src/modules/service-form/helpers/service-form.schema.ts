@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-import { EnvironmentVariable } from 'src/api/model';
+import { EnvironmentVariable, Organization, OrganizationQuotas } from 'src/model';
 import { isSlug } from 'src/utils/strings';
 
-import { File } from '../service-form.types';
+import { File, Scaling } from '../service-form.types';
 
 const git = z.discriminatedUnion('repositoryType', [
   z.object({
@@ -79,6 +79,7 @@ function preprocessFiles(value: unknown) {
 
 const file = z.object({
   mountPath: z.string().startsWith('/'),
+  permissions: z.string(),
   content: z.string(),
 });
 
@@ -89,27 +90,99 @@ const instance = z
   .nullable()
   .refine((id) => id !== null);
 
-const scaling = z
-  .object({
-    min: z.number().min(0).max(20),
-    max: z.number().min(0).max(20),
-    targets: z.object({
-      cpu: target(1, 100),
-      memory: target(1, 100),
-      requests: target(1, 1e9),
-      concurrentRequests: target(1, 1e9),
-      responseTime: target(1, 1e9),
-      sleepIdleDelay: target(3 * 60, 60 * 60),
-    }),
-  })
-  .refine(({ min, max, targets }) => {
-    if (min === max || max === 1) {
-      return true;
-    }
+function scaling(organization: Organization | undefined, quotas: OrganizationQuotas) {
+  return z
+    .object({
+      min: z.number().min(0).max(20),
+      max: z.number().min(0).max(20),
+      scaleToZero: scaleToZero(organization, quotas),
+      targets: z.object({
+        cpu: target(1, 100),
+        memory: target(1, 100),
+        requests: target(1, 1e9),
+        concurrentRequests: target(1, 1e9),
+        responseTime: target(1, 1e9),
+      }),
+    })
+    .refine(({ min, max, targets }) => {
+      if (min === max || max === 1) {
+        return true;
+      }
 
-    const enabledTargets = Object.values(targets).filter((target) => target.enabled);
-    return enabledTargets.length > 0;
-  }, 'noTargetSelected');
+      const enabledTargets = Object.values(targets).filter((target) => 'enabled' in target && target.enabled);
+      return enabledTargets.length > 0;
+    }, 'noTargetSelected');
+}
+
+function scaleToZero(organization: Organization | undefined, quotas: OrganizationQuotas) {
+  return z
+    .object({
+      lightSleepEnabled: z.boolean(),
+      idlePeriod: z.number(),
+      lightToDeepPeriod: z.number(),
+    })
+    .superRefine((value, ctx) => {
+      if (organization?.plan === 'hobby') {
+        return;
+      }
+
+      const tooSmall = (path: 'idlePeriod' | 'lightToDeepPeriod', minimum: number) => {
+        ctx.addIssue({ code: 'too_small', origin: 'number', path: [path], minimum });
+      };
+
+      const tooBig = (path: 'idlePeriod' | 'lightToDeepPeriod', maximum: number) => {
+        ctx.addIssue({ code: 'too_big', origin: 'number', path: [path], maximum });
+      };
+
+      const { idlePeriod, lightToDeepPeriod } = value;
+      const bounds = getScaleToZeroBounds(quotas, value);
+
+      if (idlePeriod < bounds.idlePeriod.min) {
+        return tooSmall('idlePeriod', bounds.idlePeriod.min);
+      }
+
+      if (idlePeriod > bounds.idlePeriod.max) {
+        return tooBig('idlePeriod', bounds.idlePeriod.max);
+      }
+
+      if (bounds.lightToDeepPeriod) {
+        if (lightToDeepPeriod < bounds.lightToDeepPeriod.min) {
+          return tooSmall('lightToDeepPeriod', bounds.lightToDeepPeriod.min);
+        }
+
+        if (lightToDeepPeriod > bounds.lightToDeepPeriod.max) {
+          return tooBig('lightToDeepPeriod', bounds.lightToDeepPeriod.max);
+        }
+      }
+    });
+}
+
+export function getScaleToZeroBounds(quotas: OrganizationQuotas, value: Scaling['scaleToZero']) {
+  const { deepSleepIdleDelayMin, deepSleepIdleDelayMax } = quotas.scaleToZero;
+  const { lightSleepIdleDelayMin, lightSleepIdleDelayMax } = quotas.scaleToZero;
+
+  const { lightSleepEnabled, idlePeriod } = value;
+
+  if (!lightSleepEnabled) {
+    return {
+      idlePeriod: {
+        min: deepSleepIdleDelayMin,
+        max: deepSleepIdleDelayMax,
+      },
+    };
+  }
+
+  return {
+    idlePeriod: {
+      min: lightSleepIdleDelayMin,
+      max: lightSleepIdleDelayMax,
+    },
+    lightToDeepPeriod: {
+      min: deepSleepIdleDelayMin - idlePeriod,
+      max: deepSleepIdleDelayMax - idlePeriod,
+    },
+  };
+}
 
 function target(min: number, max: number) {
   return z.discriminatedUnion('enabled', [
@@ -156,8 +229,9 @@ const healthCheck = z.discriminatedUnion('protocol', [
 ]);
 
 const portCommon = z.object({
-  protocol: z.string(),
   portNumber: z.number().min(1).lt(65000),
+  protocol: z.string(),
+  tcpProxy: z.boolean(),
   healthCheck,
 });
 
@@ -185,33 +259,61 @@ function preprocessVolumes(value: unknown) {
   return (value as Array<{ name: string }>).filter((value) => value.name !== '');
 }
 
-export const serviceFormSchema = z.object({
-  meta: z.object({}).passthrough(),
-  appName: z
-    .string()
-    .trim()
-    .min(3)
-    .max(64)
-    .refine(isSlug, { params: { refinement: 'isSlug' } }),
-  serviceName: z
-    .string()
-    .trim()
-    .min(2)
-    .max(63)
-    .refine(isSlug, { params: { refinement: 'isSlug' } }),
-  serviceType: z.string(),
-  source: z.discriminatedUnion('type', [
-    z.object({ type: z.literal('archive'), archive: z.object({ archiveId: z.string() }) }),
-    z.object({ type: z.literal('git'), git }),
-    z.object({ type: z.literal('docker'), docker }),
-  ]),
-  builder,
-  dockerDeployment,
-  environmentVariables: z.preprocess(preprocessEnvironmentVariable, z.array(environmentVariable)),
-  files: z.preprocess(preprocessFiles, z.array(file)),
-  regions,
-  instance,
-  scaling,
-  ports: z.array(ports),
-  volumes: z.preprocess(preprocessVolumes, z.array(volumes)),
-});
+function meta() {
+  return z.object({
+    expandedSection: z.union([
+      z.null(),
+      z.literal('serviceType'),
+      z.literal('source'),
+      z.literal('builder'),
+      z.literal('deployment'),
+      z.literal('environmentVariables'),
+      z.literal('instance'),
+      z.literal('scaling'),
+      z.literal('ports'),
+      z.literal('healthChecks'),
+      z.literal('volumes'),
+      z.literal('serviceName'),
+    ]),
+    appId: z.string().nullable(),
+    serviceId: z.string().nullable(),
+    previousInstance: z.string().nullable(),
+    hasPreviousBuild: z.boolean(),
+    skipBuild: z.boolean(),
+    saveOnly: z.boolean(),
+    proxyFields: z.record(z.string(), z.unknown()),
+  });
+}
+
+export function serviceFormSchema(organization: Organization | undefined, quotas: OrganizationQuotas) {
+  return z.object({
+    meta: meta(),
+    appName: z
+      .string()
+      .trim()
+      .min(3)
+      .max(64)
+      .refine(isSlug, { params: { refinement: 'isSlug' } }),
+    serviceName: z
+      .string()
+      .trim()
+      .min(2)
+      .max(63)
+      .refine(isSlug, { params: { refinement: 'isSlug' } }),
+    serviceType: z.union([z.literal('web'), z.literal('worker')]),
+    source: z.discriminatedUnion('type', [
+      z.object({ type: z.literal('archive'), archive: z.object({ archiveId: z.string() }) }),
+      z.object({ type: z.literal('git'), git }),
+      z.object({ type: z.literal('docker'), docker }),
+    ]),
+    builder,
+    dockerDeployment,
+    environmentVariables: z.preprocess(preprocessEnvironmentVariable, z.array(environmentVariable)),
+    files: z.preprocess(preprocessFiles, z.array(file)),
+    regions,
+    instance,
+    scaling: scaling(organization, quotas),
+    ports: z.array(ports),
+    volumes: z.preprocess(preprocessVolumes, z.array(volumes)),
+  });
+}

@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { CatalogInstance, CatalogRegion } from 'src/api/model';
+import { CatalogInstance, CatalogRegion } from 'src/model';
 import { create } from 'src/utils/factories';
+
+import { Port } from '../service-form.types';
 
 import { defaultHealthCheck } from './initialize-service-form';
 import { parseDeployParams } from './parse-deploy-params';
@@ -197,10 +199,10 @@ describe('parseDeployParams', () => {
       test.params.append('ports', '2;http2;/2');
       test.params.append('ports', '3;tcp');
 
-      expect(test.getValues()).toHaveProperty('ports', [
-        { portNumber: 1, public: true, protocol: 'http', path: '/1', healthCheck },
-        { portNumber: 2, public: true, protocol: 'http2', path: '/2', healthCheck },
-        { portNumber: 3, public: false, protocol: 'tcp', path: '', healthCheck },
+      expect(test.getValues()).toHaveProperty<Port[]>('ports', [
+        { portNumber: 1, public: true, tcpProxy: false, protocol: 'http', path: '/1', healthCheck },
+        { portNumber: 2, public: true, tcpProxy: false, protocol: 'http2', path: '/2', healthCheck },
+        { portNumber: 3, public: false, tcpProxy: false, protocol: 'tcp', path: '', healthCheck },
       ]);
     });
 
@@ -215,9 +217,19 @@ describe('parseDeployParams', () => {
       test.params.append('ports', '1;http;/');
       test.params.append('ports', '1;tcp');
 
-      expect(test.getValues()).toHaveProperty('ports', [
-        { portNumber: 1, public: true, protocol: 'http', path: '/', healthCheck },
-        { portNumber: 1, public: false, protocol: 'tcp', path: '', healthCheck },
+      expect(test.getValues()).toHaveProperty<Port[]>('ports', [
+        { portNumber: 1, public: true, tcpProxy: false, protocol: 'http', path: '/', healthCheck },
+        { portNumber: 1, public: false, tcpProxy: false, protocol: 'tcp', path: '', healthCheck },
+      ]);
+    });
+
+    it('TCP proxy', () => {
+      test.params.append('ports', '1;tcp;;true');
+      test.params.append('ports', '2;tcp;/;true');
+
+      expect(test.getValues()).toHaveProperty<Port[]>('ports', [
+        { portNumber: 1, public: false, tcpProxy: true, protocol: 'tcp', path: '', healthCheck },
+        { portNumber: 2, public: false, tcpProxy: true, protocol: 'tcp', path: '/', healthCheck },
       ]);
     });
   });
@@ -235,25 +247,9 @@ describe('parseDeployParams', () => {
       expect(test.getValues()).toHaveProperty('scaling.max', 2);
     });
 
-    it('both with min < max', () => {
+    it('both', () => {
       test.params.set('instances_min', '1');
       test.params.set('instances_max', '2');
-
-      expect(test.getValues()).toHaveProperty('scaling.min', 1);
-      expect(test.getValues()).toHaveProperty('scaling.max', 2);
-    });
-
-    it('both with min = max', () => {
-      test.params.set('instances_min', '2');
-      test.params.set('instances_max', '2');
-
-      expect(test.getValues()).toHaveProperty('scaling.min', 2);
-      expect(test.getValues()).toHaveProperty('scaling.max', 2);
-    });
-
-    it('both with min > max', () => {
-      test.params.set('instances_min', '2');
-      test.params.set('instances_max', '1');
 
       expect(test.getValues()).toHaveProperty('scaling.min', 1);
       expect(test.getValues()).toHaveProperty('scaling.max', 2);
@@ -277,13 +273,13 @@ describe('parseDeployParams', () => {
       expect(test.getValues()).not.toHaveProperty('scaling');
     });
 
-    it('min >= 20', () => {
-      test.params.set('instances_min', '20');
+    it('min > 20', () => {
+      test.params.set('instances_min', '21');
 
       expect(test.getValues()).not.toHaveProperty('scaling');
     });
 
-    it('max >= 20', () => {
+    it('max > 20', () => {
       test.params.set('instances_max', '21');
 
       expect(test.getValues()).not.toHaveProperty('scaling');
@@ -291,6 +287,23 @@ describe('parseDeployParams', () => {
   });
 
   describe('autoscaling', () => {
+    it('autoscaling_sleep_idle_delay', () => {
+      test.params.set('autoscaling_sleep_idle_delay', '1');
+
+      expect(test.getValues()).toHaveProperty('scaling.scaleToZero', {
+        idlePeriod: 1,
+      });
+    });
+
+    it('autoscaling_deep_sleep_delay', () => {
+      test.params.set('autoscaling_deep_sleep_delay', '1');
+
+      expect(test.getValues()).toHaveProperty('scaling.scaleToZero', {
+        lightSleepEnabled: true,
+        lightToDeepPeriod: 1,
+      });
+    });
+
     it('autoscaling_average_cpu', () => {
       test.params.set('autoscaling_average_cpu', '1');
 
@@ -334,28 +347,6 @@ describe('parseDeployParams', () => {
         enabled: true,
         value: 1,
       });
-    });
-
-    it('autoscaling_sleep_idle_delay', () => {
-      test.params.set('autoscaling_sleep_idle_delay', '1');
-
-      expect(test.getValues()).toHaveProperty('scaling.targets.sleepIdleDelay', {
-        enabled: true,
-        value: 1,
-      });
-    });
-
-    it('enables the requests per second target when and max > 1 and type = web', () => {
-      test.params.set('instances_max', '2');
-
-      expect(test.getValues()).toHaveProperty('scaling.targets', { requests: { enabled: true } });
-    });
-
-    it('enables the cpu target when max > 1 and type = worker', () => {
-      test.params.set('service_type', 'worker');
-      test.params.set('instances_max', '2');
-
-      expect(test.getValues()).toHaveProperty('scaling.targets', { cpu: { enabled: true } });
     });
   });
 

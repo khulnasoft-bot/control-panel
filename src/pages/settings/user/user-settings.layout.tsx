@@ -1,7 +1,5 @@
-import { usePathname } from 'wouter/use-browser-location';
+import { TabButtons } from '@design-system';
 
-import { TabButtons } from '@snipkit/design-system';
-import { routes } from 'src/application/routes';
 import { DocumentTitle } from 'src/components/document-title';
 import { TabButtonLink } from 'src/components/link';
 import { Title } from 'src/components/title';
@@ -25,21 +23,15 @@ export function UserSettingsLayout({ children }: { children: React.ReactNode }) 
 function Navigation() {
   return (
     <TabButtons className="self-start">
-      <Tab href={routes.userSettings.index()}>
+      <TabButtonLink to="/user/settings">
         <T id="navigation.general" />
-      </Tab>
-      <Tab href={routes.userSettings.organizations()}>
+      </TabButtonLink>
+      <TabButtonLink to="/user/settings/organizations">
         <T id="navigation.organizations" />
-      </Tab>
-      <Tab href={routes.userSettings.api()}>
+      </TabButtonLink>
+      <TabButtonLink to="/user/settings/api">
         <T id="navigation.apiCredential" />
-      </Tab>
+      </TabButtonLink>
     </TabButtons>
   );
-}
-
-function Tab(props: { href: string; children: React.ReactNode }) {
-  const pathname = usePathname();
-
-  return <TabButtonLink selected={pathname === props.href} className="whitespace-nowrap" {...props} />;
 }

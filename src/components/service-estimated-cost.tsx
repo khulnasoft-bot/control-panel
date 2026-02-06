@@ -1,4 +1,4 @@
-import { IconEarth, IconScale3d } from 'src/components/icons';
+import { IconEarth, IconScale3d } from 'src/icons';
 import { FormattedPrice } from 'src/intl/formatted';
 import { createTranslate } from 'src/intl/translate';
 import { ServiceCost } from 'src/modules/service-form/helpers/estimated-cost';
@@ -13,9 +13,10 @@ function hasAutoscaling(cost: ServiceCost): cost is [any, any] {
 
 type ServiceEstimatedCostProps = {
   cost?: ServiceCost;
+  button?: React.ReactNode;
 };
 
-export function ServiceEstimatedCost({ cost }: ServiceEstimatedCostProps) {
+export function ServiceEstimatedCost({ cost, button }: ServiceEstimatedCostProps) {
   if (!cost) {
     return null;
   }
@@ -33,7 +34,7 @@ export function ServiceEstimatedCost({ cost }: ServiceEstimatedCostProps) {
   };
 
   return (
-    <div className="card col gap-4 p-4">
+    <div className="col gap-4 rounded-md border p-4">
       <div>
         <div className="text-base font-medium">
           <T id="title" />
@@ -47,6 +48,8 @@ export function ServiceEstimatedCost({ cost }: ServiceEstimatedCostProps) {
       <hr />
 
       <Total cost={cost} />
+
+      {button}
     </div>
   );
 }
@@ -57,7 +60,7 @@ type ScalingLineProps = {
 
 function Scaling({ cost }: ScalingLineProps) {
   return (
-    <div className="divide-y rounded border bg-muted px-2 dark:bg-muted/50">
+    <div className="divide-y rounded-sm border bg-muted px-2 dark:bg-muted/50">
       <div className="py-2">
         <div className="row items-center gap-1">
           <IconScale3d className="size-3.5" />
@@ -109,7 +112,7 @@ function Region({ cost }: RegionLineProps) {
   }
 
   return (
-    <div className="-mt-2 rounded border bg-muted p-2 dark:bg-muted/50">
+    <div className="-mt-2 rounded-sm border bg-muted p-2 dark:bg-muted/50">
       <div className="row items-center gap-1">
         <IconEarth className="size-3.5" />
         <T id="regionCount" values={{ count: (hasAutoscaling(cost) ? cost[0] : cost).regionCount }} />

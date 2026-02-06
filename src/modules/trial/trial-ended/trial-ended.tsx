@@ -1,6 +1,6 @@
+import { Dialog } from '@design-system';
 import { useState } from 'react';
 
-import { Dialog } from '@snipkit/design-system';
 import { StripeProvider } from 'src/application/stripe';
 import { SecondaryLayout } from 'src/layouts/secondary/secondary-layout';
 import { defined } from 'src/utils/assert';

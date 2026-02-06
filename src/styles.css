@@ -1,25 +1,23 @@
-@import '../design-system/src/styles.css';
+@import 'tailwindcss';
+@import '@design-system/styles.css';
+
+@plugin "@tailwindcss/typography";
+
+@source "../node_modules/design-system";
+
+@theme {
+  --breakpoint-3xl: 1920px;
+  --color-purple: #512dc6;
+}
 
 @layer base {
   body {
-    @apply bg-neutral;
-    @apply text-sm text-default;
+    overflow-y: scroll;
   }
 
-  .dark {
-    @apply bg-neutral text-default;
-  }
-
-  .secondary-layout,
-  .secondary-layout .dark {
-    --color-background-green: theme(colors.rgb.emerald.300);
-    --color-text-green: theme(colors.rgb.emerald.200);
-    --color-background-red: theme(colors.rgb.red.400);
-    --color-text-red: theme(colors.rgb.red.400);
-  }
-
-  .secondary-layout .dark {
-    --color-background-neutral: 18 18 18;
+  body .dark {
+    background-color: var(--color-neutral);
+    color: var(--color-default);
   }
 
   a:focus-visible {
@@ -37,21 +35,39 @@
     appearance: textfield;
     -moz-appearance: textfield;
   }
+
+  .prose {
+
+    code::before,
+    code::after {
+      content: '' !important;
+    }
+
+    pre code {
+      overflow: visible !important;
+    }
+
+    table th {
+      white-space: nowrap;
+    }
+
+    .hljs {
+      padding: 0 !important;
+      background: none !important;
+    }
+  }
 }
 
-@layer utilities {
-  .text-security-disc {
-    -webkit-text-security: disc;
-  }
+@utility text-security-disc {
+  -webkit-text-security: disc;
 }
 
 /* react-toastify */
 
 :root {
-  --toastify-color-light: theme(colors.transparent);
-  --toastify-text-color-light: theme(textColor.default);
-  --toastify-toast-width: theme(maxWidth.md);
-  --toastify-font-family: theme(fontFamily.sans);
+  --toastify-color-light: var(--color-transparent);
+  --toastify-toast-width: var(--container-md);
+  --toastify-font-family: var(--font-sans);
   --toastify-toast-shadow: none;
   --toastify-toast-padding: 0;
   --toastify-z-index: 70;

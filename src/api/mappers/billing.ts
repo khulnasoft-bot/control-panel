@@ -1,17 +1,17 @@
 import { sub } from 'date-fns';
 
+import { Invoice, InvoiceDiscount, InvoiceLine, Subscription } from 'src/model';
 import { inArray } from 'src/utils/arrays';
 import { isDefined } from 'src/utils/generic';
 
-import type { Api } from '../api-types';
-import { Invoice, InvoiceDiscount, InvoiceLine, Subscription } from '../model';
+import type { API } from '../api-types';
 
-export function mapSubscription(subscription: Api.Subscription): Subscription {
+export function mapSubscription(subscription: API.Subscription): Subscription {
   return {
     id: subscription.id!,
-    hasPaymentFailure: subscription.payment_failure !== null,
+    hasPaymentFailure: Boolean(subscription.payment_failure),
     hasPendingUpdate: subscription.has_pending_update!,
-    trial: subscription?.trialing
+    trial: subscription.trialing
       ? {
           currentSpend: Number(subscription.current_spend),
           maxSpend: Number(subscription.trial_max_spend),
@@ -25,7 +25,7 @@ export type StripeInvoice = {
   total_excluding_tax: number;
 };
 
-export function mapInvoice({ lines, stripe_invoice, discounts }: Api.NextInvoiceReply): Invoice {
+export function mapInvoice({ lines, stripe_invoice, discounts }: API.NextInvoiceReply): Invoice {
   const stripeInvoice = stripe_invoice as unknown as StripeInvoice;
 
   return {
@@ -42,11 +42,19 @@ export function mapInvoice({ lines, stripe_invoice, discounts }: Api.NextInvoice
   };
 }
 
-function getLines(lines: Api.NextInvoiceReplyLine[]): InvoiceLine[] {
+function getLines(lines: API.NextInvoiceReplyLine[]): InvoiceLine[] {
   return lines
     .map(transformLine)
     .filter(isDefined)
     .sort((a: InvoiceLine, b: InvoiceLine) => {
+      if (a.label.startsWith('Database')) {
+        return 1;
+      }
+
+      if (b.label.startsWith('Database')) {
+        return -1;
+      }
+
       if ('price' in a && 'price' in b) {
         return a.price - b.price;
       }
@@ -55,7 +63,7 @@ function getLines(lines: Api.NextInvoiceReplyLine[]): InvoiceLine[] {
     });
 }
 
-function transformLine(line: Api.NextInvoiceReplyLine): InvoiceLine | undefined {
+function transformLine(line: API.NextInvoiceReplyLine): InvoiceLine | undefined {
   if (inArray(line.plan_nickname, ['Starter', 'Startup', 'Pro', 'Scale', 'Business', 'Enterprise'])) {
     return {
       type: 'plan',
@@ -74,9 +82,9 @@ function transformLine(line: Api.NextInvoiceReplyLine): InvoiceLine | undefined 
 }
 
 function groupLinesByPeriod(
-  lines: Api.NextInvoiceReplyLine[],
-): Array<{ start: string; end: string; lines: Api.NextInvoiceReplyLine[] }> {
-  const periods = new Map<string, { start: string; end: string; lines: Api.NextInvoiceReplyLine[] }>();
+  lines: API.NextInvoiceReplyLine[],
+): Array<{ start: string; end: string; lines: API.NextInvoiceReplyLine[] }> {
+  const periods = new Map<string, { start: string; end: string; lines: API.NextInvoiceReplyLine[] }>();
 
   for (const line of lines) {
     const { start, end } = line.period as { start: string; end: string };
@@ -92,7 +100,7 @@ function groupLinesByPeriod(
   return Array.from(periods.values()).sort(({ start: a }, { start: b }) => a.localeCompare(b));
 }
 
-function mapDiscount(discount: Api.NextInvoiceReplyDiscount): InvoiceDiscount {
+function mapDiscount(discount: API.NextInvoiceReplyDiscount): InvoiceDiscount {
   const type = discountTypeMap[discount.type!]!;
 
   return {

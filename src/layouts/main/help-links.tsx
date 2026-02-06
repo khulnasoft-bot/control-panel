@@ -1,43 +1,38 @@
+import { useBreakpoint } from '@design-system';
 import clsx from 'clsx';
-import { useEffect, useState } from 'react';
 
-import { Floating, Menu, MenuItem, useBreakpoint } from '@snipkit/design-system';
+import { DropdownMenu, ExternalLinkMenuItem } from 'src/components/dropdown-menu';
 import {
   IconBookMarked,
   IconBookOpen,
   IconChevronRight,
   IconLightbulb,
-  IconMessageMoreCircle,
+  IconMessageCircleMore,
   IconNewspaper,
   IconSignal,
-} from 'src/components/icons';
-import { ExternalLink } from 'src/components/link';
+} from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
 
 const T = createTranslate('layouts.main.helpLinks');
 
 export function HelpLinks({ collapsed }: { collapsed: boolean }) {
   const isMobile = !useBreakpoint('sm');
-  const [open, setOpen] = useState(false);
-  const onClose = () => setOpen(false);
-
-  useEffect(() => {
-    onClose();
-  }, [collapsed]);
 
   return (
-    <Floating
-      open={open}
-      setOpen={setOpen}
-      hover
-      placement={isMobile ? 'top-end' : 'right-end'}
-      strategy="fixed"
-      offset={8}
-      renderReference={(props) => (
+    <DropdownMenu
+      openOnHover
+      dropdown={{
+        offset: 8,
+        floating: {
+          placement: isMobile ? 'top-end' : 'right-end',
+          strategy: 'fixed',
+        },
+      }}
+      reference={(props) => (
         <div
           className={clsx(
-            'row mx-4 items-center gap-1',
-            'rounded-md border py-1 pl-3 pr-2',
+            'mx-4 row items-center gap-1',
+            'rounded-md border py-1 pr-2 pl-3',
             'transition-colors hover:bg-muted/50',
             'text-xs font-medium text-dim',
           )}
@@ -50,53 +45,36 @@ export function HelpLinks({ collapsed }: { collapsed: boolean }) {
           </div>
         </div>
       )}
-      renderFloating={(props) => (
-        <Menu className="min-w-52" {...props}>
-          <LinkMenuItem href="https://snipkit.com/docs" onClick={onClose}>
-            <IconBookMarked className="icon" />
-            <T id="documentation" />
-          </LinkMenuItem>
+    >
+      <ExternalLinkMenuItem openInNewTab href="https://khulnasoft.com/docs">
+        <IconBookMarked className="icon" />
+        <T id="documentation" />
+      </ExternalLinkMenuItem>
 
-          <LinkMenuItem href="https://community.snipkit.com" onClick={onClose}>
-            <IconMessageMoreCircle className="icon" />
-            <T id="community" />
-          </LinkMenuItem>
+      <ExternalLinkMenuItem openInNewTab href="https://community.khulnasoft.com">
+        <IconMessageCircleMore className="icon" />
+        <T id="community" />
+      </ExternalLinkMenuItem>
 
-          <LinkMenuItem href="https://feedback.snipkit.com" onClick={onClose}>
-            <IconLightbulb className="icon" />
-            <T id="feedback" />
-          </LinkMenuItem>
+      <ExternalLinkMenuItem openInNewTab href="https://feedback.khulnasoft.com">
+        <IconLightbulb className="icon" />
+        <T id="feedback" />
+      </ExternalLinkMenuItem>
 
-          <LinkMenuItem href="https://status.snipkit.com" onClick={onClose}>
-            <IconSignal className="icon" />
-            <T id="status" />
-          </LinkMenuItem>
+      <ExternalLinkMenuItem openInNewTab href="https://status.khulnasoft.com">
+        <IconSignal className="icon" />
+        <T id="status" />
+      </ExternalLinkMenuItem>
 
-          <LinkMenuItem href="https://www.snipkit.com/changelog" onClick={onClose}>
-            <IconNewspaper className="icon" />
-            <T id="changelog" />
-          </LinkMenuItem>
+      <ExternalLinkMenuItem openInNewTab href="https://www.khulnasoft.com/changelog">
+        <IconNewspaper className="icon" />
+        <T id="changelog" />
+      </ExternalLinkMenuItem>
 
-          <LinkMenuItem href="https://www.snipkit.com/blog" onClick={onClose}>
-            <IconBookOpen className="icon" />
-            <T id="blog" />
-          </LinkMenuItem>
-        </Menu>
-      )}
-    />
-  );
-}
-
-type LinkMenuItemProps = {
-  href: string;
-  onClick: () => void;
-  children: React.ReactNode;
-};
-
-function LinkMenuItem({ href, onClick, children }: LinkMenuItemProps) {
-  return (
-    <MenuItem element={ExternalLink} openInNewTab href={href} onClick={onClick}>
-      {children}
-    </MenuItem>
+      <ExternalLinkMenuItem openInNewTab href="https://www.khulnasoft.com/blog">
+        <IconBookOpen className="icon" />
+        <T id="blog" />
+      </ExternalLinkMenuItem>
+    </DropdownMenu>
   );
 }

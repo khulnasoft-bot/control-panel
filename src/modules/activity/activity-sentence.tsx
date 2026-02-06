@@ -1,6 +1,6 @@
-import { Activity } from 'src/api/model';
 import { FormattedPrice } from 'src/intl/formatted';
-import { createTranslate, TranslateEnum } from 'src/intl/translate';
+import { TranslateEnum, createTranslate } from 'src/intl/translate';
+import { Activity } from 'src/model';
 import { inArray } from 'src/utils/arrays';
 import { capitalize, shortId } from 'src/utils/strings';
 
@@ -104,19 +104,20 @@ export function ActivitySentence({ activity }: { activity: Activity }) {
   if (isOrganizationActivity(activity) && activity.verb === 'updated') {
     const organizationName = activity.object.name;
 
-    if (activity.metadata?.event === 'plan_updated') {
+    if (activity.metadata.event === 'plan_updated') {
       return <T id="organizationPlanUpdated" />;
     }
 
-    if (activity.metadata?.event === 'create_budget') {
+    if (activity.metadata.event === 'create_budget') {
       return <T id="organizationBudgetCreated" values={{ organizationName }} />;
     }
 
-    if (activity.metadata?.event === 'update_budget') {
+    if (activity.metadata.event === 'update_budget') {
       return <T id="organizationBudgetUpdated" values={{ organizationName }} />;
     }
 
-    if (activity.metadata?.event === 'delete_budget') {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (activity.metadata.event === 'delete_budget') {
       return <T id="organizationBudgetDeleted" values={{ organizationName }} />;
     }
   }

@@ -1,33 +1,41 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import sortBy from 'lodash-es/sortBy';
 
 import { getConfig } from 'src/application/config';
 import { parseBytes } from 'src/application/memory';
-import { hasProperty } from 'src/utils/object';
+import {
+  AiModel,
+  CatalogAvailability,
+  OneClickApp,
+  OneClickAppEnv,
+  OneClickAppMetadata,
+  OneClickAppVolume,
+} from 'src/model';
+import { entries, hasProperty, snakeToCamelDeep } from 'src/utils/object';
 
+import { ApiError } from '../api-error';
 import {
   mapCatalogDatacenter,
   mapCatalogInstance,
   mapCatalogRegion,
   mapCatalogUsage,
 } from '../mappers/catalog';
-import { AiModel, CatalogAvailability, OneClickApp } from '../model';
-import { useApiQueryFn } from '../use-api';
+import { apiQuery } from '../query';
 
-export function useInstancesQuery() {
-  return useQuery({
-    ...useApiQueryFn('listCatalogInstances', {
+export function useInstancesCatalogQuery() {
+  return useSuspenseQuery({
+    ...apiQuery('get /v1/catalog/instances', {
       query: { limit: '100' },
     }),
-    refetchInterval: false,
+    staleTime: Infinity,
     select: ({ instances }) => {
       return instances!.map(mapCatalogInstance).sort((a, b) => (a.vram ?? 0) - (b.vram ?? 0));
     },
   });
 }
 
-export function useInstances(ids?: string[]) {
-  const { data: instances = [] } = useInstancesQuery();
+export function useInstancesCatalog(ids?: string[]) {
+  const { data: instances = [] } = useInstancesCatalogQuery();
 
   if (ids === undefined) {
     return instances;
@@ -36,22 +44,22 @@ export function useInstances(ids?: string[]) {
   return instances.filter((instance) => ids.includes(instance.id));
 }
 
-export function useInstance(id?: string | null) {
-  return useInstances().find(hasProperty('id', id));
+export function useCatalogInstance(id?: string | null) {
+  return useInstancesCatalog().find(hasProperty('id', id));
 }
 
-export function useRegionsQuery() {
-  return useQuery({
-    ...useApiQueryFn('listCatalogRegions', {
+export function useRegionsCatalogQuery() {
+  return useSuspenseQuery({
+    ...apiQuery('get /v1/catalog/regions', {
       query: { limit: '100' },
     }),
-    refetchInterval: false,
+    staleTime: Infinity,
     select: ({ regions }) => regions!.map(mapCatalogRegion),
   });
 }
 
-export function useRegions(ids?: string[]) {
-  const { data: regions = [] } = useRegionsQuery();
+export function useRegionsCatalog(ids?: string[]) {
+  const { data: regions = [] } = useRegionsCatalogQuery();
 
   if (ids === undefined) {
     return regions;
@@ -60,28 +68,28 @@ export function useRegions(ids?: string[]) {
   return regions.filter((region) => ids.includes(region.id));
 }
 
-export function useRegion(id?: string) {
-  return useRegions().find(hasProperty('id', id));
+export function useCatalogRegion(id?: string) {
+  return useRegionsCatalog().find(hasProperty('id', id));
 }
 
-export function useDatacentersQuery() {
-  return useQuery({
-    ...useApiQueryFn('listCatalogDatacenters'),
-    refetchInterval: false,
+export function useDatacentersCatalogQuery() {
+  return useSuspenseQuery({
+    ...apiQuery('get /v1/catalog/datacenters', {}),
+    staleTime: Infinity,
     select: ({ datacenters }) => datacenters!.map(mapCatalogDatacenter),
   });
 }
 
-export function useDatacenters() {
-  const { data: datacenters = [] } = useDatacentersQuery();
+export function useDatacentersCatalog() {
+  const { data: datacenters = [] } = useDatacentersCatalogQuery();
 
   return datacenters;
 }
 
 export function useCatalogUsageQuery() {
   return useQuery({
-    ...useApiQueryFn('listCatalogUsage'),
-    refetchInterval: false,
+    ...apiQuery('get /v1/catalog/usage', {}),
+    staleTime: Infinity,
     select: ({ usage }) => mapCatalogUsage(usage!),
   });
 }
@@ -98,7 +106,7 @@ export function useCatalogRegionAvailability(instanceId?: string, regionId?: str
   const { data } = useCatalogUsageQuery();
 
   if (instanceId !== undefined && regionId !== undefined) {
-    return data?.get(instanceId)?.byRegion?.get(regionId);
+    return data?.get(instanceId)?.byRegion.get(regionId);
   }
 }
 
@@ -121,50 +129,102 @@ export function useCatalogInstanceRegionsAvailability(
   }
 }
 
-type OneClickAppApiResponse = {
-  category: string;
+export type ApiOneClickApp = {
+  slug: string;
+  cover: string;
+  og: string;
+  logos: string[];
   name: string;
-  logos: [string, ...string[]];
+  href: string;
   description: string;
+  category: string;
+  project_site?: string;
+  developer?: string;
+  publisher?: string;
+  created_at: string;
+  updated_at: string;
   repository: string;
   deploy_button_url: string;
-  slug: string;
-  env?: Array<{ name: string; value: string }>;
-  model_name?: string;
-  model_size?: string;
-  model_inference_engine?: string;
-  model_docker_image?: string;
+  live_demo?: string;
+  technologies: string[];
+  official: boolean;
+  featured?: boolean;
   model_min_vram_gb?: number;
-  metadata?: Array<{ name: string; value: string }>;
+  env?: OneClickAppEnv[];
+  metadata?: OneClickAppMetadata[];
+  template_volumes?: OneClickAppVolume[];
+  template_definition?: Record<string, unknown>;
 };
 
-async function fetchOneClickApps() {
-  const { websiteUrl } = getConfig();
-  const response = await fetch(`${websiteUrl}/api/one-click-apps.json`, { mode: 'cors' });
+async function fetchOneClickApps(): Promise<ApiOneClickApp[]> {
+  const websiteUrl = getConfig('websiteUrl');
+  const response = await fetch(`${websiteUrl}/api/one-click-apps`, { mode: 'cors' });
 
   if (!response.ok) {
     throw new Error(await response.text());
   }
 
-  return (await response.json()) as OneClickAppApiResponse[];
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return response.json();
+}
+
+async function fetchOneClickApp(slug: string): Promise<{ metadata: ApiOneClickApp; description: string }> {
+  const websiteUrl = getConfig('websiteUrl');
+  const response = await fetch(`${websiteUrl}/api/one-click-apps/${slug}`, { mode: 'cors' });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new ApiError(response, { status: 404, code: '', message: 'Not found' });
+    }
+
+    throw new Error(await response.text());
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return response.json();
 }
 
 export function useOneClickAppsQuery() {
   return useQuery({
-    refetchInterval: false,
     queryKey: ['listOneClickApps'],
     queryFn: fetchOneClickApps,
+    staleTime: Infinity,
     select: (apps) => apps.map(mapOneClickApp),
   });
 }
 
-function mapOneClickApp(app: OneClickAppApiResponse): OneClickApp {
+export function useOneClickAppQuery(slug: string) {
+  return useQuery({
+    queryKey: ['getOneClickApp', slug],
+    queryFn: () => fetchOneClickApp(slug),
+    retry: false,
+    staleTime: Infinity,
+    select: ({ metadata, description }) => ({
+      metadata: mapOneClickApp(metadata),
+      description,
+    }),
+  });
+}
+
+function mapOneClickApp(app: ApiOneClickApp): OneClickApp {
+  const fallbackMetadata = () => {
+    const metadata: Record<string, string> = {};
+
+    metadata['Repository'] = app.repository;
+    if (app.project_site) metadata['Website'] = app.project_site;
+    if (app.developer) metadata['Developer'] = app.developer;
+    metadata['Category'] = app.category;
+
+    return entries(metadata).map(([name, value]) => ({ name, value }));
+  };
+
   return {
-    name: app.name,
-    slug: app.slug,
-    description: app.description,
-    logo: app.logos[0],
-    deployUrl: getOneClickAppUrl(app.slug, app.deploy_button_url),
+    logo: app.logos[0]!,
+    env: [],
+    metadata: fallbackMetadata(),
+    volumes: app.template_volumes ?? [],
+    deploymentDefinition: app.template_definition ?? {},
+    ...snakeToCamelDeep(app),
   };
 }
 
@@ -172,36 +232,27 @@ export function useOneClickApps(): OneClickApp[] {
   return useOneClickAppsQuery().data ?? [];
 }
 
-function getOneClickAppUrl(appSlug: string, appUrl: string): string {
-  const url = new URL(appUrl);
-
-  url.protocol = window.location.protocol;
-  url.host = window.location.host;
-
-  // url.searchParams.set('one_click_app', appSlug);
-
-  return url.toString();
-}
-
 export function useModelsQuery() {
-  return useQuery({
-    refetchInterval: false,
+  return useSuspenseQuery({
     queryKey: ['listOneClickApps'],
     queryFn: fetchOneClickApps,
+    staleTime: Infinity,
     select: (apps) => apps.filter((app) => app.category === 'Model').map(mapOneClickModel),
   });
 }
 
-function mapOneClickModel(app: OneClickAppApiResponse): AiModel {
+function mapOneClickModel(app: ApiOneClickApp): AiModel {
+  const definition = app.template_definition as { docker: { image: string } };
+
   return {
     name: app.name,
     slug: app.slug,
     description: app.description,
-    logo: app.logos[0],
-    dockerImage: app.model_docker_image!,
+    logo: app.logos[0]!,
+    dockerImage: definition.docker.image,
     minVRam: parseBytes(app.model_min_vram_gb + 'GB'),
     metadata: app.metadata ?? [],
-    env: app.env?.map((env) => ({ name: env.name, value: env.value, regions: [] })),
+    env: app.env?.map((env) => ({ name: env.name, value: String(env.default), regions: [] })),
   };
 }
 

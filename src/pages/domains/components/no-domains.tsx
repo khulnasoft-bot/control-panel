@@ -1,8 +1,9 @@
-import { Button } from '@snipkit/design-system';
+import { Button } from '@design-system';
+
 import { NoResource } from 'src/components/no-resource';
 import { createTranslate } from 'src/intl/translate';
 
-const T = createTranslate('pages.domains.domainsList.noDomains');
+const T = createTranslate('pages.domains.list.noDomains');
 
 export function NoDomains({ onCreate }: { onCreate: () => void }) {
   return (

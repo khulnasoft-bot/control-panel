@@ -1,22 +1,33 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
-import { upperCase } from 'src/utils/strings';
+import { usePagination } from 'src/components/pagination';
+import { SecretType } from 'src/model';
 
 import { mapSecret } from '../mappers/secret';
-import { useApiQueryFn } from '../use-api';
+import { apiQuery } from '../query';
 
-export function useSecretsQuery(type?: 'simple' | 'registry') {
-  return useQuery({
-    ...useApiQueryFn('listSecrets', {
+export function useSecretsQuery(type?: SecretType) {
+  const pagination = usePagination(100);
+
+  const query = useQuery({
+    ...apiQuery('get /v1/secrets', {
       query: {
-        types: type !== undefined ? [upperCase(type)] : undefined,
-        limit: '100',
+        ...pagination.query,
+        types: type !== undefined ? [type] : undefined,
       },
     }),
-    select: ({ secrets }) => secrets!.map(mapSecret),
+    placeholderData: keepPreviousData,
+    select: ({ secrets, count, limit, offset }) => ({
+      secrets: secrets!.map(mapSecret),
+      hasNext: count! > offset! + limit!,
+    }),
   });
+
+  pagination.useSync(query.data);
+
+  return [query, pagination] as const;
 }
 
-export function useSecrets(type?: 'simple' | 'registry') {
-  return useSecretsQuery(type).data;
+export function useSecrets(type?: SecretType) {
+  return useSecretsQuery(type)[0].data?.secrets;
 }

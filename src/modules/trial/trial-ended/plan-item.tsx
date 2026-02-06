@@ -1,10 +1,10 @@
+import { Badge, Button } from '@design-system';
 import clsx from 'clsx';
 
-import { Badge, Button } from '@snipkit/design-system';
-import { IconCheck } from 'src/components/icons';
 import { PlanIcon } from 'src/components/plan-icon';
+import { IconCheck } from 'src/icons';
 import { FormattedPrice } from 'src/intl/formatted';
-import { createTranslate, TranslateEnum } from 'src/intl/translate';
+import { TranslateEnum, createTranslate } from 'src/intl/translate';
 import { createArray } from 'src/utils/arrays';
 
 const T = createTranslate('modules.trial.ended.planItem');
@@ -31,18 +31,10 @@ type PlanItemProps = {
 export function PlanItem({ plan, popular, onUpgrade, className }: PlanItemProps) {
   return (
     <div
-      // eslint-disable-next-line tailwindcss/no-arbitrary-value
-      className={clsx(
-        'col gap-6 rounded-lg border p-4 shadow-lg',
-        popular ? 'h-[31rem]' : 'h-[28rem]',
-        className,
-      )}
+      className={clsx('col gap-6 rounded-lg border p-4 shadow-lg', popular ? 'h-124' : 'h-112', className)}
     >
       <div className="row items-center justify-between">
-        <PlanIcon
-          plan={plan}
-          className={clsx(popular ? 'text-[#5341AE] dark:text-[#9B87FF]' : 'text-green')}
-        />
+        <PlanIcon plan={plan} className={clsx(popular ? 'text-purple' : 'text-green')} />
         {popular && <PopularBadge />}
       </div>
 
@@ -90,10 +82,7 @@ function PlanFeature({ text }: { text: React.ReactNode }) {
 
 function PopularBadge() {
   return (
-    <Badge
-      size={1}
-      className="!bg-[#3B00FF]/5 !text-[#180091]/70 dark:!bg-[#4E19FF80]/50 dark:!text-[#BBADFF]"
-    >
+    <Badge size={1} className="bg-purple/5 text-purple! dark:bg-purple/50 dark:text-default/70!">
       <T id="popular" />
     </Badge>
   );

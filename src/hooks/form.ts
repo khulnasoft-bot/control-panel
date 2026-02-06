@@ -1,3 +1,4 @@
+import { dequal } from 'dequal';
 import cloneDeep from 'lodash-es/cloneDeep';
 import { useCallback } from 'react';
 import {
@@ -9,9 +10,10 @@ import {
   useWatch,
 } from 'react-hook-form';
 
-import { hasMessage, isApiResponse, isApiValidationError } from 'src/api/api-errors';
+import { ApiError } from 'src/api';
 import { notify } from 'src/application/notify';
-import { reportError } from 'src/application/report-error';
+import { reportError } from 'src/application/sentry';
+import { hasMessage } from 'src/application/validation';
 import { useTranslate } from 'src/intl/translate';
 import { identity } from 'src/utils/generic';
 import { toObject } from 'src/utils/object';
@@ -45,13 +47,13 @@ export const useFormErrorHandler = <Values extends FieldValues>(
     (error: unknown) => {
       const message = hasMessage(error) && error.message;
 
-      if (!isApiResponse(error)) {
+      if (!ApiError.is(error)) {
         notify.error(message || translate('common.unknownError'));
         reportError(error);
         return;
       }
 
-      if (!isApiValidationError(error.body)) {
+      if (!ApiError.isValidationError(error)) {
         notify.error(message || translate('common.apiError'));
         return;
       }
@@ -90,3 +92,7 @@ export const useFormValues = <Values extends FieldValues>(form?: UseFormReturn<V
 
   return useDeepCompareMemo(values);
 };
+
+export function useFormHasDefaultValues<Values extends FieldValues>(form: UseFormReturn<Values>) {
+  return dequal(form.watch(), form.formState.defaultValues);
+}

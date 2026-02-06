@@ -1,17 +1,21 @@
-import { Alert, ButtonColor } from '@snipkit/design-system';
-import { useDeployment } from 'src/api/hooks/service';
-import { Service } from 'src/api/model';
-import { routes } from 'src/application/routes';
+import { Alert, ButtonColor } from '@design-system';
+
+import { useDeployment } from 'src/api';
 import { isUpcomingDeployment } from 'src/application/service-functions';
 import { Link, LinkButton } from 'src/components/link';
-import { useSearchParam } from 'src/hooks/router';
+import { useSearchParams } from 'src/hooks/router';
 import { createTranslate } from 'src/intl/translate';
+import { Service } from 'src/model';
 import { shortId } from 'src/utils/strings';
 
 const T = createTranslate('pages.service.overview.serviceErrorAlert');
 
 const deploymentLink = (serviceId: string, deploymentId: string) => {
-  return routes.service.overview(serviceId, deploymentId);
+  return {
+    to: '/services/$serviceId' as const,
+    params: { serviceId },
+    search: { deploymentId },
+  };
 };
 
 type ServiceErrorAlertProps = {
@@ -59,7 +63,7 @@ function ServiceUnhealthyAlert({ serviceId, latestDeploymentId }: ServiceUnhealt
           values={{
             latestDeploymentName: shortId(latestDeploymentId),
             latestDeploymentLink: (children) => (
-              <Link href={deploymentLink(serviceId, latestDeploymentId)} className="underline">
+              <Link {...deploymentLink(serviceId, latestDeploymentId)} className="underline">
                 {children}
               </Link>
             ),
@@ -93,13 +97,13 @@ function ServiceDegradedAlert({
           values={{
             activeDeploymentName: shortId(activeDeploymentId),
             activeDeploymentLink: (children) => (
-              <Link href={deploymentLink(serviceId, activeDeploymentId)} className="underline">
+              <Link {...deploymentLink(serviceId, activeDeploymentId)} className="underline">
                 {children}
               </Link>
             ),
             latestDeploymentName: shortId(latestDeploymentId),
             latestDeploymentLink: (children) => (
-              <Link href={deploymentLink(serviceId, latestDeploymentId)} className="underline">
+              <Link {...deploymentLink(serviceId, latestDeploymentId)} className="underline">
                 {children}
               </Link>
             ),
@@ -119,14 +123,14 @@ type LatestDeploymentButtonProps = {
 };
 
 function LatestDeploymentButton({ color, serviceId, deploymentId }: LatestDeploymentButtonProps) {
-  const [currentDeploymentId] = useSearchParam('deploymentId');
+  const currentDeploymentId = useSearchParams().get('deploymentId');
 
   if (deploymentId === currentDeploymentId) {
     return null;
   }
 
   return (
-    <LinkButton color={color} href={deploymentLink(serviceId, deploymentId)} className="sm:self-center">
+    <LinkButton color={color} {...deploymentLink(serviceId, deploymentId)} className="sm:self-center">
       <T id="cta" />
     </LinkButton>
   );

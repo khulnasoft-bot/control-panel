@@ -1,15 +1,15 @@
-import { Alert } from '@snipkit/design-system';
-import { useManageBillingQuery, useSubscriptionQuery } from 'src/api/hooks/billing';
-import { useOrganizationUnsafe } from 'src/api/hooks/session';
+import { Alert, Spinner } from '@design-system';
+import { useMutation } from '@tanstack/react-query';
+
+import { apiMutation, useOrganization, useSubscriptionQuery } from 'src/api';
 import { useIdenfyLink } from 'src/application/idenfy';
 import { ExternalLink } from 'src/components/link';
-import { useTallyDialog } from 'src/hooks/tally';
 import { createTranslate } from 'src/intl/translate';
 
 const T = createTranslate('layouts.main');
 
 export function GlobalAlert() {
-  const organization = useOrganizationUnsafe();
+  const organization = useOrganization();
   const subscriptionQuery = useSubscriptionQuery(organization?.latestSubscriptionId);
 
   if (organization?.statusMessage === 'REVIEWING_ACCOUNT') {
@@ -29,7 +29,6 @@ export function GlobalAlert() {
 
 function AccountUnderReviewAlert() {
   const idenfyLink = useIdenfyLink();
-  const tally = useTallyDialog('wQRgBY');
 
   return (
     <Alert
@@ -45,9 +44,10 @@ function AccountUnderReviewAlert() {
                   {children}
                 </ExternalLink>
               ) : (
-                <button type="button" className="underline" onClick={tally.openPopup}>
+                <span className="underline">
                   {children}
-                </button>
+                  <Spinner className="ml-1 size-em" />
+                </span>
               ),
           }}
         />
@@ -84,15 +84,16 @@ function PendingUpdateAlert() {
 }
 
 function StripePortal({ children }: { children: React.ReactNode }) {
-  const manageBillingQuery = useManageBillingQuery();
-
-  if (!manageBillingQuery.isSuccess || manageBillingQuery.data === null) {
-    return children;
-  }
+  const mutation = useMutation({
+    ...apiMutation('get /v1/billing/manage', {}),
+    onSuccess({ url }) {
+      window.open(url, '_blank');
+    },
+  });
 
   return (
-    <ExternalLink openInNewTab href={manageBillingQuery.data.url} className="focusable rounded font-semibold">
+    <button type="button" onClick={() => mutation.mutate()} className="rounded-sm font-semibold focusable">
       {children}
-    </ExternalLink>
+    </button>
   );
 }

@@ -1,0 +1,73 @@
+{
+  "name": "design-system",
+  "version": "0.12.5",
+  "packageManager": "pnpm@10.19.0",
+  "type": "module",
+  "private": true,
+  "files": [
+    "lib",
+    "styles.css"
+  ],
+  "exports": {
+    ".": {
+      "import": "./lib/main.js",
+      "types": "./lib/main.d.js"
+    },
+    "./next": {
+      "import": "./lib/next.js",
+      "types": "./lib/next.d.js"
+    },
+    "./styles.css": "./styles.css"
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "storybook": "storybook dev --ci -p 6006",
+    "lint": "eslint src"
+  },
+  "peerDependencies": {
+    "@floating-ui/react": "^0.27.0",
+    "@tanstack/react-ranger": "<1.0.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "downshift": "^9.0.0",
+    "framer-motion": "^12.0.0",
+    "immer": "^11.0.0",
+    "lucide-react": "<1.0.0",
+    "react": "^19.0.0",
+    "shiki": "^3.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@floating-ui/react": "^0.27.16",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@storybook/react-vite": "^10.2.0",
+    "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/react-ranger": "^0.0.5",
+    "@trivago/prettier-plugin-sort-imports": "^6.0.2",
+    "@types/react": "^19.2.9",
+    "@types/react-dom": "^19.2.3",
+    "@vueless/storybook-dark-mode": "^10.0.6",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "downshift": "^9.0.13",
+    "eslint": "^9.39.2",
+    "eslint-plugin-better-tailwindcss": "^4.0.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "framer-motion": "^12.29.2",
+    "globals": "^17.1.0",
+    "immer": "^11.1.3",
+    "lucide-react": "^0.563.0",
+    "prettier": "^3.8.1",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "shiki": "^3.21.0",
+    "storybook": "^10.2.0",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.53.1",
+    "vite": "^7.3.1",
+    "vite-plugin-dts": "^4.5.4"
+  }
+}

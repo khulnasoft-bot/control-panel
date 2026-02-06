@@ -1,22 +1,22 @@
+import { Button } from '@design-system';
 import { useMutation } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { add, endOfMonth, format, isBefore, isEqual, startOfMonth, sub } from 'date-fns';
-import { Fragment } from 'react/jsx-runtime';
 import { useForm } from 'react-hook-form';
 import { FormattedDate, FormattedNumber } from 'react-intl';
+import { Fragment } from 'react/jsx-runtime';
 
-import { Button, Tooltip } from '@snipkit/design-system';
-import { useNextInvoiceQuery } from 'src/api/hooks/billing';
-import { useOrganization } from 'src/api/hooks/session';
-import { InvoiceDiscount, InvoicePeriod } from 'src/api/model';
-import { useApiMutationFn } from 'src/api/use-api';
+import { apiMutation, useNextInvoiceQuery, useOrganization } from 'src/api';
 import { downloadFileFromString } from 'src/application/download-file-from-string';
-import { ControlledSelect } from 'src/components/controlled';
-import { Dialog, DialogHeader } from 'src/components/dialog';
+import { formatBytes, parseBytes } from 'src/application/memory';
+import { Dialog, DialogHeader, closeDialog, openDialog } from 'src/components/dialog';
+import { ControlledSelect } from 'src/components/forms';
 import { SectionHeader } from 'src/components/section-header';
+import { Tooltip } from 'src/components/tooltip';
 import { FormValues, handleSubmit } from 'src/hooks/form';
 import { FormattedPrice } from 'src/intl/formatted';
-import { createTranslate, Translate, TranslateEnum } from 'src/intl/translate';
+import { Translate, TranslateEnum, createTranslate } from 'src/intl/translate';
+import { InvoiceDiscount, InvoicePeriod } from 'src/model';
 import { useTrial } from 'src/modules/trial/use-trial';
 import { removeTimezoneOffset } from 'src/utils/date';
 
@@ -37,7 +37,7 @@ export function Usage() {
             values={{
               strong: (children) => <strong className="text-default">{children}</strong>,
               days: trial?.daysLeft,
-              plan: <TranslateEnum enum="plans" value={organization.plan} />,
+              plan: <TranslateEnum enum="plans" value={organization?.plan} />,
               upgrade: <T id="upgrade" />,
             }}
           />
@@ -46,7 +46,7 @@ export function Usage() {
 
       {invoiceQuery.isSuccess && <UsageDetails {...invoiceQuery.data} />}
 
-      <DownloadUsage />
+      <DownloadUsageButton />
     </section>
   );
 }
@@ -130,16 +130,21 @@ type UsageDetailsRowProps = {
 };
 
 function UsageDetailsRowDesktop({ label, usage, price, total }: UsageDetailsRowProps) {
+  const isDatabase = label === 'Database storage';
+
   return (
-    <div className="sm:row hidden items-center border-b px-3 py-2">
+    <div className="hidden items-center border-b px-3 py-2 sm:row">
       <div className="w-64">{label}</div>
 
       <div className="w-48 justify-end px-4 text-right">
-        <UsageRowTime time={usage} />
+        {isDatabase ? <UsageRowBytes data={usage} unit="MB" /> : <UsageRowTime time={usage} />}
       </div>
 
       <div className="px-4 text-dim">
-        <UsageRowPrice price={price} />
+        <UsageRowPrice
+          price={isDatabase && price !== undefined ? price * 1000 : price}
+          unit={isDatabase ? 'gbPerHour' : 'hour'}
+        />
       </div>
 
       <div className="ml-auto justify-end">
@@ -150,21 +155,45 @@ function UsageDetailsRowDesktop({ label, usage, price, total }: UsageDetailsRowP
 }
 
 function UsageDetailsRowMobile({ label, usage, price, total }: UsageDetailsRowProps) {
+  const isDatabase = label === 'Database storage';
+
   return (
     <div className="col gap-2 border-b p-4 sm:hidden">
       <div>{label}</div>
 
       <div className="row">
-        <UsageRowTime time={usage} />
+        {isDatabase ? <UsageRowBytes data={usage} unit="MB" /> : <UsageRowTime time={usage} />}
+
         <div className="ml-auto">
           <UsageRowTotal total={total} />
         </div>
       </div>
 
       <div className="text-dim">
-        <UsageRowPrice price={price} />
+        <UsageRowPrice
+          price={isDatabase && price !== undefined ? price * 1000 : price}
+          unit={isDatabase ? 'gbPerHour' : 'hour'}
+        />
       </div>
     </div>
+  );
+}
+
+type UsageRowBytesProps = {
+  data?: number;
+  unit: 'MB';
+};
+
+function UsageRowBytes({ data, unit }: UsageRowBytesProps) {
+  if (!data) {
+    return null;
+  }
+
+  return (
+    <T
+      id="usageData"
+      values={{ data: formatBytes(parseBytes(`${data}${unit}`), { decimal: true, round: true }) }}
+    />
   );
 }
 
@@ -178,23 +207,30 @@ function UsageRowTime({ time }: UsageRowTimeProps) {
   }
 
   return (
-    <Tooltip allowHover content={<T id="usageSeconds" values={{ seconds: time }} />}>
-      {(props) => (
+    <Tooltip
+      allowHover
+      content={<T id="usageSeconds" values={{ seconds: time }} />}
+      trigger={(props) => (
         <span {...props}>
           <FormattedDuration seconds={time} />
         </span>
       )}
-    </Tooltip>
+    />
   );
 }
 
 type UsageRowPriceProps = {
   price?: number;
+  unit: 'hour' | 'gbPerHour';
 };
 
-function UsageRowPrice({ price }: UsageRowPriceProps) {
+function UsageRowPrice({ price, unit }: UsageRowPriceProps) {
   if (!price) {
     return null;
+  }
+
+  if (unit == 'gbPerHour') {
+    return <T id="pricePerGbPerHour" values={{ price: <FormattedPrice value={price} digits={6} /> }} />;
   }
 
   return <T id="pricePerHour" values={{ price: <FormattedPrice value={price * 60 * 60} digits={6} /> }} />;
@@ -267,10 +303,27 @@ function secondsToHMS(seconds: number) {
   };
 }
 
-function DownloadUsage() {
-  const openDialog = Dialog.useOpen();
-  const closeDialog = Dialog.useClose();
+function DownloadUsageButton() {
+  return (
+    <>
+      <Button color="gray" onClick={() => openDialog('DownloadUsage')} className="self-start">
+        <T id="downloadUsage" />
+      </Button>
 
+      <Dialog id="DownloadUsage" className="col w-full max-w-lg gap-4">
+        <DialogHeader title={<T id="downloadUsageDialog.title" />} />
+
+        <div className="text-dim">
+          <T id="downloadUsageDialog.description" />
+        </div>
+
+        <DownloadUsageForm />
+      </Dialog>
+    </>
+  );
+}
+
+function DownloadUsageForm() {
   const form = useForm({
     defaultValues: {
       period: '',
@@ -278,7 +331,7 @@ function DownloadUsage() {
   });
 
   const mutation = useMutation({
-    ...useApiMutationFn('getUsageCsv', ({ period }: FormValues<typeof form>) => {
+    ...apiMutation('get /v1/usages/details', ({ period }: FormValues<typeof form>) => {
       const { start, end } = getStartEnd(period);
 
       return {
@@ -291,48 +344,34 @@ function DownloadUsage() {
     }),
     onSuccess(result, { period }) {
       const { start, end } = getStartEnd(period);
-      const filename = `snipkit-usage-${format(start, 'yyyy-MM')}-${format(end, 'yyyy-MM')}.csv`;
+      const filename = `khulnasoft-usage-${format(start, 'yyyy-MM')}-${format(end, 'yyyy-MM')}.csv`;
 
       downloadFileFromString(filename, result as string);
     },
   });
 
   return (
-    <>
-      <Button color="gray" onClick={() => openDialog('DownloadUsage')} className="self-start">
-        <T id="downloadUsage" />
-      </Button>
+    <form onSubmit={handleSubmit(form, mutation.mutateAsync)} className="col gap-4">
+      <ControlledSelect
+        control={form.control}
+        name="period"
+        items={getPeriods()}
+        placeholder="Select a period"
+        getKey={(date) => date.toISOString()}
+        itemToString={(date) => date.toString()}
+        getValue={(date) => date.toISOString()}
+        renderItem={(date) => <FormattedDate value={date} month="long" year="numeric" />}
+      />
 
-      <Dialog id="DownloadUsage" onClosed={() => form.reset()} className="col w-full max-w-lg gap-4">
-        <DialogHeader title={<T id="downloadUsageDialog.title" />} />
-
-        <div className="text-dim">
-          <T id="downloadUsageDialog.description" />
-        </div>
-
-        <form onSubmit={handleSubmit(form, mutation.mutateAsync)} className="col gap-4">
-          <ControlledSelect
-            control={form.control}
-            name="period"
-            items={getPeriods()}
-            placeholder="Select a period"
-            getKey={(date) => date.toISOString()}
-            itemToString={(date) => date.toString()}
-            itemToValue={(date) => date.toISOString()}
-            renderItem={(date) => <FormattedDate value={date} month="long" year="numeric" />}
-          />
-
-          <footer className="row justify-end gap-2">
-            <Button color="gray" variant="ghost" onClick={closeDialog}>
-              <Translate id="common.close" />
-            </Button>
-            <Button type="submit" loading={form.formState.isSubmitting}>
-              <T id="downloadUsageDialog.submit" />
-            </Button>
-          </footer>
-        </form>
-      </Dialog>
-    </>
+      <footer className="row justify-end gap-2">
+        <Button color="gray" variant="ghost" onClick={() => closeDialog()}>
+          <Translate id="common.close" />
+        </Button>
+        <Button type="submit" loading={form.formState.isSubmitting}>
+          <T id="downloadUsageDialog.submit" />
+        </Button>
+      </footer>
+    </form>
   );
 }
 

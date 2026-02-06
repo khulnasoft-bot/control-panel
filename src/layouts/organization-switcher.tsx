@@ -1,150 +1,149 @@
-import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
+import { Dropdown, Menu, MenuItem, Spinner, useDropdown } from '@design-system';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
+import { useCombobox } from 'downshift';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 
-import { Combobox, Spinner } from '@snipkit/design-system';
-import { useOrganization, useOrganizationUnsafe, useUser, useUserUnsafe } from 'src/api/hooks/session';
-import { mapOrganization } from 'src/api/mappers/session';
-import { Organization } from 'src/api/model';
-import { useApiMutationFn, useApiQueryFn } from 'src/api/use-api';
-import { routes } from 'src/application/routes';
-import { useToken } from 'src/application/token';
+import { apiQuery, useOrganization, useOrganizationsList, useSwitchOrganization, useUser } from 'src/api';
 import { SvgComponent } from 'src/application/types';
-import { IconCheck, IconChevronsUpDown, IconCirclePlus } from 'src/components/icons';
-import { Link } from 'src/components/link';
-import { GeneratedAvatar, OrganizationAvatar } from 'src/components/organization-avatar';
-import { TextSkeleton } from 'src/components/skeleton';
-import { useNavigate } from 'src/hooks/router';
-import { useSeon } from 'src/hooks/seon';
+import { LinkMenuItem } from 'src/components/dropdown-menu';
+import { OrganizationAvatar } from 'src/components/organization-avatar';
+import { IconCheck, IconChevronsUpDown, IconCirclePlus } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
+import { Organization } from 'src/model';
 
 const T = createTranslate('layouts.organizationSwitcher');
 
-export function OrganizationSwitcher(props: React.ComponentProps<typeof OrganizationSelectorCombobox>) {
-  const currentUser = useUserUnsafe();
-  const currentOrganization = useOrganizationUnsafe();
+const limit = 10;
 
-  if (currentUser === undefined || currentOrganization === undefined) {
-    return <Skeleton />;
-  }
-
-  return <OrganizationSelectorCombobox {...props} />;
-}
-
-type OrganizationSelectorComboboxProps = {
+type OrganizationSwitcherProps = {
   showCreateOrganization?: boolean;
+  dark?: boolean;
   className?: string;
 };
 
-function OrganizationSelectorCombobox({
-  showCreateOrganization,
-  className,
-}: OrganizationSelectorComboboxProps) {
+export function OrganizationSwitcher({ showCreateOrganization, dark, className }: OrganizationSwitcherProps) {
   const t = T.useTranslate();
   const currentOrganization = useOrganization();
 
   const [inputValue, setInputValue] = useState('');
-  const organizations = useOrganizationList(inputValue);
+  const organizations = useOrganizationsList({ search: inputValue, limit });
   const count = useOrganizationCount();
 
-  const switchOrganizationMutation = useSwitchOrganization(() => {
-    combobox.closeMenu();
+  const switchOrganizationMutation = useSwitchOrganization({
+    onSuccess: () => combobox.closeMenu(),
   });
 
-  const combobox = Combobox.useCombobox(
-    {
-      items: organizations,
+  const combobox = useCombobox({
+    items: organizations,
 
-      isItemDisabled: (item) => item.id === currentOrganization.id,
-      itemToString: (item) => item?.name ?? '',
+    itemToString: (organization) => organization?.name ?? '',
+    isItemDisabled: (item) => item.id === currentOrganization?.id,
 
-      inputValue,
-      onInputValueChange: ({ inputValue }) => {
-        setInputValue(inputValue);
-      },
-
-      selectedItem: null,
-      onSelectedItemChange: ({ selectedItem }) => {
-        if (selectedItem !== null) {
-          switchOrganizationMutation.mutate(selectedItem.id);
-        }
-      },
-
-      stateReducer: (state, { type, changes }) => {
-        switch (type) {
-          case Combobox.stateChangeTypes.InputClick:
-            return { ...changes, isOpen: state.isOpen };
-
-          case Combobox.stateChangeTypes.ItemClick:
-          case Combobox.stateChangeTypes.InputKeyDownEnter:
-            return { ...changes, inputValue: state.inputValue, isOpen: state.isOpen };
-
-          default:
-            return changes;
-        }
-      },
+    inputValue,
+    onInputValueChange({ inputValue }) {
+      setInputValue(inputValue);
     },
-    {
-      strategy: 'fixed',
+
+    selectedItem: null,
+    onSelectedItemChange({ selectedItem: organization }) {
+      if (organization) {
+        switchOrganizationMutation.mutate(organization.externalId);
+      }
     },
-  );
+
+    stateReducer: (state, { type, changes }) => {
+      switch (type) {
+        case useCombobox.stateChangeTypes.InputClick:
+          return { ...changes, isOpen: state.isOpen };
+
+        case useCombobox.stateChangeTypes.ItemClick:
+        case useCombobox.stateChangeTypes.InputKeyDownEnter:
+          return { ...changes, inputValue: state.inputValue, isOpen: state.isOpen };
+
+        default:
+          return changes;
+      }
+    },
+  });
+
+  const dropdown = useDropdown({
+    floating: { open: combobox.isOpen, strategy: 'fixed' },
+    matchReferenceSize: true,
+    flip: true,
+    offset: 8,
+  });
 
   const getItemIcon = (organization: Organization) => {
-    if (organization.id === currentOrganization.id) {
+    if (organization.id === currentOrganization?.id) {
       return IconCheck;
     }
 
-    if (switchOrganizationMutation.isPending && switchOrganizationMutation.variables === organization.id) {
+    if (
+      switchOrganizationMutation.isPending &&
+      switchOrganizationMutation.variables === organization.externalId
+    ) {
       return Spinner;
     }
   };
 
+  if (!currentOrganization) {
+    return;
+  }
+
   return (
-    <Combobox.Provider value={combobox}>
+    <>
       <button
-        {...combobox.getToggleButtonProps({ type: 'button' })}
-        ref={combobox.floating.refs.setReference}
-        className={clsx('rounded border px-2 py-1 text-start', className)}
+        {...combobox.getToggleButtonProps({ ref: dropdown.refs.setReference, type: 'button' })}
+        className={clsx('rounded-sm border px-2 py-1 text-start', className)}
       >
         <OrganizationItem organization={currentOrganization} Icon={IconChevronsUpDown} />
       </button>
 
-      <Combobox.Dropdown onTransitionCancel={() => setInputValue('')}>
-        <input
-          {...combobox.getInputProps()}
-          type="search"
-          placeholder={t('placeholder')}
-          className={clsx('max-w-full border-b bg-transparent px-3 py-1.5', { hidden: count <= 10 })}
-        />
+      {createPortal(
+        <Dropdown dropdown={dropdown} onClosed={() => setInputValue('')} className={clsx({ dark })}>
+          <input
+            {...combobox.getInputProps()}
+            type="search"
+            placeholder={t('placeholder')}
+            className={clsx('max-w-full border-b bg-transparent px-3 py-1.5 outline-none', {
+              hidden: count <= limit,
+            })}
+          />
 
-        <Combobox.Menu>
-          {organizations.map((organization) => (
-            <Combobox.MenuItem key={organization.id} item={organization} className="py-1.5">
-              <OrganizationItem organization={organization} Icon={getItemIcon(organization)} />
-            </Combobox.MenuItem>
-          ))}
-        </Combobox.Menu>
+          <Menu {...combobox.getMenuProps()} className="max-h-64 overflow-auto">
+            {organizations.map((organization, index) => (
+              <MenuItem
+                key={organization.id}
+                highlighted={index === combobox.highlightedIndex}
+                {...combobox.getItemProps({ item: organization, index })}
+              >
+                <OrganizationItem organization={organization} Icon={getItemIcon(organization)} />
+              </MenuItem>
+            ))}
+          </Menu>
 
-        <div className={clsx('px-3 py-1.5 text-xs text-dim', { hidden: count <= 10 })}>
-          <T id="filtered" values={{ count: organizations.length, total: count }} />
-        </div>
+          <div className={clsx('px-3 py-1.5 text-xs text-dim', { hidden: count <= limit })}>
+            <T id="filtered" values={{ count: organizations.length, total: count }} />
+          </div>
 
-        {showCreateOrganization && (
-          <>
-            <hr className="my-1" />
+          {showCreateOrganization && (
+            <>
+              <hr className="" />
 
-            <Link
-              href={routes.userSettings.organizations()}
-              state={{ create: true }}
-              className="row mb-1 w-full gap-2 px-2 py-1.5"
-            >
-              <IconCirclePlus className="size-5" />
-              <T id="createOrganization" />
-            </Link>
-          </>
-        )}
-      </Combobox.Dropdown>
-    </Combobox.Provider>
+              <Menu>
+                <LinkMenuItem to="/user/settings/organizations" state={{ create: true }} className="py-0.5!">
+                  <IconCirclePlus className="size-5" />
+                  <T id="createOrganization" />
+                </LinkMenuItem>
+              </Menu>
+            </>
+          )}
+        </Dropdown>,
+        document.getElementById('root') ?? document.body,
+      )}
+    </>
   );
 }
 
@@ -152,44 +151,13 @@ function useOrganizationCount() {
   const user = useUser();
 
   const { data } = useQuery({
-    ...useApiQueryFn('listOrganizationMembers', { query: { user_id: user?.id } }),
-    refetchInterval: false,
+    ...apiQuery('get /v1/organization_members', { query: { user_id: user?.id } }),
+    enabled: user !== undefined,
     placeholderData: keepPreviousData,
     select: ({ count }) => count,
   });
 
   return data ?? 0;
-}
-
-function useOrganizationList(search: string) {
-  const { data } = useQuery({
-    ...useApiQueryFn('listUserOrganizations', {
-      query: { search, limit: '10' },
-    }),
-    refetchInterval: false,
-    placeholderData: keepPreviousData,
-    select: ({ organizations }) => organizations!.map(mapOrganization),
-  });
-
-  return data ?? [];
-}
-
-function useSwitchOrganization(onSuccess?: () => void) {
-  const { setToken } = useToken();
-  const getSeonFingerprint = useSeon();
-  const navigate = useNavigate();
-
-  return useMutation({
-    ...useApiMutationFn('switchOrganization', async (organizationId: string) => ({
-      path: { id: organizationId },
-      header: { 'seon-fp': await getSeonFingerprint() },
-    })),
-    async onSuccess(result) {
-      setToken(result.token!.id!);
-      navigate(routes.home());
-      onSuccess?.();
-    },
-  });
 }
 
 type OrganizationItemProps = {
@@ -210,15 +178,5 @@ function OrganizationItem({ organization, Icon }: OrganizationItemProps) {
         </span>
       )}
     </div>
-  );
-}
-
-function Skeleton() {
-  return (
-    <button disabled type="button" className="row items-center gap-2 rounded-lg border px-3 py-1 text-start">
-      <GeneratedAvatar seed="" className="size-6 rounded-full" />
-      <TextSkeleton width={6} />
-      <IconChevronsUpDown className="ml-auto size-4 text-dim" />
-    </button>
   );
 }

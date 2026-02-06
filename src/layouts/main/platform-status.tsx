@@ -3,10 +3,10 @@ import clsx from 'clsx';
 import { useEffect } from 'react';
 import { z } from 'zod';
 
-import { Tooltip } from '@snipkit/design-system';
-import { reportError } from 'src/application/report-error';
-import { IconSquareArrowOutUpRight } from 'src/components/icons';
+import { reportError } from 'src/application/sentry';
 import { ExternalLink } from 'src/components/link';
+import { Tooltip } from 'src/components/tooltip';
+import { IconSquareArrowOutUpRight } from 'src/icons';
 import { createTranslate } from 'src/intl/translate';
 
 // cSpell:ignore hasissues undermaintenance degradedperformance partialoutage majoroutage
@@ -55,13 +55,11 @@ const colorMap: Record<Status, 'green' | 'orange' | 'red'> = {
   majorOutage: 'red',
 };
 
-const statusPageUrl = 'https://status.snipkit.com';
+const statusPageUrl = 'https://status.khulnasoft.com';
 
 export function PlatformStatus({ collapsed }: { collapsed: boolean }) {
   const query = useQuery({
     queryKey: ['instatus'],
-    meta: { showError: false },
-    throwOnError: false,
     async queryFn() {
       const response = await fetch(`${statusPageUrl}/summary.json`);
 
@@ -71,7 +69,12 @@ export function PlatformStatus({ collapsed }: { collapsed: boolean }) {
 
       return response.json() as Promise<unknown>;
     },
-    select: (result): [status: Status, message?: string] => {
+
+    refetchInterval: 60_000,
+    throwOnError: false,
+    meta: { showError: false },
+
+    select(result): [status: Status, message?: string] {
       const summary = schema.parse(result);
 
       if (summary.page.status === 'UP') {
@@ -84,7 +87,7 @@ export function PlatformStatus({ collapsed }: { collapsed: boolean }) {
 
       const incident = summary.activeIncidents?.[0];
 
-      if (summary.page.status === 'HASISSUES' && incident !== undefined) {
+      if (incident !== undefined) {
         return [statusMap[incident.impact], incident.name];
       }
 
@@ -110,7 +113,7 @@ export function PlatformStatus({ collapsed }: { collapsed: boolean }) {
       openInNewTab
       href={statusPageUrl}
       className={clsx(
-        'row mx-4 items-center gap-1',
+        'mx-4 row items-center gap-1',
         'rounded-md border px-2 py-1',
         'transition-colors hover:bg-muted/50',
         'text-start text-xs font-medium text-dim',
@@ -125,13 +128,15 @@ export function PlatformStatus({ collapsed }: { collapsed: boolean }) {
       />
 
       {!collapsed && (
-        <Tooltip allowHover content={message}>
-          {(props) => (
+        <Tooltip
+          allowHover
+          content={message}
+          trigger={(props) => (
             <span {...props}>
               <T id={status} />
             </span>
           )}
-        </Tooltip>
+        />
       )}
 
       {!collapsed && (

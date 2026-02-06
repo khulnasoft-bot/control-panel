@@ -1,11 +1,10 @@
+import { Alert } from '@design-system';
 import { useFormState } from 'react-hook-form';
 
-import { Alert } from '@snipkit/design-system';
-import { useInstance, useRegion } from 'src/api/hooks/catalog';
-import { useOrganization, useOrganizationSummary } from 'src/api/hooks/session';
-import { CatalogInstance, InstanceCategory } from 'src/api/model';
+import { useCatalogInstance, useCatalogRegion, useOrganization, useOrganizationSummary } from 'src/api';
 import { DocumentationLink } from 'src/components/documentation-link';
 import { createTranslate } from 'src/intl/translate';
+import { CatalogInstance, InstanceCategory } from 'src/model';
 
 import { ServiceForm } from '../../service-form.types';
 import { useWatchServiceForm } from '../../use-service-form';
@@ -13,11 +12,11 @@ import { useWatchServiceForm } from '../../use-service-form';
 const T = createTranslate('modules.serviceForm.instance.alerts');
 
 export function InstanceAlerts({ selectedCategory }: { selectedCategory: InstanceCategory }) {
-  const { plan } = useOrganization();
+  const organization = useOrganization();
 
   const hasVolumes = useWatchServiceForm('volumes').filter((volume) => volume.name !== '').length > 0;
-  const instance = useInstance(useWatchServiceForm('instance'));
-  const previousInstance = useInstance(useWatchServiceForm('meta.previousInstance'));
+  const instance = useCatalogInstance(useWatchServiceForm('instance'));
+  const previousInstance = useCatalogInstance(useWatchServiceForm('meta.previousInstance'));
 
   if (hasVolumes && selectedCategory === 'eco') {
     return (
@@ -32,7 +31,7 @@ export function InstanceAlerts({ selectedCategory }: { selectedCategory: Instanc
 
   if (hasVolumes && previousInstance) {
     const documentationLink = (children: React.ReactNode) => (
-      <DocumentationLink path="/docs/reference/volumes" className="!text-default underline">
+      <DocumentationLink path="/docs/reference/volumes" className="text-default! underline">
         {children}
       </DocumentationLink>
     );
@@ -60,7 +59,7 @@ export function InstanceAlerts({ selectedCategory }: { selectedCategory: Instanc
     }
   }
 
-  if (plan === 'hobby') {
+  if (organization?.plan === 'hobby') {
     return <HobbyPlanAlerts instance={instance} />;
   }
 
@@ -68,16 +67,16 @@ export function InstanceAlerts({ selectedCategory }: { selectedCategory: Instanc
 }
 
 function HobbyPlanAlerts({ instance }: { instance?: CatalogInstance }) {
-  const free = useInstance('free')?.displayName;
+  const free = useCatalogInstance('free')?.displayName;
 
-  const previousInstance = useInstance(useWatchServiceForm('meta.previousInstance'));
+  const previousInstance = useCatalogInstance(useWatchServiceForm('meta.previousInstance'));
   const summary = useOrganizationSummary();
 
   const { errors } = useFormState<ServiceForm>();
   const error = errors.instance?.message;
 
   const organization = useOrganization();
-  const requireUpgrade = instance?.plans !== undefined && !instance.plans.includes(organization.plan);
+  const requireUpgrade = instance?.plans !== undefined && !instance.plans.includes(organization?.plan ?? '');
 
   if (requireUpgrade) {
     return (
@@ -95,7 +94,7 @@ function HobbyPlanAlerts({ instance }: { instance?: CatalogInstance }) {
     );
   }
 
-  if (summary?.freeInstanceUsed && previousInstance && previousInstance.id !== 'free') {
+  if (summary.freeInstanceUsed && previousInstance && previousInstance.id !== 'free') {
     return (
       <Alert
         variant="error"
@@ -130,11 +129,11 @@ function HobbyPlanAlerts({ instance }: { instance?: CatalogInstance }) {
 }
 
 function PaidPlanAlerts({ instance }: { instance?: CatalogInstance }) {
-  const fra = useRegion('fra')?.name;
-  const sin = useRegion('sin')?.name;
-  const was = useRegion('was')?.name;
+  const fra = useCatalogRegion('fra')?.name;
+  const sin = useCatalogRegion('sin')?.name;
+  const was = useCatalogRegion('was')?.name;
 
-  const free = useInstance('free')?.displayName;
+  const free = useCatalogInstance('free')?.displayName;
 
   const selectedRegions = useWatchServiceForm('regions');
   const onlyEcoRegionSelected = selectedRegions.every((region) =>
@@ -163,7 +162,7 @@ function PaidPlanAlerts({ instance }: { instance?: CatalogInstance }) {
     }
   }
 
-  if (sinSelected && !summary?.freeInstanceUsed && instance?.category === 'eco') {
+  if (sinSelected && !summary.freeInstanceUsed && instance?.category === 'eco') {
     return (
       <Alert
         variant="info"
